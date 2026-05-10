@@ -12,14 +12,15 @@ export function CmsTopbar({ title, subtitle, action }: { title: string; subtitle
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-2 h-9 w-72 rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("cms:open-palette"))}
+          className="hidden md:flex items-center gap-2 h-9 w-72 rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-foreground hover:bg-surface transition text-left"
+        >
           <Search className="w-4 h-4" />
-          <input
-            placeholder="Tìm bài, agent, người dùng…"
-            className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-          />
+          <span className="flex-1 truncate">Tìm bài, agent, người dùng…</span>
           <kbd className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5">⌘K</kbd>
-        </div>
+        </button>
 
         {action ?? (
           <button className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition shadow-soft">

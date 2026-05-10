@@ -1,25 +1,154 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { CmsTopbar } from "@/components/cms/Topbar";
 import { Card, CardHeader, PageContainer } from "@/components/cms/ui";
-import { Eye, Edit3, Image as ImageIcon, Type, Layout, Sparkles, History } from "lucide-react";
+import { InlineEdit } from "@/components/cms/InlineEdit";
+import { StickySaveBar } from "@/components/cms/StickySaveBar";
+import {
+  Eye, History, Sparkles, Layout, GripVertical, ChevronRight,
+  Smartphone, Monitor, Plus, Type, ExternalLink,
+} from "lucide-react";
 
 export const Route = createFileRoute("/landing")({
   head: () => ({ meta: [{ title: "Landing Page — THG Content OS" }] }),
   component: LandingPage,
 });
 
-const SECTIONS = [
-  { id: "hero", icon: Sparkles, title: "Hero Section", desc: "Tiêu đề chính, sub-headline, CTA, ảnh nền", fields: 6, lastEdit: "2 giờ trước", status: "review" },
-  { id: "trust", icon: Layout, title: "Trust Bar", desc: "Logo khách hàng, số liệu nổi bật", fields: 8, lastEdit: "1 tuần trước", status: "live" },
-  { id: "services", icon: Layout, title: "Services Grid", desc: "Card dịch vụ + icon + mô tả ngắn", fields: 12, lastEdit: "3 ngày trước", status: "live" },
-  { id: "process", icon: Layout, title: "How It Works", desc: "4 bước quy trình fulfillment", fields: 16, lastEdit: "2 tuần trước", status: "live" },
-  { id: "pricing", icon: Layout, title: "Pricing Preview", desc: "Bảng giá rút gọn với 3 plan", fields: 9, lastEdit: "5 giờ trước", status: "review" },
-  { id: "testimonials", icon: Layout, title: "Testimonials", desc: "Carousel review từ khách hàng", fields: 15, lastEdit: "1 tháng trước", status: "live" },
-  { id: "faq", icon: Layout, title: "FAQ Preview", desc: "5 câu hỏi thường gặp", fields: 10, lastEdit: "2 tuần trước", status: "live" },
-  { id: "cta", icon: Layout, title: "Final CTA", desc: "Section đăng ký nhận quote", fields: 4, lastEdit: "1 tháng trước", status: "live" },
+type Field = { key: string; label: string; value: string; multiline?: boolean };
+type Section = {
+  id: string;
+  title: string;
+  desc: string;
+  status: "live" | "review" | "draft";
+  lastEdit: string;
+  fields: Field[];
+};
+
+const INITIAL: Section[] = [
+  {
+    id: "hero", title: "Hero Section", desc: "Tiêu đề, sub-headline, CTA, ảnh nền", status: "review", lastEdit: "2 giờ trước",
+    fields: [
+      { key: "eyebrow", label: "Eyebrow", value: "Fulfill từ Việt Nam đi toàn cầu" },
+      { key: "title", label: "Headline (H1)", value: "POD & Dropship fulfillment cho seller TikTok Shop, Shopify, Amazon" },
+      { key: "sub", label: "Sub-headline", value: "Air freight VN/CN → US 5–8 ngày, kho US domestic từ $1.20/order, tracking real-time.", multiline: true },
+      { key: "cta1", label: "CTA chính", value: "Nhận báo giá miễn phí" },
+      { key: "cta2", label: "CTA phụ", value: "Xem dịch vụ" },
+      { key: "media", label: "Ảnh nền (URL)", value: "/assets/hero-world-map.jpg" },
+    ],
+  },
+  {
+    id: "trust", title: "Trust Bar", desc: "Logo khách hàng, số liệu nổi bật", status: "live", lastEdit: "1 tuần trước",
+    fields: [
+      { key: "stat1", label: "Số liệu 1", value: "500K+ đơn / tháng" },
+      { key: "stat2", label: "Số liệu 2", value: "98.7% on-time" },
+      { key: "stat3", label: "Số liệu 3", value: "4 kho US + VN + CN" },
+      { key: "stat4", label: "Số liệu 4", value: "1500+ seller tin dùng" },
+    ],
+  },
+  {
+    id: "services", title: "Services Grid", desc: "3 card dịch vụ chính + icon", status: "live", lastEdit: "3 ngày trước",
+    fields: [
+      { key: "title", label: "Tiêu đề section", value: "Hệ sinh thái fulfillment khép kín" },
+      { key: "sub", label: "Mô tả", value: "Từ in ấn POD, vận chuyển quốc tế đến kho US — bạn chỉ cần lo bán hàng.", multiline: true },
+    ],
+  },
+  {
+    id: "process", title: "How It Works", desc: "4 bước quy trình", status: "live", lastEdit: "2 tuần trước",
+    fields: [
+      { key: "step1", label: "Bước 1", value: "Đơn hàng đổ về qua API" },
+      { key: "step2", label: "Bước 2", value: "Pick-pack tại kho gần nhất" },
+      { key: "step3", label: "Bước 3", value: "Ship đi — tracking đồng bộ" },
+      { key: "step4", label: "Bước 4", value: "Báo cáo chi phí real-time" },
+    ],
+  },
+  {
+    id: "marketplaces", title: "Marketplace Logos", desc: "Bar logo Shopify, TikTok, Amazon…", status: "live", lastEdit: "5 ngày trước",
+    fields: [{ key: "title", label: "Tiêu đề", value: "Tích hợp sẵn các nền tảng bạn đang bán" }],
+  },
+  {
+    id: "testimonials", title: "Testimonials", desc: "Carousel 6 review khách", status: "live", lastEdit: "1 tháng trước",
+    fields: [
+      { key: "title", label: "Tiêu đề", value: "Hàng nghìn seller đã chọn THG" },
+      { key: "sub", label: "Phụ đề", value: "Câu chuyện thật từ POD seller US, EU, UK." },
+    ],
+  },
+  {
+    id: "faq", title: "FAQ Preview", desc: "5 câu hỏi thường gặp nổi bật", status: "live", lastEdit: "2 tuần trước",
+    fields: [{ key: "title", label: "Tiêu đề", value: "Câu hỏi thường gặp" }],
+  },
+  {
+    id: "cta", title: "Final CTA", desc: "Section đăng ký nhận quote", status: "live", lastEdit: "1 tháng trước",
+    fields: [
+      { key: "title", label: "Tiêu đề", value: "Sẵn sàng scale đơn hàng quốc tế?" },
+      { key: "sub", label: "Mô tả", value: "Đội sales tư vấn miễn phí trong 15 phút." },
+      { key: "cta", label: "Nút CTA", value: "Đặt lịch tư vấn" },
+    ],
+  },
 ];
 
-export default function LandingPage() {
+function StatusPill({ status }: { status: Section["status"] }) {
+  const map = {
+    live: "bg-success/10 text-success-foreground border-success/30",
+    review: "bg-warning/10 text-warning-foreground border-warning/30",
+    draft: "bg-muted text-muted-foreground border-border",
+  } as const;
+  const label = { live: "Đang live", review: "Chờ duyệt", draft: "Bản nháp" }[status];
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${map[status]}`}>
+      {label}
+    </span>
+  );
+}
+
+function LandingPage() {
+  const [sections, setSections] = useState<Section[]>(INITIAL);
+  const [activeId, setActiveId] = useState<string>(INITIAL[0].id);
+  const [dirty, setDirty] = useState<Record<string, true>>({});
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [saving, setSaving] = useState(false);
+
+  const active = useMemo(() => sections.find((s) => s.id === activeId)!, [sections, activeId]);
+  const dirtyCount = Object.keys(dirty).length;
+
+  const updateField = (sectionId: string, key: string, value: string) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId ? { ...s, fields: s.fields.map((f) => (f.key === key ? { ...f, value } : f)) } : s,
+      ),
+    );
+    setDirty((d) => ({ ...d, [`${sectionId}.${key}`]: true }));
+  };
+
+  const onSave = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      setDirty({});
+      setSections((prev) => prev.map((s) => (Object.keys(dirty).some((k) => k.startsWith(s.id + ".")) ? { ...s, status: "review", lastEdit: "vừa xong" } : s)));
+      toast.success("Đã lưu bản nháp", { description: `${dirtyCount} thay đổi đã chuyển sang trạng thái chờ duyệt.` });
+    }, 600);
+  };
+
+  const onDiscard = () => {
+    setSections(INITIAL);
+    setDirty({});
+    toast.info("Đã huỷ thay đổi");
+  };
+
+  const onPublish = () => {
+    if (dirtyCount > 0) {
+      toast.warning("Còn thay đổi chưa lưu", { description: "Hãy lưu bản nháp trước khi publish." });
+      return;
+    }
+    toast.success("Đã publish landing page v3.3", { description: "Thay đổi đã go-live trên thgfulfill.com" });
+    setSections((prev) => prev.map((s) => ({ ...s, status: "live" as const })));
+  };
+
+  const heroTitle = sections.find((s) => s.id === "hero")?.fields.find((f) => f.key === "title")?.value ?? "";
+  const heroSub = sections.find((s) => s.id === "hero")?.fields.find((f) => f.key === "sub")?.value ?? "";
+  const heroCta = sections.find((s) => s.id === "hero")?.fields.find((f) => f.key === "cta1")?.value ?? "";
+
   return (
     <>
       <CmsTopbar
@@ -30,97 +159,187 @@ export default function LandingPage() {
             <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition">
               <History className="w-4 h-4" /> Lịch sử
             </button>
-            <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition">
-              <Eye className="w-4 h-4" /> Xem trước
-            </button>
-            <button className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition">
+            <a
+              href="https://www.thgfulfill.com"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition"
+            >
+              <ExternalLink className="w-4 h-4" /> Mở site
+            </a>
+            <button
+              onClick={onPublish}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition"
+            >
               Publish thay đổi
             </button>
           </div>
         }
       />
       <PageContainer>
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-3">
-            <div className="flex items-center justify-between mb-1">
+        <div className="grid lg:grid-cols-[280px_1fr_400px] gap-6">
+          {/* Sections list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1 mb-1">
               <div>
                 <div className="text-sm font-semibold">Cấu trúc trang</div>
-                <div className="text-xs text-muted-foreground">8 section · click để chỉnh từng phần</div>
+                <div className="text-[11px] text-muted-foreground">{sections.length} section</div>
               </div>
-              <div className="text-[11px] text-muted-foreground">v3.2 · cập nhật 2 giờ trước</div>
+              <button
+                onClick={() => toast.info("Mock: thêm section mới")}
+                className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface hover:bg-surface-muted text-muted-foreground hover:text-foreground transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
             </div>
-
-            {SECTIONS.map((s, i) => (
-              <Card key={s.id} className="p-4 hover:shadow-elevated hover:border-primary/30 transition cursor-pointer group">
-                <div className="flex items-center gap-4">
-                  <div className="text-[11px] font-mono text-muted-foreground w-6 text-center">{String(i + 1).padStart(2, "0")}</div>
-                  <div className="grid place-items-center w-10 h-10 rounded-lg bg-primary-soft text-primary">
-                    <s.icon className="w-5 h-5" />
-                  </div>
+            {sections.map((s, i) => {
+              const isActive = s.id === activeId;
+              const isDirty = Object.keys(dirty).some((k) => k.startsWith(s.id + "."));
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveId(s.id)}
+                  className={[
+                    "w-full text-left rounded-lg border px-3 py-2.5 transition flex items-center gap-2.5 group",
+                    isActive
+                      ? "border-primary/40 bg-primary-soft shadow-soft"
+                      : "border-border bg-card hover:border-primary/20 hover:bg-surface-muted",
+                  ].join(" ")}
+                >
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                  <div className="text-[10px] font-mono text-muted-foreground w-5">{String(i + 1).padStart(2, "0")}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-sm">{s.title}</div>
-                      {s.status === "review" && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/10 text-warning-foreground border border-warning/30">
-                          có thay đổi chờ duyệt
-                        </span>
-                      )}
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-sm font-medium truncate">{s.title}</div>
+                      {isDirty && <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{s.desc}</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <StatusPill status={s.status} />
+                      <span className="text-[10px] text-muted-foreground truncate">{s.lastEdit}</span>
+                    </div>
                   </div>
-                  <div className="hidden md:flex flex-col items-end gap-0.5 text-[11px] text-muted-foreground">
-                    <span>{s.fields} fields</span>
-                    <span>{s.lastEdit}</span>
-                  </div>
-                  <button className="grid place-items-center w-8 h-8 rounded-md border border-border bg-surface text-muted-foreground group-hover:text-foreground group-hover:border-primary transition">
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </Card>
-            ))}
+                  <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition ${isActive ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`} />
+                </button>
+              );
+            })}
           </div>
 
+          {/* Editor */}
+          <div className="min-w-0">
+            <Card>
+              <CardHeader
+                title={active.title}
+                hint={active.desc}
+                action={<StatusPill status={active.status} />}
+              />
+              <div className="p-5 space-y-4">
+                {active.fields.map((f) => (
+                  <div key={f.key} className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      <Type className="w-3 h-3" /> {f.label}
+                    </label>
+                    <div className="rounded-lg border border-border bg-surface px-3 py-2 hover:border-primary/30 transition">
+                      <InlineEdit
+                        value={f.value}
+                        multiline={f.multiline}
+                        onChange={(v) => updateField(active.id, f.key, v)}
+                      />
+                    </div>
+                    {f.key === "title" && (
+                      <div className="text-[10px] text-muted-foreground flex justify-between">
+                        <span>Gợi ý: H1 nên dưới 70 ký tự cho SEO</span>
+                        <span className={f.value.length > 70 ? "text-destructive" : "text-success-foreground"}>
+                          {f.value.length} ký tự
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border bg-surface-muted/40 rounded-b-xl">
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  Thay đổi sẽ tạo bản nháp chờ duyệt — không go-live ngay.
+                </div>
+                <button
+                  onClick={() => toast.success("AI đã đề xuất bản viết lại", { description: "Mở tab gợi ý để xem" })}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-surface text-xs font-medium hover:bg-background transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary" /> Nhờ AI viết lại
+                </button>
+              </div>
+            </Card>
+
+            <StickySaveBar count={dirtyCount} onSave={onSave} onDiscard={onDiscard} saving={saving} />
+          </div>
+
+          {/* Preview */}
           <div className="space-y-4">
             <Card>
-              <CardHeader title="Xem trước" hint="Live preview thgfulfill.com" />
-              <div className="p-4">
-                <div className="aspect-[9/16] rounded-lg border border-border bg-gradient-soft overflow-hidden relative">
-                  <div className="absolute inset-x-0 top-0 h-8 bg-white/70 backdrop-blur border-b border-border flex items-center px-3 gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-destructive/50" />
-                    <div className="w-2 h-2 rounded-full bg-warning/50" />
-                    <div className="w-2 h-2 rounded-full bg-success/50" />
-                    <div className="ml-3 text-[10px] text-muted-foreground">thgfulfill.com</div>
+              <CardHeader
+                title="Live preview"
+                hint="Cập nhật theo từng phím gõ"
+                action={
+                  <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-0.5">
+                    <button
+                      onClick={() => setDevice("desktop")}
+                      className={`grid place-items-center w-7 h-7 rounded ${device === "desktop" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setDevice("mobile")}
+                      className={`grid place-items-center w-7 h-7 rounded ${device === "mobile" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="absolute inset-x-0 top-8 bottom-0 p-4 flex flex-col gap-2">
-                    <div className="h-3 w-3/4 rounded bg-foreground/80" />
-                    <div className="h-2 w-full rounded bg-muted-foreground/30" />
-                    <div className="h-2 w-5/6 rounded bg-muted-foreground/30" />
-                    <div className="mt-2 h-7 w-24 rounded-md bg-gradient-brand" />
-                    <div className="mt-4 grid grid-cols-2 gap-1.5">
-                      <div className="aspect-video rounded bg-white/70" />
-                      <div className="aspect-video rounded bg-white/70" />
-                      <div className="aspect-video rounded bg-white/70" />
-                      <div className="aspect-video rounded bg-white/70" />
+                }
+              />
+              <div className="p-4">
+                <div
+                  className={`mx-auto rounded-lg border border-border bg-gradient-soft overflow-hidden relative transition-all ${
+                    device === "mobile" ? "w-[240px] aspect-[9/16]" : "w-full aspect-[4/3]"
+                  }`}
+                >
+                  <div className="absolute inset-x-0 top-0 h-7 bg-white/70 backdrop-blur border-b border-border flex items-center px-2.5 gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-destructive/50" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-warning/50" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-success/50" />
+                    <div className="ml-2 text-[9px] text-muted-foreground">thgfulfill.com</div>
+                  </div>
+                  <div className="absolute inset-x-0 top-7 bottom-0 p-3 overflow-hidden">
+                    <div className="text-[11px] font-bold leading-tight text-foreground line-clamp-3">{heroTitle}</div>
+                    <div className="text-[9px] text-muted-foreground mt-1 line-clamp-3">{heroSub}</div>
+                    <div className="mt-2 inline-block px-2 py-0.5 rounded-md bg-gradient-brand text-white text-[9px] font-semibold">
+                      {heroCta}
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-1">
+                      <div className="aspect-square rounded bg-white/70 grid place-items-center text-[8px] text-muted-foreground">Fulfill</div>
+                      <div className="aspect-square rounded bg-white/70 grid place-items-center text-[8px] text-muted-foreground">Express</div>
+                      <div className="aspect-square rounded bg-white/70 grid place-items-center text-[8px] text-muted-foreground">Warehouse</div>
                     </div>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Render mock</span>
-                  <button className="text-primary hover:underline font-medium">Mở full preview ↗</button>
+                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Mock render</span>
+                  <a href="https://www.thgfulfill.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">
+                    Mở full preview ↗
+                  </a>
                 </div>
               </div>
             </Card>
 
             <Card className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Type className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-2 mb-3">
+                <Layout className="w-4 h-4 text-primary" />
                 <div className="text-sm font-semibold">SEO & Meta</div>
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between"><span className="text-muted-foreground">Title</span><span className="font-medium">62 ký tự ✓</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Description</span><span className="font-medium">148 ký tự ✓</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">OG Image</span><span className="font-medium text-success">Đã có</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">JSON-LD</span><span className="font-medium text-success">Hợp lệ</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">OG Image</span><span className="font-medium text-success-foreground">Đã có</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">JSON-LD</span><span className="font-medium text-success-foreground">Hợp lệ</span></div>
               </div>
             </Card>
           </div>
