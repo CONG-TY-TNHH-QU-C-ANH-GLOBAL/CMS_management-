@@ -9,8 +9,98 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
+import { Route as TelegramRouteImport } from './routes/telegram'
+import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as ServicesRouteImport } from './routes/services'
+import { Route as ReviewsRouteImport } from './routes/reviews'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as MediaRouteImport } from './routes/media'
+import { Route as LandingRouteImport } from './routes/landing'
+import { Route as HistoryRouteImport } from './routes/history'
+import { Route as FaqsRouteImport } from './routes/faqs'
+import { Route as ChangeRequestsRouteImport } from './routes/change-requests'
+import { Route as BlogsRouteImport } from './routes/blogs'
+import { Route as AuditRouteImport } from './routes/audit'
+import { Route as AgentJobsRouteImport } from './routes/agent-jobs'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramRoute = TelegramRouteImport.update({
+  id: '/telegram',
+  path: '/telegram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewsRoute = ReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliciesRoute = PoliciesRouteImport.update({
+  id: '/policies',
+  path: '/policies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaRoute = MediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqsRoute = FaqsRouteImport.update({
+  id: '/faqs',
+  path: '/faqs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangeRequestsRoute = ChangeRequestsRouteImport.update({
+  id: '/change-requests',
+  path: '/change-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogsRoute = BlogsRouteImport.update({
+  id: '/blogs',
+  path: '/blogs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentJobsRoute = AgentJobsRouteImport.update({
+  id: '/agent-jobs',
+  path: '/agent-jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +109,242 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent-jobs': typeof AgentJobsRoute
+  '/audit': typeof AuditRoute
+  '/blogs': typeof BlogsRoute
+  '/change-requests': typeof ChangeRequestsRoute
+  '/faqs': typeof FaqsRoute
+  '/history': typeof HistoryRoute
+  '/landing': typeof LandingRoute
+  '/media': typeof MediaRoute
+  '/policies': typeof PoliciesRoute
+  '/pricing': typeof PricingRoute
+  '/reviews': typeof ReviewsRoute
+  '/services': typeof ServicesRoute
+  '/sources': typeof SourcesRoute
+  '/telegram': typeof TelegramRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent-jobs': typeof AgentJobsRoute
+  '/audit': typeof AuditRoute
+  '/blogs': typeof BlogsRoute
+  '/change-requests': typeof ChangeRequestsRoute
+  '/faqs': typeof FaqsRoute
+  '/history': typeof HistoryRoute
+  '/landing': typeof LandingRoute
+  '/media': typeof MediaRoute
+  '/policies': typeof PoliciesRoute
+  '/pricing': typeof PricingRoute
+  '/reviews': typeof ReviewsRoute
+  '/services': typeof ServicesRoute
+  '/sources': typeof SourcesRoute
+  '/telegram': typeof TelegramRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent-jobs': typeof AgentJobsRoute
+  '/audit': typeof AuditRoute
+  '/blogs': typeof BlogsRoute
+  '/change-requests': typeof ChangeRequestsRoute
+  '/faqs': typeof FaqsRoute
+  '/history': typeof HistoryRoute
+  '/landing': typeof LandingRoute
+  '/media': typeof MediaRoute
+  '/policies': typeof PoliciesRoute
+  '/pricing': typeof PricingRoute
+  '/reviews': typeof ReviewsRoute
+  '/services': typeof ServicesRoute
+  '/sources': typeof SourcesRoute
+  '/telegram': typeof TelegramRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/agent-jobs'
+    | '/audit'
+    | '/blogs'
+    | '/change-requests'
+    | '/faqs'
+    | '/history'
+    | '/landing'
+    | '/media'
+    | '/policies'
+    | '/pricing'
+    | '/reviews'
+    | '/services'
+    | '/sources'
+    | '/telegram'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/agent-jobs'
+    | '/audit'
+    | '/blogs'
+    | '/change-requests'
+    | '/faqs'
+    | '/history'
+    | '/landing'
+    | '/media'
+    | '/policies'
+    | '/pricing'
+    | '/reviews'
+    | '/services'
+    | '/sources'
+    | '/telegram'
+    | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/agent-jobs'
+    | '/audit'
+    | '/blogs'
+    | '/change-requests'
+    | '/faqs'
+    | '/history'
+    | '/landing'
+    | '/media'
+    | '/policies'
+    | '/pricing'
+    | '/reviews'
+    | '/services'
+    | '/sources'
+    | '/telegram'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentJobsRoute: typeof AgentJobsRoute
+  AuditRoute: typeof AuditRoute
+  BlogsRoute: typeof BlogsRoute
+  ChangeRequestsRoute: typeof ChangeRequestsRoute
+  FaqsRoute: typeof FaqsRoute
+  HistoryRoute: typeof HistoryRoute
+  LandingRoute: typeof LandingRoute
+  MediaRoute: typeof MediaRoute
+  PoliciesRoute: typeof PoliciesRoute
+  PricingRoute: typeof PricingRoute
+  ReviewsRoute: typeof ReviewsRoute
+  ServicesRoute: typeof ServicesRoute
+  SourcesRoute: typeof SourcesRoute
+  TelegramRoute: typeof TelegramRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram': {
+      id: '/telegram'
+      path: '/telegram'
+      fullPath: '/telegram'
+      preLoaderRoute: typeof TelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reviews': {
+      id: '/reviews'
+      path: '/reviews'
+      fullPath: '/reviews'
+      preLoaderRoute: typeof ReviewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/policies': {
+      id: '/policies'
+      path: '/policies'
+      fullPath: '/policies'
+      preLoaderRoute: typeof PoliciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media': {
+      id: '/media'
+      path: '/media'
+      fullPath: '/media'
+      preLoaderRoute: typeof MediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faqs': {
+      id: '/faqs'
+      path: '/faqs'
+      fullPath: '/faqs'
+      preLoaderRoute: typeof FaqsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-requests': {
+      id: '/change-requests'
+      path: '/change-requests'
+      fullPath: '/change-requests'
+      preLoaderRoute: typeof ChangeRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blogs': {
+      id: '/blogs'
+      path: '/blogs'
+      fullPath: '/blogs'
+      preLoaderRoute: typeof BlogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent-jobs': {
+      id: '/agent-jobs'
+      path: '/agent-jobs'
+      fullPath: '/agent-jobs'
+      preLoaderRoute: typeof AgentJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +357,21 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentJobsRoute: AgentJobsRoute,
+  AuditRoute: AuditRoute,
+  BlogsRoute: BlogsRoute,
+  ChangeRequestsRoute: ChangeRequestsRoute,
+  FaqsRoute: FaqsRoute,
+  HistoryRoute: HistoryRoute,
+  LandingRoute: LandingRoute,
+  MediaRoute: MediaRoute,
+  PoliciesRoute: PoliciesRoute,
+  PricingRoute: PricingRoute,
+  ReviewsRoute: ReviewsRoute,
+  ServicesRoute: ServicesRoute,
+  SourcesRoute: SourcesRoute,
+  TelegramRoute: TelegramRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
