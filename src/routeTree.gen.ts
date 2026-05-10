@@ -25,6 +25,11 @@ import { Route as BlogsRouteImport } from './routes/blogs'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AgentJobsRouteImport } from './routes/agent-jobs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ServicesIndexRouteImport } from './routes/services.index'
+import { Route as PricingIndexRouteImport } from './routes/pricing.index'
+import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
+import { Route as PricingUsRouteImport } from './routes/pricing.us'
+import { Route as PricingHistoryRouteImport } from './routes/pricing.history'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -106,6 +111,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServicesIndexRoute = ServicesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ServicesRoute,
+} as any)
+const PricingIndexRoute = PricingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PricingRoute,
+} as any)
+const ServicesServiceIdRoute = ServicesServiceIdRouteImport.update({
+  id: '/$serviceId',
+  path: '/$serviceId',
+  getParentRoute: () => ServicesRoute,
+} as any)
+const PricingUsRoute = PricingUsRouteImport.update({
+  id: '/us',
+  path: '/us',
+  getParentRoute: () => PricingRoute,
+} as any)
+const PricingHistoryRoute = PricingHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => PricingRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -118,12 +148,17 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
-  '/pricing': typeof PricingRoute
+  '/pricing': typeof PricingRouteWithChildren
   '/reviews': typeof ReviewsRoute
-  '/services': typeof ServicesRoute
+  '/services': typeof ServicesRouteWithChildren
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
   '/users': typeof UsersRoute
+  '/pricing/history': typeof PricingHistoryRoute
+  '/pricing/us': typeof PricingUsRoute
+  '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/pricing/': typeof PricingIndexRoute
+  '/services/': typeof ServicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -136,12 +171,15 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
-  '/pricing': typeof PricingRoute
   '/reviews': typeof ReviewsRoute
-  '/services': typeof ServicesRoute
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
   '/users': typeof UsersRoute
+  '/pricing/history': typeof PricingHistoryRoute
+  '/pricing/us': typeof PricingUsRoute
+  '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/pricing': typeof PricingIndexRoute
+  '/services': typeof ServicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -155,12 +193,17 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
-  '/pricing': typeof PricingRoute
+  '/pricing': typeof PricingRouteWithChildren
   '/reviews': typeof ReviewsRoute
-  '/services': typeof ServicesRoute
+  '/services': typeof ServicesRouteWithChildren
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
   '/users': typeof UsersRoute
+  '/pricing/history': typeof PricingHistoryRoute
+  '/pricing/us': typeof PricingUsRoute
+  '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/pricing/': typeof PricingIndexRoute
+  '/services/': typeof ServicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +224,11 @@ export interface FileRouteTypes {
     | '/sources'
     | '/telegram'
     | '/users'
+    | '/pricing/history'
+    | '/pricing/us'
+    | '/services/$serviceId'
+    | '/pricing/'
+    | '/services/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -193,12 +241,15 @@ export interface FileRouteTypes {
     | '/landing'
     | '/media'
     | '/policies'
-    | '/pricing'
     | '/reviews'
-    | '/services'
     | '/sources'
     | '/telegram'
     | '/users'
+    | '/pricing/history'
+    | '/pricing/us'
+    | '/services/$serviceId'
+    | '/pricing'
+    | '/services'
   id:
     | '__root__'
     | '/'
@@ -217,6 +268,11 @@ export interface FileRouteTypes {
     | '/sources'
     | '/telegram'
     | '/users'
+    | '/pricing/history'
+    | '/pricing/us'
+    | '/services/$serviceId'
+    | '/pricing/'
+    | '/services/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -230,9 +286,9 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   MediaRoute: typeof MediaRoute
   PoliciesRoute: typeof PoliciesRoute
-  PricingRoute: typeof PricingRoute
+  PricingRoute: typeof PricingRouteWithChildren
   ReviewsRoute: typeof ReviewsRoute
-  ServicesRoute: typeof ServicesRoute
+  ServicesRoute: typeof ServicesRouteWithChildren
   SourcesRoute: typeof SourcesRoute
   TelegramRoute: typeof TelegramRoute
   UsersRoute: typeof UsersRoute
@@ -352,8 +408,72 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/services/': {
+      id: '/services/'
+      path: '/'
+      fullPath: '/services/'
+      preLoaderRoute: typeof ServicesIndexRouteImport
+      parentRoute: typeof ServicesRoute
+    }
+    '/pricing/': {
+      id: '/pricing/'
+      path: '/'
+      fullPath: '/pricing/'
+      preLoaderRoute: typeof PricingIndexRouteImport
+      parentRoute: typeof PricingRoute
+    }
+    '/services/$serviceId': {
+      id: '/services/$serviceId'
+      path: '/$serviceId'
+      fullPath: '/services/$serviceId'
+      preLoaderRoute: typeof ServicesServiceIdRouteImport
+      parentRoute: typeof ServicesRoute
+    }
+    '/pricing/us': {
+      id: '/pricing/us'
+      path: '/us'
+      fullPath: '/pricing/us'
+      preLoaderRoute: typeof PricingUsRouteImport
+      parentRoute: typeof PricingRoute
+    }
+    '/pricing/history': {
+      id: '/pricing/history'
+      path: '/history'
+      fullPath: '/pricing/history'
+      preLoaderRoute: typeof PricingHistoryRouteImport
+      parentRoute: typeof PricingRoute
+    }
   }
 }
+
+interface PricingRouteChildren {
+  PricingHistoryRoute: typeof PricingHistoryRoute
+  PricingUsRoute: typeof PricingUsRoute
+  PricingIndexRoute: typeof PricingIndexRoute
+}
+
+const PricingRouteChildren: PricingRouteChildren = {
+  PricingHistoryRoute: PricingHistoryRoute,
+  PricingUsRoute: PricingUsRoute,
+  PricingIndexRoute: PricingIndexRoute,
+}
+
+const PricingRouteWithChildren =
+  PricingRoute._addFileChildren(PricingRouteChildren)
+
+interface ServicesRouteChildren {
+  ServicesServiceIdRoute: typeof ServicesServiceIdRoute
+  ServicesIndexRoute: typeof ServicesIndexRoute
+}
+
+const ServicesRouteChildren: ServicesRouteChildren = {
+  ServicesServiceIdRoute: ServicesServiceIdRoute,
+  ServicesIndexRoute: ServicesIndexRoute,
+}
+
+const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
+  ServicesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -366,9 +486,9 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   MediaRoute: MediaRoute,
   PoliciesRoute: PoliciesRoute,
-  PricingRoute: PricingRoute,
+  PricingRoute: PricingRouteWithChildren,
   ReviewsRoute: ReviewsRoute,
-  ServicesRoute: ServicesRoute,
+  ServicesRoute: ServicesRouteWithChildren,
   SourcesRoute: SourcesRoute,
   TelegramRoute: TelegramRoute,
   UsersRoute: UsersRoute,
