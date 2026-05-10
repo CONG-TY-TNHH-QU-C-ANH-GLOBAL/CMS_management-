@@ -27,34 +27,34 @@ type Section = {
 
 const INITIAL: Section[] = [
   {
-    id: "hero", title: "Hero Section", desc: "Tiêu đề, sub-headline, CTA, ảnh nền", status: "review", lastEdit: "2 giờ trước",
+    id: "hero", title: "Khu vực Hero", desc: "Tiêu đề, mô tả phụ, CTA, ảnh nền", status: "review", lastEdit: "2 giờ trước",
     fields: [
-      { key: "eyebrow", label: "Eyebrow", value: "Fulfill từ Việt Nam đi toàn cầu" },
-      { key: "title", label: "Headline (H1)", value: "POD & Dropship fulfillment cho seller TikTok Shop, Shopify, Amazon" },
-      { key: "sub", label: "Sub-headline", value: "Air freight VN/CN → US 5–8 ngày, kho US domestic từ $1.20/order, tracking real-time.", multiline: true },
-      { key: "cta1", label: "CTA chính", value: "Nhận báo giá miễn phí" },
-      { key: "cta2", label: "CTA phụ", value: "Xem dịch vụ" },
+      { key: "eyebrow", label: "Nhãn nhỏ phía trên", value: "Fulfill từ Việt Nam đi toàn cầu" },
+      { key: "title", label: "Tiêu đề chính (H1)", value: "POD & Dropship fulfillment cho seller TikTok Shop, Shopify, Amazon" },
+      { key: "sub", label: "Mô tả phụ", value: "Air freight VN/CN → US 5–8 ngày, kho US domestic từ $1.20/đơn, tracking real-time.", multiline: true },
+      { key: "cta1", label: "Nút CTA chính", value: "Nhận báo giá miễn phí" },
+      { key: "cta2", label: "Nút CTA phụ", value: "Xem dịch vụ" },
       { key: "media", label: "Ảnh nền (URL)", value: "/assets/hero-world-map.jpg" },
     ],
   },
   {
-    id: "trust", title: "Trust Bar", desc: "Logo khách hàng, số liệu nổi bật", status: "live", lastEdit: "1 tuần trước",
+    id: "trust", title: "Thanh số liệu uy tín", desc: "Logo khách hàng, số liệu nổi bật", status: "live", lastEdit: "1 tuần trước",
     fields: [
       { key: "stat1", label: "Số liệu 1", value: "500K+ đơn / tháng" },
-      { key: "stat2", label: "Số liệu 2", value: "98.7% on-time" },
+      { key: "stat2", label: "Số liệu 2", value: "98.7% giao đúng hẹn" },
       { key: "stat3", label: "Số liệu 3", value: "4 kho US + VN + CN" },
       { key: "stat4", label: "Số liệu 4", value: "1500+ seller tin dùng" },
     ],
   },
   {
-    id: "services", title: "Services Grid", desc: "3 card dịch vụ chính + icon", status: "live", lastEdit: "3 ngày trước",
+    id: "services", title: "Lưới dịch vụ", desc: "3 thẻ dịch vụ chính + biểu tượng", status: "live", lastEdit: "3 ngày trước",
     fields: [
-      { key: "title", label: "Tiêu đề section", value: "Hệ sinh thái fulfillment khép kín" },
+      { key: "title", label: "Tiêu đề khu vực", value: "Hệ sinh thái fulfillment khép kín" },
       { key: "sub", label: "Mô tả", value: "Từ in ấn POD, vận chuyển quốc tế đến kho US — bạn chỉ cần lo bán hàng.", multiline: true },
     ],
   },
   {
-    id: "process", title: "How It Works", desc: "4 bước quy trình", status: "live", lastEdit: "2 tuần trước",
+    id: "process", title: "Quy trình hoạt động", desc: "4 bước quy trình", status: "live", lastEdit: "2 tuần trước",
     fields: [
       { key: "step1", label: "Bước 1", value: "Đơn hàng đổ về qua API" },
       { key: "step2", label: "Bước 2", value: "Pick-pack tại kho gần nhất" },
@@ -63,22 +63,22 @@ const INITIAL: Section[] = [
     ],
   },
   {
-    id: "marketplaces", title: "Marketplace Logos", desc: "Bar logo Shopify, TikTok, Amazon…", status: "live", lastEdit: "5 ngày trước",
+    id: "marketplaces", title: "Logo sàn thương mại", desc: "Thanh logo Shopify, TikTok, Amazon…", status: "live", lastEdit: "5 ngày trước",
     fields: [{ key: "title", label: "Tiêu đề", value: "Tích hợp sẵn các nền tảng bạn đang bán" }],
   },
   {
-    id: "testimonials", title: "Testimonials", desc: "Carousel 6 review khách", status: "live", lastEdit: "1 tháng trước",
+    id: "testimonials", title: "Đánh giá khách hàng", desc: "Carousel 6 đánh giá khách", status: "live", lastEdit: "1 tháng trước",
     fields: [
       { key: "title", label: "Tiêu đề", value: "Hàng nghìn seller đã chọn THG" },
       { key: "sub", label: "Phụ đề", value: "Câu chuyện thật từ POD seller US, EU, UK." },
     ],
   },
   {
-    id: "faq", title: "FAQ Preview", desc: "5 câu hỏi thường gặp nổi bật", status: "live", lastEdit: "2 tuần trước",
+    id: "faq", title: "Câu hỏi thường gặp", desc: "5 câu hỏi nổi bật", status: "live", lastEdit: "2 tuần trước",
     fields: [{ key: "title", label: "Tiêu đề", value: "Câu hỏi thường gặp" }],
   },
   {
-    id: "cta", title: "Final CTA", desc: "Section đăng ký nhận quote", status: "live", lastEdit: "1 tháng trước",
+    id: "cta", title: "CTA cuối trang", desc: "Khu vực đăng ký nhận báo giá", status: "live", lastEdit: "1 tháng trước",
     fields: [
       { key: "title", label: "Tiêu đề", value: "Sẵn sàng scale đơn hàng quốc tế?" },
       { key: "sub", label: "Mô tả", value: "Đội sales tư vấn miễn phí trong 15 phút." },
@@ -152,7 +152,7 @@ function LandingPage() {
   return (
     <>
       <CmsTopbar
-        title="Landing Page"
+        title="Trang chủ"
         subtitle="thgfulfill.com"
         action={
           <div className="flex items-center gap-2">
