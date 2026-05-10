@@ -274,7 +274,7 @@ function LandingPage() {
           </div>
 
           {/* Preview */}
-          <div className="space-y-4">
+          <div className="space-y-4 xl:block">
             <Card>
               <CardHeader
                 title="Live preview"
