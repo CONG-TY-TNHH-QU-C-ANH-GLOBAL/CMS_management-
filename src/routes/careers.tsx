@@ -6,7 +6,7 @@ export const Route = createFileRoute("/careers")({
   head: () => ({ meta: [{ title: "Tuyển dụng — THG Content OS" }] }),
   component: () => (
     <>
-      <CmsTopbar title="Tuyển dụng" subtitle="Quản lý job posts & ứng viên" />
+      <CmsTopbar title="Tuyển dụng" subtitle="Quản lý tin tuyển dụng & ứng viên" />
       <SubTabs tabs={[
         { to: "/careers", label: "Vị trí tuyển dụng" },
         { to: "/careers/applicants", label: "Ứng viên" },

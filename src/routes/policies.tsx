@@ -12,7 +12,7 @@ export const Route = createFileRoute("/policies")({
 function PoliciesPage() {
   return (
     <>
-      <CmsTopbar title="Policies" subtitle="Văn bản pháp lý & chính sách" action={
+      <CmsTopbar title="Chính sách" subtitle="Văn bản pháp lý & chính sách" action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Plus className="w-4 h-4" /> Thêm policy
         </button>

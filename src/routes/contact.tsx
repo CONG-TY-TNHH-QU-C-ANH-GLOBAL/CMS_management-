@@ -12,7 +12,7 @@ export const Route = createFileRoute("/contact")({
 function ContactPage() {
   return (
     <>
-      <CmsTopbar title="Contact & Offices" subtitle="4 địa chỉ + thông tin liên hệ chính" action={
+      <CmsTopbar title="Liên hệ & Văn phòng" subtitle="4 địa chỉ + thông tin liên hệ chính" action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Plus className="w-4 h-4" /> Thêm văn phòng
         </button>

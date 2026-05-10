@@ -5,7 +5,7 @@ import { BLOGS } from "@/lib/cms-mock";
 import { Bot, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/blogs")({
-  head: () => ({ meta: [{ title: "Blog Posts — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bài viết Blog — THG Content OS" }] }),
   component: BlogsPage,
 });
 
@@ -13,7 +13,7 @@ function BlogsPage() {
   return (
     <>
       <CmsTopbar
-        title="Blog Posts"
+        title="Bài viết Blog"
         subtitle={`${BLOGS.length} bài viết`}
         action={
           <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition">

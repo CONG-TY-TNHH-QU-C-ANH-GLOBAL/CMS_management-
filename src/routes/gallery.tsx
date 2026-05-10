@@ -12,7 +12,7 @@ export const Route = createFileRoute("/gallery")({
 function GalleryPage() {
   return (
     <>
-      <CmsTopbar title="Gallery" subtitle={`${GALLERY.length} ảnh kho — hiển thị section "Real-world processing capacity"`} action={
+      <CmsTopbar title="Thư viện ảnh" subtitle={`${GALLERY.length} ảnh kho — hiển thị section "Real-world processing capacity"`} action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Upload className="w-4 h-4" /> Tải ảnh lên
         </button>

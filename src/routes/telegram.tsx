@@ -11,7 +11,7 @@ export const Route = createFileRoute("/telegram")({
 function TelegramPage() {
   return (
     <>
-      <CmsTopbar title="Telegram Integration" subtitle="Gửi yêu cầu agent qua Telegram" />
+      <CmsTopbar title="Tích hợp Telegram" subtitle="Gửi yêu cầu agent qua Telegram" />
       <PageContainer>
         <div className="grid lg:grid-cols-2 gap-6">
           <Card>

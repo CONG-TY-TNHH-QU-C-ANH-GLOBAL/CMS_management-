@@ -12,7 +12,7 @@ export const Route = createFileRoute("/users")({
 function UsersPage() {
   return (
     <>
-      <CmsTopbar title="Users & Roles" subtitle={`${USERS.length} thành viên`} action={
+      <CmsTopbar title="Người dùng & Phân quyền" subtitle={`${USERS.length} thành viên`} action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Plus className="w-4 h-4" /> Mời thành viên
         </button>

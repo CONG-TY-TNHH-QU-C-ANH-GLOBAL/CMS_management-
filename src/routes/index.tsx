@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   return (
     <>
-      <CmsTopbar title="Dashboard" subtitle="Tổng quan hệ thống nội dung" />
+      <CmsTopbar title="Bảng điều khiển" subtitle="Tổng quan hệ thống nội dung" />
       <PageContainer>
         {/* Hero */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-hero border border-border p-6 sm:p-8 mb-6">
@@ -36,7 +36,7 @@ function Dashboard() {
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link to="/reviews" className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition">
                 <CheckCheck className="w-4 h-4" />
-                Mở queue duyệt
+                Mở hàng đợi duyệt
               </Link>
               <button className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border border-border bg-surface/80 backdrop-blur text-sm font-medium hover:bg-surface transition">
                 <Plus className="w-4 h-4" />
@@ -125,9 +125,9 @@ function Dashboard() {
         {/* Agent jobs */}
         <Card className="mt-6">
           <CardHeader
-            title="Agent Jobs đang chạy"
-            hint="Theo dõi tiến độ các tác vụ AI"
-            action={<Link to="/agent-jobs" className="text-xs font-medium text-primary inline-flex items-center gap-0.5 hover:underline">Mở Agent Studio <ChevronRight className="w-3 h-3" /></Link>}
+            title="Tác vụ AI đang chạy"
+            hint="Theo dõi tiến độ các tác vụ trợ lý AI"
+            action={<Link to="/agent-jobs" className="text-xs font-medium text-primary inline-flex items-center gap-0.5 hover:underline">Mở Trợ lý AI <ChevronRight className="w-3 h-3" /></Link>}
           />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

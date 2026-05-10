@@ -4,7 +4,7 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { Upload, Image as ImageIcon, Folder } from "lucide-react";
 
 export const Route = createFileRoute("/media")({
-  head: () => ({ meta: [{ title: "Media Library — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Thư viện media — THG Content OS" }] }),
   component: MediaPage,
 });
 
@@ -18,7 +18,7 @@ const ITEMS = Array.from({ length: 18 }).map((_, i) => ({
 function MediaPage() {
   return (
     <>
-      <CmsTopbar title="Media Library" subtitle="248 tệp · 1.4 GB sử dụng" action={
+      <CmsTopbar title="Thư viện media" subtitle="248 tệp · 1.4 GB sử dụng" action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Upload className="w-4 h-4" /> Tải lên
         </button>
