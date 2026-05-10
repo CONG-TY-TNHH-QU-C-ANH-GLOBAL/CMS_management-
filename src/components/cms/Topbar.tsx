@@ -18,7 +18,7 @@ export function CmsTopbar({ title, subtitle, action }: { title: string; subtitle
           className="hidden md:flex items-center gap-2 h-9 w-72 rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-foreground hover:bg-surface transition text-left"
         >
           <Search className="w-4 h-4" />
-          <span className="flex-1 truncate">Tìm bài, agent, người dùng…</span>
+          <span className="flex-1 truncate">Tìm kiếm bài viết, tác vụ AI, người dùng…</span>
           <kbd className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5">⌘K</kbd>
         </button>
 
