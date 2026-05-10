@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as TestimonialsRouteImport } from './routes/testimonials'
 import { Route as TelegramRouteImport } from './routes/telegram'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as ServicesRouteImport } from './routes/services'
@@ -17,23 +18,35 @@ import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as MediaRouteImport } from './routes/media'
+import { Route as MarketplacesRouteImport } from './routes/marketplaces'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FaqsRouteImport } from './routes/faqs'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ChangeRequestsRouteImport } from './routes/change-requests'
+import { Route as CareersRouteImport } from './routes/careers'
 import { Route as BlogsRouteImport } from './routes/blogs'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AgentJobsRouteImport } from './routes/agent-jobs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as PricingIndexRouteImport } from './routes/pricing.index'
+import { Route as CareersIndexRouteImport } from './routes/careers.index'
 import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
 import { Route as PricingUsRouteImport } from './routes/pricing.us'
 import { Route as PricingHistoryRouteImport } from './routes/pricing.history'
+import { Route as CareersApplicantsRouteImport } from './routes/careers.applicants'
+import { Route as CareersJobIdRouteImport } from './routes/careers.$jobId'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestimonialsRoute = TestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TelegramRoute = TelegramRouteImport.update({
@@ -71,6 +84,11 @@ const MediaRoute = MediaRouteImport.update({
   path: '/media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketplacesRoute = MarketplacesRouteImport.update({
+  id: '/marketplaces',
+  path: '/marketplaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
@@ -81,14 +99,29 @@ const HistoryRoute = HistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FaqsRoute = FaqsRouteImport.update({
   id: '/faqs',
   path: '/faqs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangeRequestsRoute = ChangeRequestsRouteImport.update({
   id: '/change-requests',
   path: '/change-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareersRoute = CareersRouteImport.update({
+  id: '/careers',
+  path: '/careers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogsRoute = BlogsRouteImport.update({
@@ -121,6 +154,11 @@ const PricingIndexRoute = PricingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PricingRoute,
 } as any)
+const CareersIndexRoute = CareersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CareersRoute,
+} as any)
 const ServicesServiceIdRoute = ServicesServiceIdRouteImport.update({
   id: '/$serviceId',
   path: '/$serviceId',
@@ -136,16 +174,30 @@ const PricingHistoryRoute = PricingHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => PricingRoute,
 } as any)
+const CareersApplicantsRoute = CareersApplicantsRouteImport.update({
+  id: '/applicants',
+  path: '/applicants',
+  getParentRoute: () => CareersRoute,
+} as any)
+const CareersJobIdRoute = CareersJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => CareersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agent-jobs': typeof AgentJobsRoute
   '/audit': typeof AuditRoute
   '/blogs': typeof BlogsRoute
+  '/careers': typeof CareersRouteWithChildren
   '/change-requests': typeof ChangeRequestsRoute
+  '/contact': typeof ContactRoute
   '/faqs': typeof FaqsRoute
+  '/gallery': typeof GalleryRoute
   '/history': typeof HistoryRoute
   '/landing': typeof LandingRoute
+  '/marketplaces': typeof MarketplacesRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
   '/pricing': typeof PricingRouteWithChildren
@@ -153,10 +205,14 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRouteWithChildren
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
+  '/testimonials': typeof TestimonialsRoute
   '/users': typeof UsersRoute
+  '/careers/$jobId': typeof CareersJobIdRoute
+  '/careers/applicants': typeof CareersApplicantsRoute
   '/pricing/history': typeof PricingHistoryRoute
   '/pricing/us': typeof PricingUsRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/careers/': typeof CareersIndexRoute
   '/pricing/': typeof PricingIndexRoute
   '/services/': typeof ServicesIndexRoute
 }
@@ -166,18 +222,25 @@ export interface FileRoutesByTo {
   '/audit': typeof AuditRoute
   '/blogs': typeof BlogsRoute
   '/change-requests': typeof ChangeRequestsRoute
+  '/contact': typeof ContactRoute
   '/faqs': typeof FaqsRoute
+  '/gallery': typeof GalleryRoute
   '/history': typeof HistoryRoute
   '/landing': typeof LandingRoute
+  '/marketplaces': typeof MarketplacesRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
   '/reviews': typeof ReviewsRoute
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
+  '/testimonials': typeof TestimonialsRoute
   '/users': typeof UsersRoute
+  '/careers/$jobId': typeof CareersJobIdRoute
+  '/careers/applicants': typeof CareersApplicantsRoute
   '/pricing/history': typeof PricingHistoryRoute
   '/pricing/us': typeof PricingUsRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/careers': typeof CareersIndexRoute
   '/pricing': typeof PricingIndexRoute
   '/services': typeof ServicesIndexRoute
 }
@@ -187,10 +250,14 @@ export interface FileRoutesById {
   '/agent-jobs': typeof AgentJobsRoute
   '/audit': typeof AuditRoute
   '/blogs': typeof BlogsRoute
+  '/careers': typeof CareersRouteWithChildren
   '/change-requests': typeof ChangeRequestsRoute
+  '/contact': typeof ContactRoute
   '/faqs': typeof FaqsRoute
+  '/gallery': typeof GalleryRoute
   '/history': typeof HistoryRoute
   '/landing': typeof LandingRoute
+  '/marketplaces': typeof MarketplacesRoute
   '/media': typeof MediaRoute
   '/policies': typeof PoliciesRoute
   '/pricing': typeof PricingRouteWithChildren
@@ -198,10 +265,14 @@ export interface FileRoutesById {
   '/services': typeof ServicesRouteWithChildren
   '/sources': typeof SourcesRoute
   '/telegram': typeof TelegramRoute
+  '/testimonials': typeof TestimonialsRoute
   '/users': typeof UsersRoute
+  '/careers/$jobId': typeof CareersJobIdRoute
+  '/careers/applicants': typeof CareersApplicantsRoute
   '/pricing/history': typeof PricingHistoryRoute
   '/pricing/us': typeof PricingUsRoute
   '/services/$serviceId': typeof ServicesServiceIdRoute
+  '/careers/': typeof CareersIndexRoute
   '/pricing/': typeof PricingIndexRoute
   '/services/': typeof ServicesIndexRoute
 }
@@ -212,10 +283,14 @@ export interface FileRouteTypes {
     | '/agent-jobs'
     | '/audit'
     | '/blogs'
+    | '/careers'
     | '/change-requests'
+    | '/contact'
     | '/faqs'
+    | '/gallery'
     | '/history'
     | '/landing'
+    | '/marketplaces'
     | '/media'
     | '/policies'
     | '/pricing'
@@ -223,10 +298,14 @@ export interface FileRouteTypes {
     | '/services'
     | '/sources'
     | '/telegram'
+    | '/testimonials'
     | '/users'
+    | '/careers/$jobId'
+    | '/careers/applicants'
     | '/pricing/history'
     | '/pricing/us'
     | '/services/$serviceId'
+    | '/careers/'
     | '/pricing/'
     | '/services/'
   fileRoutesByTo: FileRoutesByTo
@@ -236,18 +315,25 @@ export interface FileRouteTypes {
     | '/audit'
     | '/blogs'
     | '/change-requests'
+    | '/contact'
     | '/faqs'
+    | '/gallery'
     | '/history'
     | '/landing'
+    | '/marketplaces'
     | '/media'
     | '/policies'
     | '/reviews'
     | '/sources'
     | '/telegram'
+    | '/testimonials'
     | '/users'
+    | '/careers/$jobId'
+    | '/careers/applicants'
     | '/pricing/history'
     | '/pricing/us'
     | '/services/$serviceId'
+    | '/careers'
     | '/pricing'
     | '/services'
   id:
@@ -256,10 +342,14 @@ export interface FileRouteTypes {
     | '/agent-jobs'
     | '/audit'
     | '/blogs'
+    | '/careers'
     | '/change-requests'
+    | '/contact'
     | '/faqs'
+    | '/gallery'
     | '/history'
     | '/landing'
+    | '/marketplaces'
     | '/media'
     | '/policies'
     | '/pricing'
@@ -267,10 +357,14 @@ export interface FileRouteTypes {
     | '/services'
     | '/sources'
     | '/telegram'
+    | '/testimonials'
     | '/users'
+    | '/careers/$jobId'
+    | '/careers/applicants'
     | '/pricing/history'
     | '/pricing/us'
     | '/services/$serviceId'
+    | '/careers/'
     | '/pricing/'
     | '/services/'
   fileRoutesById: FileRoutesById
@@ -280,10 +374,14 @@ export interface RootRouteChildren {
   AgentJobsRoute: typeof AgentJobsRoute
   AuditRoute: typeof AuditRoute
   BlogsRoute: typeof BlogsRoute
+  CareersRoute: typeof CareersRouteWithChildren
   ChangeRequestsRoute: typeof ChangeRequestsRoute
+  ContactRoute: typeof ContactRoute
   FaqsRoute: typeof FaqsRoute
+  GalleryRoute: typeof GalleryRoute
   HistoryRoute: typeof HistoryRoute
   LandingRoute: typeof LandingRoute
+  MarketplacesRoute: typeof MarketplacesRoute
   MediaRoute: typeof MediaRoute
   PoliciesRoute: typeof PoliciesRoute
   PricingRoute: typeof PricingRouteWithChildren
@@ -291,6 +389,7 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRouteWithChildren
   SourcesRoute: typeof SourcesRoute
   TelegramRoute: typeof TelegramRoute
+  TestimonialsRoute: typeof TestimonialsRoute
   UsersRoute: typeof UsersRoute
 }
 
@@ -301,6 +400,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/testimonials': {
+      id: '/testimonials'
+      path: '/testimonials'
+      fullPath: '/testimonials'
+      preLoaderRoute: typeof TestimonialsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/telegram': {
@@ -352,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketplaces': {
+      id: '/marketplaces'
+      path: '/marketplaces'
+      fullPath: '/marketplaces'
+      preLoaderRoute: typeof MarketplacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/landing': {
       id: '/landing'
       path: '/landing'
@@ -366,6 +479,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faqs': {
       id: '/faqs'
       path: '/faqs'
@@ -373,11 +493,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-requests': {
       id: '/change-requests'
       path: '/change-requests'
       fullPath: '/change-requests'
       preLoaderRoute: typeof ChangeRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/careers': {
+      id: '/careers'
+      path: '/careers'
+      fullPath: '/careers'
+      preLoaderRoute: typeof CareersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blogs': {
@@ -422,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingIndexRouteImport
       parentRoute: typeof PricingRoute
     }
+    '/careers/': {
+      id: '/careers/'
+      path: '/'
+      fullPath: '/careers/'
+      preLoaderRoute: typeof CareersIndexRouteImport
+      parentRoute: typeof CareersRoute
+    }
     '/services/$serviceId': {
       id: '/services/$serviceId'
       path: '/$serviceId'
@@ -443,8 +584,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingHistoryRouteImport
       parentRoute: typeof PricingRoute
     }
+    '/careers/applicants': {
+      id: '/careers/applicants'
+      path: '/applicants'
+      fullPath: '/careers/applicants'
+      preLoaderRoute: typeof CareersApplicantsRouteImport
+      parentRoute: typeof CareersRoute
+    }
+    '/careers/$jobId': {
+      id: '/careers/$jobId'
+      path: '/$jobId'
+      fullPath: '/careers/$jobId'
+      preLoaderRoute: typeof CareersJobIdRouteImport
+      parentRoute: typeof CareersRoute
+    }
   }
 }
+
+interface CareersRouteChildren {
+  CareersJobIdRoute: typeof CareersJobIdRoute
+  CareersApplicantsRoute: typeof CareersApplicantsRoute
+  CareersIndexRoute: typeof CareersIndexRoute
+}
+
+const CareersRouteChildren: CareersRouteChildren = {
+  CareersJobIdRoute: CareersJobIdRoute,
+  CareersApplicantsRoute: CareersApplicantsRoute,
+  CareersIndexRoute: CareersIndexRoute,
+}
+
+const CareersRouteWithChildren =
+  CareersRoute._addFileChildren(CareersRouteChildren)
 
 interface PricingRouteChildren {
   PricingHistoryRoute: typeof PricingHistoryRoute
@@ -480,10 +650,14 @@ const rootRouteChildren: RootRouteChildren = {
   AgentJobsRoute: AgentJobsRoute,
   AuditRoute: AuditRoute,
   BlogsRoute: BlogsRoute,
+  CareersRoute: CareersRouteWithChildren,
   ChangeRequestsRoute: ChangeRequestsRoute,
+  ContactRoute: ContactRoute,
   FaqsRoute: FaqsRoute,
+  GalleryRoute: GalleryRoute,
   HistoryRoute: HistoryRoute,
   LandingRoute: LandingRoute,
+  MarketplacesRoute: MarketplacesRoute,
   MediaRoute: MediaRoute,
   PoliciesRoute: PoliciesRoute,
   PricingRoute: PricingRouteWithChildren,
@@ -491,6 +665,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRouteWithChildren,
   SourcesRoute: SourcesRoute,
   TelegramRoute: TelegramRoute,
+  TestimonialsRoute: TestimonialsRoute,
   UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
