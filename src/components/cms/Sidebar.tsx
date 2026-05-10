@@ -2,19 +2,30 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Home, FileText, Boxes, DollarSign, HelpCircle, Scroll,
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
-  Users, Send, ShieldCheck, Sparkles,
+  Users, Send, ShieldCheck, Sparkles, Briefcase, MessageSquareQuote,
+  Plug, Images, MapPin,
 } from "lucide-react";
 
-const NAV: { label?: string; items: { to: string; icon: any; label: string; count?: number; alert?: boolean }[] }[] = [
+const NAV: { label?: string; items: { to: string; icon: any; label: string; count?: number; alert?: boolean; matchPrefix?: boolean }[] }[] = [
   { items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard" }] },
+  {
+    label: "Website",
+    items: [
+      { to: "/landing", icon: Home, label: "Landing Page" },
+      { to: "/services", icon: Boxes, label: "Services", matchPrefix: true },
+      { to: "/pricing", icon: DollarSign, label: "Pricing", matchPrefix: true },
+      { to: "/faqs", icon: HelpCircle, label: "FAQ" },
+      { to: "/testimonials", icon: MessageSquareQuote, label: "Testimonials" },
+      { to: "/marketplaces", icon: Plug, label: "Marketplaces" },
+      { to: "/gallery", icon: Images, label: "Gallery" },
+      { to: "/contact", icon: MapPin, label: "Contact & Offices" },
+    ],
+  },
   {
     label: "Nội dung",
     items: [
-      { to: "/landing", icon: Home, label: "Landing Page" },
       { to: "/blogs", icon: FileText, label: "Blog Posts", count: 7 },
-      { to: "/services", icon: Boxes, label: "Services" },
-      { to: "/pricing", icon: DollarSign, label: "Pricing", count: 4 },
-      { to: "/faqs", icon: HelpCircle, label: "FAQ" },
+      { to: "/careers", icon: Briefcase, label: "Tuyển dụng", count: 5, matchPrefix: true },
       { to: "/policies", icon: Scroll, label: "Policies" },
       { to: "/media", icon: ImageIcon, label: "Media Library" },
     ],
@@ -59,7 +70,7 @@ export function CmsSidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {NAV.map((group, gi) => (
           <div key={gi}>
             {group.label && (
@@ -69,7 +80,9 @@ export function CmsSidebar() {
             )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = pathname === item.to;
+                const active = item.matchPrefix
+                  ? pathname === item.to || pathname.startsWith(item.to + "/")
+                  : pathname === item.to;
                 const Icon = item.icon;
                 return (
                   <Link
@@ -108,7 +121,7 @@ export function CmsSidebar() {
 
       <div className="p-3 border-t border-sidebar-border">
         <div className="rounded-lg bg-gradient-soft p-3">
-          <div className="text-xs font-semibold mb-1">Plan: Enterprise</div>
+          <div className="text-xs font-semibold mb-1">Plan: Internal</div>
           <div className="text-[11px] text-muted-foreground mb-2">Đã dùng 47 / 200 AI credits hôm nay</div>
           <div className="h-1.5 rounded-full bg-white/60 overflow-hidden">
             <div className="h-full bg-gradient-brand" style={{ width: "23%" }} />
