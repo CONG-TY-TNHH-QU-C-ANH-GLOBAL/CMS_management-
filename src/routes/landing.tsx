@@ -177,7 +177,7 @@ function LandingPage() {
         }
       />
       <PageContainer>
-        <div className="grid lg:grid-cols-[280px_1fr_400px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_360px] gap-5">
           {/* Sections list */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1 mb-1">
@@ -274,7 +274,7 @@ function LandingPage() {
           </div>
 
           {/* Preview */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-2 xl:col-span-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
             <Card>
               <CardHeader
                 title="Live preview"
