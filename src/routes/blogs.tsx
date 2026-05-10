@@ -5,7 +5,7 @@ import { BLOGS } from "@/lib/cms-mock";
 import { Bot, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/blogs")({
-  head: () => ({ meta: [{ title: "Blog Posts — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bài viết Blog — THG Content OS" }] }),
   component: BlogsPage,
 });
 

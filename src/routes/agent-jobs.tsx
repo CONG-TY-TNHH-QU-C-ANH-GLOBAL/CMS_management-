@@ -5,7 +5,7 @@ import { AGENT_JOBS } from "@/lib/cms-mock";
 import { Bot, Zap, Send, Calendar, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/agent-jobs")({
-  head: () => ({ meta: [{ title: "Agent Jobs — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Tác vụ AI — THG Content OS" }] }),
   component: AgentJobsPage,
 });
 

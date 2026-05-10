@@ -4,7 +4,7 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { Upload, Image as ImageIcon, Folder } from "lucide-react";
 
 export const Route = createFileRoute("/media")({
-  head: () => ({ meta: [{ title: "Media Library — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Thư viện media — THG Content OS" }] }),
   component: MediaPage,
 });
 
