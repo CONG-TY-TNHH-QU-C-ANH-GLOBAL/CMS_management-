@@ -98,16 +98,20 @@
   --chart-4: oklch(0.78 0.16 75);
   --chart-5: oklch(0.62 0.2 340);
 
-  --sidebar: oklch(0.99 0.003 260);
-  --sidebar-foreground: oklch(0.25 0.03 265);
-  --sidebar-border: oklch(0.93 0.01 260);
-  --sidebar-accent: oklch(0.96 0.02 280);
+  /* Enterprise dark sidebar (Linear / Datadog style) */
+  --sidebar: oklch(0.18 0.025 265);
+  --sidebar-foreground: oklch(0.78 0.015 260);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-accent: oklch(1 0 0 / 8%);
+  --sidebar-muted: oklch(0.62 0.02 260);
+  --sidebar-active: oklch(0.28 0.08 280);
 
-  --gradient-brand: linear-gradient(135deg, oklch(0.55 0.21 280), oklch(0.65 0.18 230));
+  --gradient-brand: linear-gradient(135deg, oklch(0.6 0.22 280), oklch(0.68 0.18 230));
   --gradient-soft: linear-gradient(135deg, oklch(0.97 0.02 280), oklch(0.97 0.02 230));
   --gradient-hero: radial-gradient(circle at 0% 0%, oklch(0.95 0.05 280) 0%, transparent 50%),
                    radial-gradient(circle at 100% 0%, oklch(0.95 0.05 200) 0%, transparent 50%),
                    linear-gradient(180deg, oklch(0.99 0.005 260), oklch(0.985 0.005 260));
+  --gradient-sidebar: linear-gradient(180deg, oklch(0.2 0.03 265) 0%, oklch(0.16 0.025 265) 100%);
 }
 
 .dark {
@@ -152,6 +156,7 @@
   .bg-gradient-brand { background-image: var(--gradient-brand); }
   .bg-gradient-soft { background-image: var(--gradient-soft); }
   .bg-gradient-hero { background-image: var(--gradient-hero); }
+  .bg-gradient-sidebar { background-image: var(--gradient-sidebar); }
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
