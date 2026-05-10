@@ -12,7 +12,7 @@ export const Route = createFileRoute("/marketplaces")({
 function MarketplacesPage() {
   return (
     <>
-      <CmsTopbar title="Marketplaces" subtitle="Tích hợp THG OMS với sàn TMĐT" action={
+      <CmsTopbar title="Sàn thương mại" subtitle="Tích hợp THG OMS với sàn TMĐT" action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Plus className="w-4 h-4" /> Thêm marketplace
         </button>

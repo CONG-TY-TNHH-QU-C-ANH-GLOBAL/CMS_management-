@@ -12,7 +12,7 @@ function PricingLayout() {
   return (
     <>
       <CmsTopbar
-        title="Pricing"
+        title="Bảng giá"
         subtitle="Bảng giá vận chuyển — chỉ Finance & Super Admin chỉnh được"
         action={
           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border border-warning/30 bg-warning/10 text-warning-foreground">

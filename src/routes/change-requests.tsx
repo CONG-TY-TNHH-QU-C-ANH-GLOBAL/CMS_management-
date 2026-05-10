@@ -12,7 +12,7 @@ export const Route = createFileRoute("/change-requests")({
 function ChangeRequestsPage() {
   return (
     <>
-      <CmsTopbar title="Change Requests" subtitle={`${CHANGE_REQUESTS.length} yêu cầu thay đổi`} />
+      <CmsTopbar title="Yêu cầu thay đổi" subtitle={`${CHANGE_REQUESTS.length} yêu cầu thay đổi`} />
       <PageContainer>
         <Card>
           <ul className="divide-y divide-border">

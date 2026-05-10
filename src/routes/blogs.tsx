@@ -13,7 +13,7 @@ function BlogsPage() {
   return (
     <>
       <CmsTopbar
-        title="Blog Posts"
+        title="Bài viết Blog"
         subtitle={`${BLOGS.length} bài viết`}
         action={
           <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition">

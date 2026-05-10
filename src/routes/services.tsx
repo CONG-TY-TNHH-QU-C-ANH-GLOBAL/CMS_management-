@@ -10,7 +10,7 @@ export const Route = createFileRoute("/services")({
 function ServicesLayout() {
   return (
     <>
-      <CmsTopbar title="Services" subtitle="3 dịch vụ chính trên thgfulfill.com" />
+      <CmsTopbar title="Dịch vụ" subtitle="3 dịch vụ chính trên thgfulfill.com" />
       <SubTabs
         tabs={[
           { to: "/services", label: "Tổng quan" },

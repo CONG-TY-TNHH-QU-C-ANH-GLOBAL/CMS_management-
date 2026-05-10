@@ -18,7 +18,7 @@ const SOURCES = [
 function SourcesPage() {
   return (
     <>
-      <CmsTopbar title="Source Inbox" subtitle="Nguồn cấp dữ liệu cho agent" />
+      <CmsTopbar title="Hộp thư nguồn" subtitle="Nguồn cấp dữ liệu cho agent" />
       <PageContainer>
         <Card>
           <ul className="divide-y divide-border">

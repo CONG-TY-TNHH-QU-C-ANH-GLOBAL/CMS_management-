@@ -12,7 +12,7 @@ export const Route = createFileRoute("/testimonials")({
 function TestimonialsPage() {
   return (
     <>
-      <CmsTopbar title="Testimonials" subtitle={`${TESTIMONIALS.length} review · ${TESTIMONIALS.filter(t => t.featured).length} hiển thị trên homepage`} action={
+      <CmsTopbar title="Đánh giá khách hàng" subtitle={`${TESTIMONIALS.length} review · ${TESTIMONIALS.filter(t => t.featured).length} hiển thị trên homepage`} action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft">
           <Plus className="w-4 h-4" /> Thêm review
         </button>

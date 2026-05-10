@@ -12,7 +12,7 @@ export const Route = createFileRoute("/audit")({
 function AuditPage() {
   return (
     <>
-      <CmsTopbar title="Audit Logs" subtitle="Mọi hành động nhạy cảm đều ghi lại" action={
+      <CmsTopbar title="Nhật ký bảo mật" subtitle="Mọi hành động nhạy cảm đều ghi lại" action={
         <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted">
           <Download className="w-4 h-4" /> Export CSV
         </button>
