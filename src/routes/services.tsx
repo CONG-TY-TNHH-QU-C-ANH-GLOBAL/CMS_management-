@@ -16,7 +16,7 @@ function ServicesLayout() {
           { to: "/services", label: "Tổng quan" },
           { to: "/services/thg-fulfill", label: "THG Fulfill" },
           { to: "/services/thg-express", label: "THG Express" },
-          { to: "/services/thg-warehouse", label: "THG Warehouse" },
+          { to: "/services/thg-warehouse", label: "Kho vận THG" },
         ]}
       />
       <Outlet />
