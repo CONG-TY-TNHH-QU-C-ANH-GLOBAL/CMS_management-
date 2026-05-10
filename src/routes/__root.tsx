@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { CmsSidebar } from "@/components/cms/Sidebar";
+import { CommandPalette } from "@/components/cms/CommandPalette";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -120,6 +122,8 @@ function RootComponent() {
           <Outlet />
         </main>
       </div>
+      <CommandPalette />
+      <Toaster position="bottom-right" richColors />
     </QueryClientProvider>
   );
 }
