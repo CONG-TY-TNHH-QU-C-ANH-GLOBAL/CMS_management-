@@ -9,8 +9,8 @@ import { InlineEdit } from "@/components/cms/InlineEdit";
 import { StickySaveBar } from "@/components/cms/StickySaveBar";
 import { LocaleTabs, type Locale } from "@/components/cms/LocaleTabs";
 import {
-  Eye, History, Sparkles, Layout, GripVertical, ChevronRight,
-  Smartphone, Monitor, Plus, Type, ExternalLink,
+  Eye, Sparkles, Layout, GripVertical, ChevronRight,
+  Smartphone, Monitor, Plus, Type, ExternalLink, CheckCircle2,
 } from "lucide-react";
 import {
   listHomepageBlocksFn,
@@ -223,16 +223,6 @@ function LandingPage() {
     toast.info("Đã huỷ thay đổi");
   }
 
-  function onPublish() {
-    if (dirtyCount > 0) {
-      toast.warning("Còn thay đổi chưa lưu", { description: "Hãy lưu thay đổi trước khi xuất bản." });
-      return;
-    }
-    toast.success("Trang chủ đang ở chế độ live", {
-      description: "Mọi thay đổi đã hiển thị công khai trên thgfulfill.com",
-    });
-  }
-
   const heroBlock = blocks.find((b) => b.kind === "hero");
   const heroTitle = drafts.hero?.title ?? getFieldValue(heroBlock, "title");
   const heroSub = drafts.hero?.sub ?? getFieldValue(heroBlock, "sub");
@@ -245,9 +235,11 @@ function LandingPage() {
         subtitle="thgfulfill.com"
         action={
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition">
-              <History className="w-4 h-4" /> Lịch sử
-            </button>
+            {dirtyCount === 0 && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Đã đồng bộ với website
+              </span>
+            )}
             <a
               href="https://www.thgfulfill.com"
               target="_blank"
@@ -256,12 +248,6 @@ function LandingPage() {
             >
               <ExternalLink className="w-4 h-4" /> Mở site
             </a>
-            <button
-              onClick={onPublish}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft transition"
-            >
-              Xuất bản lên website
-            </button>
           </div>
         }
       />
