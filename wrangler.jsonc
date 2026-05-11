@@ -5,15 +5,23 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/server.ts",
 
-	// ── Root section = local dev (`bun run dev`) ──────────────────────────
-	// In dev, Cloudflare bindings use local emulation (D1 → .wrangler/state/v3/d1,
-	// R2/KV → in-memory). vars below apply to dev. Secrets come from .dev.vars.
+	// ── PRODUCTION values at root (deployed by `wrangler deploy`) ──────────
+	// For local dev (`bun run dev`), Cloudflare bindings auto-use local
+	// emulation (D1 → .wrangler/state/v3/d1, R2/KV → in-memory). Local var
+	// overrides live in `.dev.vars` (gitignored). Secrets always via
+	// `bunx wrangler secret put <NAME>` for prod, `.dev.vars` for dev.
 	"vars": {
 		"DEFAULT_LOCALE": "en",
-		"BASE_URL": "http://localhost:8080",
+		// Self-reference: built by media.service.ts into public R2 URLs
+		// (`${BASE_URL}/api/v1/media/<key>`) and by OAuth as the callback host.
+		// Override locally via `.dev.vars` BASE_URL=http://localhost:8080.
+		"BASE_URL": "https://cms.thgfulfill.com",
 		"SUPPORTED_LOCALES": "en,vi,zh",
-		"OAUTH_REDIRECT_BASE": "http://localhost:8080",
-		"CORS_ORIGIN": "http://localhost:5173,http://localhost:8080"
+		"OAUTH_REDIRECT_BASE": "https://cms.thgfulfill.com",
+		// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
+		// Admin /admin/* is same-origin so doesn't need to appear here.
+		// Override locally via `.dev.vars` CORS_ORIGIN=http://localhost:5173,http://localhost:8080.
+		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com"
 	},
 	"d1_databases": [
 		{
@@ -35,53 +43,9 @@
 			"id": "29652717320f496f89e6e25189ef9ca3"
 		}
 	],
-
-	// ── Production deploy: `bunx wrangler deploy --env production` ───────
-	// Wrangler quirk: env.* sections do NOT inherit bindings from root, so
-	// d1_databases / r2_buckets / kv_namespaces must be declared again.
-	// Reusing the same IDs means dev (--local) and prod share one Cloudflare
-	// resource set, but local dev emulation keeps your dev data isolated.
-	// Secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) for prod are set via
-	// `bunx wrangler secret put <NAME>` (NOT in this file).
-	"env": {
-		"production": {
-			"name": "thg-cms",
-			"vars": {
-				"DEFAULT_LOCALE": "en",
-				// Self-reference: built by media.service.ts into public R2 URLs
-				// (`${BASE_URL}/api/v1/media/<key>`) and by OAuth as the callback host.
-				"BASE_URL": "https://cms.thgfulfill.com",
-				"SUPPORTED_LOCALES": "en,vi,zh",
-				"OAUTH_REDIRECT_BASE": "https://cms.thgfulfill.com",
-				// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
-				// Admin /admin/* is same-origin so doesn't need to appear here.
-				"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com"
-			},
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_name": "thg-cms",
-					"database_id": "88eca4ff-c915-4b76-a227-88dfb4b1bcbc",
-					"migrations_dir": "db/migrations"
-				}
-			],
-			"r2_buckets": [
-				{
-					"binding": "MEDIA",
-					"bucket_name": "thg-media"
-				}
-			],
-			"kv_namespaces": [
-				{
-					"binding": "CMS_REV",
-					"id": "29652717320f496f89e6e25189ef9ca3"
-				}
-			],
-			// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
-			// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
-			"routes": [
-				{ "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
-			]
-		}
-	}
+	// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
+	// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
+	"routes": [
+		{ "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
+	]
 }

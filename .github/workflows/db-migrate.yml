@@ -38,13 +38,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: List pending migrations (dry view)
-        run: bunx wrangler d1 migrations list thg-cms --remote --env production || true
+        run: bunx wrangler d1 migrations list thg-cms --remote || true
 
       - name: Apply migrations
-        run: bunx wrangler d1 migrations apply thg-cms --remote --env production
+        run: bunx wrangler d1 migrations apply thg-cms --remote
 
       - name: Verify schema (count tables)
         run: |
           set -euo pipefail
-          OUTPUT=$(bunx wrangler d1 execute thg-cms --remote --env production --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'" --json 2>/dev/null || echo '[]')
+          OUTPUT=$(bunx wrangler d1 execute thg-cms --remote --command "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'" --json 2>/dev/null || echo '[]')
           echo "Schema query: $OUTPUT"

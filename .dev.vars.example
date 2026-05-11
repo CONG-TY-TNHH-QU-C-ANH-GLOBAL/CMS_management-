@@ -1,6 +1,13 @@
 # Copy this file to .dev.vars (gitignored) and fill in real values for local dev.
-# These secrets are loaded by wrangler / @cloudflare/vite-plugin during `bun run dev`.
-# For production, set them via `bunx wrangler secret put <NAME> --env production`.
+# These secrets + var overrides are loaded by wrangler / @cloudflare/vite-plugin
+# during `bun run dev`. They take precedence over `vars` in wrangler.jsonc.
+# For production, set them via `bunx wrangler secret put <NAME>`.
+
+# ── Local dev overrides for production vars in wrangler.jsonc ──
+# Root config has BASE_URL=https://cms.thgfulfill.com (prod). Override locally:
+BASE_URL=http://localhost:8080
+OAUTH_REDIRECT_BASE=http://localhost:8080
+CORS_ORIGIN=http://localhost:5173,http://localhost:8080
 
 # Get these from Google Cloud Console:
 #   1. Go to https://console.cloud.google.com/apis/credentials

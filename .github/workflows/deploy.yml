@@ -42,11 +42,11 @@ jobs:
 
       - name: Deploy (dry run)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.dryrun == 'true'
-        run: bunx wrangler deploy --env production --dry-run
+        run: bunx wrangler deploy --dry-run
 
       - name: Deploy (live)
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dryrun != 'true'
-        run: bunx wrangler deploy --env production
+        run: bunx wrangler deploy
 
       - name: Smoke test API
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dryrun != 'true'
