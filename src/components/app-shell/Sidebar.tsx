@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Home, FileText, Boxes, DollarSign, HelpCircle, Scroll,
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
-  Plug, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship,
+  Plug, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -34,6 +34,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: "/admin/sales/leads", icon: Inbox, label: "Leads từ landing" },
       { to: "/admin/sales/pricing", icon: DollarSign, label: "Bảng giá", matchPrefix: true },
+      { to: "/admin/sales/terminology", icon: BookOpen, label: "Bảng thuật ngữ" },
     ],
   },
   {

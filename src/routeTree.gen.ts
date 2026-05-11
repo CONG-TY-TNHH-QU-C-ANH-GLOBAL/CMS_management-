@@ -19,6 +19,7 @@ import { Route as AdminSystemUsersIndexRouteImport } from './routes/admin/system
 import { Route as AdminSystemTelegramIndexRouteImport } from './routes/admin/system/telegram/index'
 import { Route as AdminSystemSettingsIndexRouteImport } from './routes/admin/system/settings/index'
 import { Route as AdminSystemAuditIndexRouteImport } from './routes/admin/system/audit/index'
+import { Route as AdminSalesTerminologyIndexRouteImport } from './routes/admin/sales/terminology/index'
 import { Route as AdminSalesPricingIndexRouteImport } from './routes/admin/sales/pricing/index'
 import { Route as AdminSalesLeadsIndexRouteImport } from './routes/admin/sales/leads/index'
 import { Route as AdminContentTestimonialsIndexRouteImport } from './routes/admin/content/testimonials/index'
@@ -126,6 +127,12 @@ const AdminSystemAuditIndexRoute = AdminSystemAuditIndexRouteImport.update({
   path: '/admin/system/audit/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSalesTerminologyIndexRoute =
+  AdminSalesTerminologyIndexRouteImport.update({
+    id: '/admin/sales/terminology/',
+    path: '/admin/sales/terminology/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminSalesPricingIndexRoute = AdminSalesPricingIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -449,6 +456,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
+  '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
@@ -510,6 +518,7 @@ export interface FileRoutesByTo {
   '/admin/content/testimonials': typeof AdminContentTestimonialsIndexRoute
   '/admin/sales/leads': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing': typeof AdminSalesPricingIndexRoute
+  '/admin/sales/terminology': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit': typeof AdminSystemAuditIndexRoute
   '/admin/system/settings': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram': typeof AdminSystemTelegramIndexRoute
@@ -575,6 +584,7 @@ export interface FileRoutesById {
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
+  '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
@@ -641,6 +651,7 @@ export interface FileRouteTypes {
     | '/admin/content/testimonials/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
+    | '/admin/sales/terminology/'
     | '/admin/system/audit/'
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/admin/content/testimonials'
     | '/admin/sales/leads'
     | '/admin/sales/pricing'
+    | '/admin/sales/terminology'
     | '/admin/system/audit'
     | '/admin/system/settings'
     | '/admin/system/telegram'
@@ -766,6 +778,7 @@ export interface FileRouteTypes {
     | '/admin/content/testimonials/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
+    | '/admin/sales/terminology/'
     | '/admin/system/audit/'
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
@@ -824,6 +837,7 @@ export interface RootRouteChildren {
   AdminContentShippingRoutesIndexRoute: typeof AdminContentShippingRoutesIndexRoute
   AdminContentTestimonialsIndexRoute: typeof AdminContentTestimonialsIndexRoute
   AdminSalesLeadsIndexRoute: typeof AdminSalesLeadsIndexRoute
+  AdminSalesTerminologyIndexRoute: typeof AdminSalesTerminologyIndexRoute
   AdminSystemAuditIndexRoute: typeof AdminSystemAuditIndexRoute
   AdminSystemSettingsIndexRoute: typeof AdminSystemSettingsIndexRoute
   AdminSystemTelegramIndexRoute: typeof AdminSystemTelegramIndexRoute
@@ -924,6 +938,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/system/audit'
       fullPath: '/admin/system/audit/'
       preLoaderRoute: typeof AdminSystemAuditIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/sales/terminology/': {
+      id: '/admin/sales/terminology/'
+      path: '/admin/sales/terminology'
+      fullPath: '/admin/sales/terminology/'
+      preLoaderRoute: typeof AdminSalesTerminologyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/sales/pricing/': {
@@ -1371,6 +1392,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentShippingRoutesIndexRoute: AdminContentShippingRoutesIndexRoute,
   AdminContentTestimonialsIndexRoute: AdminContentTestimonialsIndexRoute,
   AdminSalesLeadsIndexRoute: AdminSalesLeadsIndexRoute,
+  AdminSalesTerminologyIndexRoute: AdminSalesTerminologyIndexRoute,
   AdminSystemAuditIndexRoute: AdminSystemAuditIndexRoute,
   AdminSystemSettingsIndexRoute: AdminSystemSettingsIndexRoute,
   AdminSystemTelegramIndexRoute: AdminSystemTelegramIndexRoute,

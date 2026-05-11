@@ -10,6 +10,24 @@ export const getSiteSettingsFn = createServerFn({ method: "GET" }).handler(async
   return { settings: await getSiteSettings() };
 });
 
+const localizedString = z.object({
+  vi: z.string().default(""),
+  en: z.string().default(""),
+  zh: z.string().default(""),
+});
+
+const terminologySchema = z.array(
+  z.object({
+    title: localizedString,
+    terms: z.array(
+      z.object({
+        term: localizedString,
+        desc: localizedString,
+      }),
+    ),
+  }),
+);
+
 const updateSchema = z.object({
   brand_name: z.string().min(1).max(100).optional(),
   logo_media_id: z.number().int().positive().nullable().optional(),
@@ -23,6 +41,11 @@ const updateSchema = z.object({
   facebook_url: z.string().url().max(500).nullable().optional(),
   lead_form_destination: z.string().url().max(500).nullable().optional(),
   about_video_url: z.string().url().max(500).nullable().optional(),
+  terminology_json: z.string().nullable().optional(),
+});
+
+const saveTerminologySchema = z.object({
+  groups: terminologySchema,
 });
 
 export const updateSiteSettingsFn = createServerFn({ method: "POST" })
@@ -33,6 +56,18 @@ export const updateSiteSettingsFn = createServerFn({ method: "POST" })
     const { env } = await import("cloudflare:workers");
     const me = await requireSession("admin");
     await updateSiteSettings(data, me.id);
+    await env.CMS_REV.put("rev", String(Date.now()));
+    return { ok: true as const };
+  });
+
+export const saveTerminologyFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => saveTerminologySchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { updateSiteSettings } = await import("@/features/settings");
+    const { env } = await import("cloudflare:workers");
+    const me = await requireSession("editor");
+    await updateSiteSettings({ terminology_json: JSON.stringify(data.groups) }, me.id);
     await env.CMS_REV.put("rev", String(Date.now()));
     return { ok: true as const };
   });
