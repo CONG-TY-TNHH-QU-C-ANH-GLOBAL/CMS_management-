@@ -17,6 +17,7 @@ export interface SiteSettingsRow {
   lead_form_destination: string | null;
   about_video_url: string | null;
   remote_area_links_json: string | null;
+  terminology_json: string | null;
   updated_at: number;
 }
 
