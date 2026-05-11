@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
-import { createApplicant, getCareersJob } from "@/features/careers";
+import { createApplicant, getCareersJob, isPastDeadline } from "@/features/careers";
 import { formatApplicantMessage, notifyTelegram } from "@/features/telegram";
 
 const applicantSchema = z.object({
@@ -49,6 +49,11 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
         const job = await getCareersJob(input.job_slug, input.locale);
         if (!job || job.status !== "open") {
           return corsError(request, 404, `Job "${input.job_slug}" không tồn tại hoặc đã đóng.`);
+        }
+        // Auto-close on deadline pass — operator may forget to flip status
+        // manually. Treat past deadline as closed even if status still "open".
+        if (isPastDeadline(job.deadline)) {
+          return corsError(request, 410, `Vị trí "${job.title}" đã hết hạn nộp hồ sơ (deadline: ${job.deadline}).`);
         }
 
         // Turnstile verification (DEV_BYPASS allowed when TURNSTILE_SECRET unset)
