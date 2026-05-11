@@ -65,6 +65,7 @@ import { Route as ApiV1publicFaqsIndexRouteImport } from './routes/api/v1/(publi
 import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/api/v1/(public)/contact-locations/index'
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
+import { Route as ApiV1publicApplicantCvIndexRouteImport } from './routes/api/v1/(public)/applicant-cv/index'
 import { Route as ApiV1publicShippingRoutesSlugRouteImport } from './routes/api/v1/(public)/shipping-routes/$slug'
 import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(public)/pricing/$slug'
 import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
@@ -384,6 +385,12 @@ const ApiV1publicApplicantsIndexRoute =
     path: '/api/v1/applicants/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicApplicantCvIndexRoute =
+  ApiV1publicApplicantCvIndexRouteImport.update({
+    id: '/api/v1/(public)/applicant-cv/',
+    path: '/api/v1/applicant-cv/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicShippingRoutesSlugRoute =
   ApiV1publicShippingRoutesSlugRouteImport.update({
     id: '/api/v1/(public)/shipping-routes/$slug',
@@ -468,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
@@ -530,6 +538,7 @@ export interface FileRoutesByTo {
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/applicant-cv': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
   '/api/v1/contact-locations': typeof ApiV1publicContactLocationsIndexRoute
@@ -596,6 +605,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/(public)/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/(public)/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/(public)/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/(public)/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
@@ -663,6 +673,7 @@ export interface FileRouteTypes {
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
+    | '/api/v1/applicant-cv/'
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
     | '/api/v1/contact-locations/'
@@ -725,6 +736,7 @@ export interface FileRouteTypes {
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
+    | '/api/v1/applicant-cv'
     | '/api/v1/applicants'
     | '/api/v1/blog'
     | '/api/v1/contact-locations'
@@ -790,6 +802,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/policies/$slug'
     | '/api/v1/(public)/pricing/$slug'
     | '/api/v1/(public)/shipping-routes/$slug'
+    | '/api/v1/(public)/applicant-cv/'
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
     | '/api/v1/(public)/contact-locations/'
@@ -849,6 +862,7 @@ export interface RootRouteChildren {
   ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
   ApiV1publicPricingSlugRoute: typeof ApiV1publicPricingSlugRoute
   ApiV1publicShippingRoutesSlugRoute: typeof ApiV1publicShippingRoutesSlugRoute
+  ApiV1publicApplicantCvIndexRoute: typeof ApiV1publicApplicantCvIndexRoute
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
   ApiV1publicContactLocationsIndexRoute: typeof ApiV1publicContactLocationsIndexRoute
@@ -1262,6 +1276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicApplicantsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/applicant-cv/': {
+      id: '/api/v1/(public)/applicant-cv/'
+      path: '/api/v1/applicant-cv'
+      fullPath: '/api/v1/applicant-cv/'
+      preLoaderRoute: typeof ApiV1publicApplicantCvIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/shipping-routes/$slug': {
       id: '/api/v1/(public)/shipping-routes/$slug'
       path: '/api/v1/shipping-routes/$slug'
@@ -1404,6 +1425,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,
   ApiV1publicPricingSlugRoute: ApiV1publicPricingSlugRoute,
   ApiV1publicShippingRoutesSlugRoute: ApiV1publicShippingRoutesSlugRoute,
+  ApiV1publicApplicantCvIndexRoute: ApiV1publicApplicantCvIndexRoute,
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
   ApiV1publicContactLocationsIndexRoute: ApiV1publicContactLocationsIndexRoute,
