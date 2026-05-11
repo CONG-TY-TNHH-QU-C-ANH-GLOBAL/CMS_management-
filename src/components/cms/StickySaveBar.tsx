@@ -20,13 +20,13 @@ export function StickySaveBar({
         </div>
         <div className="flex-1 text-sm">
           <div className="font-semibold">Bạn có {count} thay đổi chưa lưu</div>
-          <div className="text-[11px] opacity-70">Sau khi lưu sẽ tạo bản nháp chờ duyệt — nội dung public chưa thay đổi.</div>
+          <div className="text-[11px] opacity-70">Lưu sẽ tạo bản nháp chờ duyệt — nội dung trên website chưa thay đổi cho đến khi được xuất bản.</div>
         </div>
         <button
           onClick={onDiscard}
           className="inline-flex items-center gap-1 h-8 px-3 rounded-md text-sm hover:bg-white/10 transition"
         >
-          <X className="w-3.5 h-3.5" /> Bỏ
+          <X className="w-3.5 h-3.5" /> Hủy
         </button>
         <button
           onClick={onSave}

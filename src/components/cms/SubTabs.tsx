@@ -4,7 +4,7 @@ export function SubTabs({ tabs }: { tabs: { to: string; label: string; count?: n
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <div className="border-b border-border bg-background sticky top-16 z-10">
-      <div className="px-6 max-w-[1400px] mx-auto w-full flex gap-1 overflow-x-auto">
+      <div className="px-6 max-w-350 mx-auto w-full flex gap-1 overflow-x-auto">
         {tabs.map((t) => {
           const active = pathname === t.to;
           return (

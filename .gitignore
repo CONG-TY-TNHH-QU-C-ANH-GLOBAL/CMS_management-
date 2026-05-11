@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Bootstrap script temp output (contains password hashes)
+scripts/.tmp-*.sql
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

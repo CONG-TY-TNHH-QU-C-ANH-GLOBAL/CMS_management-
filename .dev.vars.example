@@ -1,0 +1,22 @@
+# Copy this file to .dev.vars (gitignored) and fill in real values for local dev.
+# These secrets are loaded by wrangler / @cloudflare/vite-plugin during `bun run dev`.
+# For production, set them via `bunx wrangler secret put <NAME> --env production`.
+
+# Get these from Google Cloud Console:
+#   1. Go to https://console.cloud.google.com/apis/credentials
+#   2. Create OAuth 2.0 Client ID (Application type: Web application)
+#   3. Authorized redirect URIs:
+#        http://localhost:8080/api/auth/google/callback         (dev)
+#        https://cms.thgfulfill.com/api/auth/google/callback    (prod)
+#   4. Copy the client ID and client secret below.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Session signing secret — random base64 string (44 chars). Generate with:
+#   bun -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# MUST differ between dev and prod. Changing this invalidates all active sessions.
+SESSION_SECRET=
+
+# Cloudflare Turnstile secret key (optional). Leave blank to skip bot check —
+# LeadFormDialog uses a DEV_BYPASS token in that case. Production should set this.
+TURNSTILE_SECRET_KEY=

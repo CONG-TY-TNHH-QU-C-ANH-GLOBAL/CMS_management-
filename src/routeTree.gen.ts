@@ -9,134 +9,72 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsersRouteImport } from './routes/users'
-import { Route as TestimonialsRouteImport } from './routes/testimonials'
-import { Route as TelegramRouteImport } from './routes/telegram'
-import { Route as SourcesRouteImport } from './routes/sources'
-import { Route as ServicesRouteImport } from './routes/services'
-import { Route as ReviewsRouteImport } from './routes/reviews'
-import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as PoliciesRouteImport } from './routes/policies'
-import { Route as MediaRouteImport } from './routes/media'
-import { Route as MarketplacesRouteImport } from './routes/marketplaces'
-import { Route as LandingRouteImport } from './routes/landing'
-import { Route as HistoryRouteImport } from './routes/history'
-import { Route as GalleryRouteImport } from './routes/gallery'
-import { Route as FaqsRouteImport } from './routes/faqs'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as ChangeRequestsRouteImport } from './routes/change-requests'
-import { Route as CareersRouteImport } from './routes/careers'
-import { Route as BlogsRouteImport } from './routes/blogs'
-import { Route as AuditRouteImport } from './routes/audit'
-import { Route as AgentJobsRouteImport } from './routes/agent-jobs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ServicesIndexRouteImport } from './routes/services.index'
-import { Route as PricingIndexRouteImport } from './routes/pricing.index'
-import { Route as CareersIndexRouteImport } from './routes/careers.index'
-import { Route as ServicesServiceIdRouteImport } from './routes/services.$serviceId'
-import { Route as PricingUsRouteImport } from './routes/pricing.us'
-import { Route as PricingHistoryRouteImport } from './routes/pricing.history'
-import { Route as CareersApplicantsRouteImport } from './routes/careers.applicants'
-import { Route as CareersJobIdRouteImport } from './routes/careers.$jobId'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminSalesPricingRouteRouteImport } from './routes/admin/sales/pricing/route'
+import { Route as AdminContentServicesRouteRouteImport } from './routes/admin/content/services/route'
+import { Route as AdminContentCareersRouteRouteImport } from './routes/admin/content/careers/route'
+import { Route as AdminSystemUsersIndexRouteImport } from './routes/admin/system/users/index'
+import { Route as AdminSystemTelegramIndexRouteImport } from './routes/admin/system/telegram/index'
+import { Route as AdminSystemSettingsIndexRouteImport } from './routes/admin/system/settings/index'
+import { Route as AdminSystemAuditIndexRouteImport } from './routes/admin/system/audit/index'
+import { Route as AdminSalesPricingIndexRouteImport } from './routes/admin/sales/pricing/index'
+import { Route as AdminSalesLeadsIndexRouteImport } from './routes/admin/sales/leads/index'
+import { Route as AdminContentTestimonialsIndexRouteImport } from './routes/admin/content/testimonials/index'
+import { Route as AdminContentShippingRoutesIndexRouteImport } from './routes/admin/content/shipping-routes/index'
+import { Route as AdminContentServicesIndexRouteImport } from './routes/admin/content/services/index'
+import { Route as AdminContentPoliciesIndexRouteImport } from './routes/admin/content/policies/index'
+import { Route as AdminContentMediaIndexRouteImport } from './routes/admin/content/media/index'
+import { Route as AdminContentMarketplacesIndexRouteImport } from './routes/admin/content/marketplaces/index'
+import { Route as AdminContentLandingIndexRouteImport } from './routes/admin/content/landing/index'
+import { Route as AdminContentGalleryIndexRouteImport } from './routes/admin/content/gallery/index'
+import { Route as AdminContentFaqsIndexRouteImport } from './routes/admin/content/faqs/index'
+import { Route as AdminContentContactIndexRouteImport } from './routes/admin/content/contact/index'
+import { Route as AdminContentCareersIndexRouteImport } from './routes/admin/content/careers/index'
+import { Route as AdminContentBlogsIndexRouteImport } from './routes/admin/content/blogs/index'
+import { Route as AdminAiSourcesIndexRouteImport } from './routes/admin/ai/sources/index'
+import { Route as AdminAiReviewsIndexRouteImport } from './routes/admin/ai/reviews/index'
+import { Route as AdminAiHistoryIndexRouteImport } from './routes/admin/ai/history/index'
+import { Route as AdminAiChangeRequestsIndexRouteImport } from './routes/admin/ai/change-requests/index'
+import { Route as AdminAiAgentJobsIndexRouteImport } from './routes/admin/ai/agent-jobs/index'
+import { Route as ApiAuthGoogleStartRouteImport } from './routes/api/auth/google/start'
+import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google/callback'
+import { Route as AdminSalesPricingSlugRouteImport } from './routes/admin/sales/pricing/$slug'
+import { Route as AdminContentShippingRoutesSlugRouteImport } from './routes/admin/content/shipping-routes/$slug'
+import { Route as AdminContentServicesServiceIdRouteImport } from './routes/admin/content/services/$serviceId'
+import { Route as AdminContentPoliciesSlugRouteImport } from './routes/admin/content/policies/$slug'
+import { Route as AdminContentCareersApplicantsRouteImport } from './routes/admin/content/careers/applicants'
+import { Route as AdminContentCareersJobIdRouteImport } from './routes/admin/content/careers/$jobId'
+import { Route as AdminContentBlogsSlugRouteImport } from './routes/admin/content/blogs/$slug'
+import { Route as ApiV1publicTranslationsIndexRouteImport } from './routes/api/v1/(public)/translations/index'
+import { Route as ApiV1publicTestimonialsIndexRouteImport } from './routes/api/v1/(public)/testimonials/index'
+import { Route as ApiV1publicSitemapIndexRouteImport } from './routes/api/v1/(public)/sitemap/index'
+import { Route as ApiV1publicSiteSettingsIndexRouteImport } from './routes/api/v1/(public)/site-settings/index'
+import { Route as ApiV1publicShippingRoutesIndexRouteImport } from './routes/api/v1/(public)/shipping-routes/index'
+import { Route as ApiV1publicServicesIndexRouteImport } from './routes/api/v1/(public)/services/index'
+import { Route as ApiV1publicPricingIndexRouteImport } from './routes/api/v1/(public)/pricing/index'
+import { Route as ApiV1publicPoliciesIndexRouteImport } from './routes/api/v1/(public)/policies/index'
+import { Route as ApiV1publicMarqueeImagesIndexRouteImport } from './routes/api/v1/(public)/marquee-images/index'
+import { Route as ApiV1publicLeadsIndexRouteImport } from './routes/api/v1/(public)/leads/index'
+import { Route as ApiV1publicJobsIndexRouteImport } from './routes/api/v1/(public)/jobs/index'
+import { Route as ApiV1publicIntegrationsIndexRouteImport } from './routes/api/v1/(public)/integrations/index'
+import { Route as ApiV1publicHomepageIndexRouteImport } from './routes/api/v1/(public)/homepage/index'
+import { Route as ApiV1publicFaqsIndexRouteImport } from './routes/api/v1/(public)/faqs/index'
+import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/api/v1/(public)/contact-locations/index'
+import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
+import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
+import { Route as ApiV1publicShippingRoutesSlugRouteImport } from './routes/api/v1/(public)/shipping-routes/$slug'
+import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(public)/pricing/$slug'
+import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
+import { Route as ApiV1publicMediaSplatRouteImport } from './routes/api/v1/(public)/media/$'
+import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public)/jobs/$slug'
+import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
+import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
 
-const UsersRoute = UsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TestimonialsRoute = TestimonialsRouteImport.update({
-  id: '/testimonials',
-  path: '/testimonials',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TelegramRoute = TelegramRouteImport.update({
-  id: '/telegram',
-  path: '/telegram',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SourcesRoute = SourcesRouteImport.update({
-  id: '/sources',
-  path: '/sources',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ServicesRoute = ServicesRouteImport.update({
-  id: '/services',
-  path: '/services',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReviewsRoute = ReviewsRouteImport.update({
-  id: '/reviews',
-  path: '/reviews',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PoliciesRoute = PoliciesRouteImport.update({
-  id: '/policies',
-  path: '/policies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MediaRoute = MediaRouteImport.update({
-  id: '/media',
-  path: '/media',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketplacesRoute = MarketplacesRouteImport.update({
-  id: '/marketplaces',
-  path: '/marketplaces',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LandingRoute = LandingRouteImport.update({
-  id: '/landing',
-  path: '/landing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HistoryRoute = HistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GalleryRoute = GalleryRouteImport.update({
-  id: '/gallery',
-  path: '/gallery',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqsRoute = FaqsRouteImport.update({
-  id: '/faqs',
-  path: '/faqs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChangeRequestsRoute = ChangeRequestsRouteImport.update({
-  id: '/change-requests',
-  path: '/change-requests',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CareersRoute = CareersRouteImport.update({
-  id: '/careers',
-  path: '/careers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BlogsRoute = BlogsRouteImport.update({
-  id: '/blogs',
-  path: '/blogs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuditRoute = AuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgentJobsRoute = AgentJobsRouteImport.update({
-  id: '/agent-jobs',
-  path: '/agent-jobs',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -144,395 +82,785 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ServicesIndexRoute = ServicesIndexRouteImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSalesPricingRouteRoute = AdminSalesPricingRouteRouteImport.update({
+  id: '/admin/sales/pricing',
+  path: '/admin/sales/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContentServicesRouteRoute =
+  AdminContentServicesRouteRouteImport.update({
+    id: '/admin/content/services',
+    path: '/admin/content/services',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentCareersRouteRoute =
+  AdminContentCareersRouteRouteImport.update({
+    id: '/admin/content/careers',
+    path: '/admin/content/careers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminSystemUsersIndexRoute = AdminSystemUsersIndexRouteImport.update({
+  id: '/admin/system/users/',
+  path: '/admin/system/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSystemTelegramIndexRoute =
+  AdminSystemTelegramIndexRouteImport.update({
+    id: '/admin/system/telegram/',
+    path: '/admin/system/telegram/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminSystemSettingsIndexRoute =
+  AdminSystemSettingsIndexRouteImport.update({
+    id: '/admin/system/settings/',
+    path: '/admin/system/settings/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminSystemAuditIndexRoute = AdminSystemAuditIndexRouteImport.update({
+  id: '/admin/system/audit/',
+  path: '/admin/system/audit/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSalesPricingIndexRoute = AdminSalesPricingIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ServicesRoute,
+  getParentRoute: () => AdminSalesPricingRouteRoute,
 } as any)
-const PricingIndexRoute = PricingIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PricingRoute,
+const AdminSalesLeadsIndexRoute = AdminSalesLeadsIndexRouteImport.update({
+  id: '/admin/sales/leads/',
+  path: '/admin/sales/leads/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const CareersIndexRoute = CareersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CareersRoute,
+const AdminContentTestimonialsIndexRoute =
+  AdminContentTestimonialsIndexRouteImport.update({
+    id: '/admin/content/testimonials/',
+    path: '/admin/content/testimonials/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentShippingRoutesIndexRoute =
+  AdminContentShippingRoutesIndexRouteImport.update({
+    id: '/admin/content/shipping-routes/',
+    path: '/admin/content/shipping-routes/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentServicesIndexRoute =
+  AdminContentServicesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminContentServicesRouteRoute,
+  } as any)
+const AdminContentPoliciesIndexRoute =
+  AdminContentPoliciesIndexRouteImport.update({
+    id: '/admin/content/policies/',
+    path: '/admin/content/policies/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentMediaIndexRoute = AdminContentMediaIndexRouteImport.update({
+  id: '/admin/content/media/',
+  path: '/admin/content/media/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ServicesServiceIdRoute = ServicesServiceIdRouteImport.update({
-  id: '/$serviceId',
-  path: '/$serviceId',
-  getParentRoute: () => ServicesRoute,
+const AdminContentMarketplacesIndexRoute =
+  AdminContentMarketplacesIndexRouteImport.update({
+    id: '/admin/content/marketplaces/',
+    path: '/admin/content/marketplaces/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentLandingIndexRoute =
+  AdminContentLandingIndexRouteImport.update({
+    id: '/admin/content/landing/',
+    path: '/admin/content/landing/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentGalleryIndexRoute =
+  AdminContentGalleryIndexRouteImport.update({
+    id: '/admin/content/gallery/',
+    path: '/admin/content/gallery/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentFaqsIndexRoute = AdminContentFaqsIndexRouteImport.update({
+  id: '/admin/content/faqs/',
+  path: '/admin/content/faqs/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PricingUsRoute = PricingUsRouteImport.update({
-  id: '/us',
-  path: '/us',
-  getParentRoute: () => PricingRoute,
+const AdminContentContactIndexRoute =
+  AdminContentContactIndexRouteImport.update({
+    id: '/admin/content/contact/',
+    path: '/admin/content/contact/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentCareersIndexRoute =
+  AdminContentCareersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminContentCareersRouteRoute,
+  } as any)
+const AdminContentBlogsIndexRoute = AdminContentBlogsIndexRouteImport.update({
+  id: '/admin/content/blogs/',
+  path: '/admin/content/blogs/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PricingHistoryRoute = PricingHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => PricingRoute,
+const AdminAiSourcesIndexRoute = AdminAiSourcesIndexRouteImport.update({
+  id: '/admin/ai/sources/',
+  path: '/admin/ai/sources/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const CareersApplicantsRoute = CareersApplicantsRouteImport.update({
-  id: '/applicants',
-  path: '/applicants',
-  getParentRoute: () => CareersRoute,
+const AdminAiReviewsIndexRoute = AdminAiReviewsIndexRouteImport.update({
+  id: '/admin/ai/reviews/',
+  path: '/admin/ai/reviews/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const CareersJobIdRoute = CareersJobIdRouteImport.update({
-  id: '/$jobId',
-  path: '/$jobId',
-  getParentRoute: () => CareersRoute,
+const AdminAiHistoryIndexRoute = AdminAiHistoryIndexRouteImport.update({
+  id: '/admin/ai/history/',
+  path: '/admin/ai/history/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAiChangeRequestsIndexRoute =
+  AdminAiChangeRequestsIndexRouteImport.update({
+    id: '/admin/ai/change-requests/',
+    path: '/admin/ai/change-requests/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminAiAgentJobsIndexRoute = AdminAiAgentJobsIndexRouteImport.update({
+  id: '/admin/ai/agent-jobs/',
+  path: '/admin/ai/agent-jobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleStartRoute = ApiAuthGoogleStartRouteImport.update({
+  id: '/api/auth/google/start',
+  path: '/api/auth/google/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
+  id: '/api/auth/google/callback',
+  path: '/api/auth/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSalesPricingSlugRoute = AdminSalesPricingSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AdminSalesPricingRouteRoute,
+} as any)
+const AdminContentShippingRoutesSlugRoute =
+  AdminContentShippingRoutesSlugRouteImport.update({
+    id: '/admin/content/shipping-routes/$slug',
+    path: '/admin/content/shipping-routes/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentServicesServiceIdRoute =
+  AdminContentServicesServiceIdRouteImport.update({
+    id: '/$serviceId',
+    path: '/$serviceId',
+    getParentRoute: () => AdminContentServicesRouteRoute,
+  } as any)
+const AdminContentPoliciesSlugRoute =
+  AdminContentPoliciesSlugRouteImport.update({
+    id: '/admin/content/policies/$slug',
+    path: '/admin/content/policies/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentCareersApplicantsRoute =
+  AdminContentCareersApplicantsRouteImport.update({
+    id: '/applicants',
+    path: '/applicants',
+    getParentRoute: () => AdminContentCareersRouteRoute,
+  } as any)
+const AdminContentCareersJobIdRoute =
+  AdminContentCareersJobIdRouteImport.update({
+    id: '/$jobId',
+    path: '/$jobId',
+    getParentRoute: () => AdminContentCareersRouteRoute,
+  } as any)
+const AdminContentBlogsSlugRoute = AdminContentBlogsSlugRouteImport.update({
+  id: '/admin/content/blogs/$slug',
+  path: '/admin/content/blogs/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicTranslationsIndexRoute =
+  ApiV1publicTranslationsIndexRouteImport.update({
+    id: '/api/v1/(public)/translations/',
+    path: '/api/v1/translations/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicTestimonialsIndexRoute =
+  ApiV1publicTestimonialsIndexRouteImport.update({
+    id: '/api/v1/(public)/testimonials/',
+    path: '/api/v1/testimonials/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicSitemapIndexRoute = ApiV1publicSitemapIndexRouteImport.update({
+  id: '/api/v1/(public)/sitemap/',
+  path: '/api/v1/sitemap/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicSiteSettingsIndexRoute =
+  ApiV1publicSiteSettingsIndexRouteImport.update({
+    id: '/api/v1/(public)/site-settings/',
+    path: '/api/v1/site-settings/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicShippingRoutesIndexRoute =
+  ApiV1publicShippingRoutesIndexRouteImport.update({
+    id: '/api/v1/(public)/shipping-routes/',
+    path: '/api/v1/shipping-routes/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicServicesIndexRoute =
+  ApiV1publicServicesIndexRouteImport.update({
+    id: '/api/v1/(public)/services/',
+    path: '/api/v1/services/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicPricingIndexRoute = ApiV1publicPricingIndexRouteImport.update({
+  id: '/api/v1/(public)/pricing/',
+  path: '/api/v1/pricing/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicPoliciesIndexRoute =
+  ApiV1publicPoliciesIndexRouteImport.update({
+    id: '/api/v1/(public)/policies/',
+    path: '/api/v1/policies/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicMarqueeImagesIndexRoute =
+  ApiV1publicMarqueeImagesIndexRouteImport.update({
+    id: '/api/v1/(public)/marquee-images/',
+    path: '/api/v1/marquee-images/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicLeadsIndexRoute = ApiV1publicLeadsIndexRouteImport.update({
+  id: '/api/v1/(public)/leads/',
+  path: '/api/v1/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicJobsIndexRoute = ApiV1publicJobsIndexRouteImport.update({
+  id: '/api/v1/(public)/jobs/',
+  path: '/api/v1/jobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicIntegrationsIndexRoute =
+  ApiV1publicIntegrationsIndexRouteImport.update({
+    id: '/api/v1/(public)/integrations/',
+    path: '/api/v1/integrations/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicHomepageIndexRoute =
+  ApiV1publicHomepageIndexRouteImport.update({
+    id: '/api/v1/(public)/homepage/',
+    path: '/api/v1/homepage/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicFaqsIndexRoute = ApiV1publicFaqsIndexRouteImport.update({
+  id: '/api/v1/(public)/faqs/',
+  path: '/api/v1/faqs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicContactLocationsIndexRoute =
+  ApiV1publicContactLocationsIndexRouteImport.update({
+    id: '/api/v1/(public)/contact-locations/',
+    path: '/api/v1/contact-locations/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicBlogIndexRoute = ApiV1publicBlogIndexRouteImport.update({
+  id: '/api/v1/(public)/blog/',
+  path: '/api/v1/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicApplicantsIndexRoute =
+  ApiV1publicApplicantsIndexRouteImport.update({
+    id: '/api/v1/(public)/applicants/',
+    path: '/api/v1/applicants/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicShippingRoutesSlugRoute =
+  ApiV1publicShippingRoutesSlugRouteImport.update({
+    id: '/api/v1/(public)/shipping-routes/$slug',
+    path: '/api/v1/shipping-routes/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicPricingSlugRoute = ApiV1publicPricingSlugRouteImport.update({
+  id: '/api/v1/(public)/pricing/$slug',
+  path: '/api/v1/pricing/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicPoliciesSlugRoute = ApiV1publicPoliciesSlugRouteImport.update({
+  id: '/api/v1/(public)/policies/$slug',
+  path: '/api/v1/policies/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicMediaSplatRoute = ApiV1publicMediaSplatRouteImport.update({
+  id: '/api/v1/(public)/media/$',
+  path: '/api/v1/media/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicJobsSlugRoute = ApiV1publicJobsSlugRouteImport.update({
+  id: '/api/v1/(public)/jobs/$slug',
+  path: '/api/v1/jobs/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicBlogSlugRoute = ApiV1publicBlogSlugRouteImport.update({
+  id: '/api/v1/(public)/blog/$slug',
+  path: '/api/v1/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1adminMediaUploadRoute = ApiV1adminMediaUploadRouteImport.update({
+  id: '/api/v1/(admin)/media/upload',
+  path: '/api/v1/media/upload',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/agent-jobs': typeof AgentJobsRoute
-  '/audit': typeof AuditRoute
-  '/blogs': typeof BlogsRoute
-  '/careers': typeof CareersRouteWithChildren
-  '/change-requests': typeof ChangeRequestsRoute
-  '/contact': typeof ContactRoute
-  '/faqs': typeof FaqsRoute
-  '/gallery': typeof GalleryRoute
-  '/history': typeof HistoryRoute
-  '/landing': typeof LandingRoute
-  '/marketplaces': typeof MarketplacesRoute
-  '/media': typeof MediaRoute
-  '/policies': typeof PoliciesRoute
-  '/pricing': typeof PricingRouteWithChildren
-  '/reviews': typeof ReviewsRoute
-  '/services': typeof ServicesRouteWithChildren
-  '/sources': typeof SourcesRoute
-  '/telegram': typeof TelegramRoute
-  '/testimonials': typeof TestimonialsRoute
-  '/users': typeof UsersRoute
-  '/careers/$jobId': typeof CareersJobIdRoute
-  '/careers/applicants': typeof CareersApplicantsRoute
-  '/pricing/history': typeof PricingHistoryRoute
-  '/pricing/us': typeof PricingUsRoute
-  '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/careers/': typeof CareersIndexRoute
-  '/pricing/': typeof PricingIndexRoute
-  '/services/': typeof ServicesIndexRoute
+  '/login': typeof LoginRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/content/careers': typeof AdminContentCareersRouteRouteWithChildren
+  '/admin/content/services': typeof AdminContentServicesRouteRouteWithChildren
+  '/admin/sales/pricing': typeof AdminSalesPricingRouteRouteWithChildren
+  '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
+  '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
+  '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
+  '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
+  '/admin/sales/pricing/$slug': typeof AdminSalesPricingSlugRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
+  '/api/auth/google/start': typeof ApiAuthGoogleStartRoute
+  '/admin/ai/agent-jobs/': typeof AdminAiAgentJobsIndexRoute
+  '/admin/ai/change-requests/': typeof AdminAiChangeRequestsIndexRoute
+  '/admin/ai/history/': typeof AdminAiHistoryIndexRoute
+  '/admin/ai/reviews/': typeof AdminAiReviewsIndexRoute
+  '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
+  '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
+  '/admin/content/careers/': typeof AdminContentCareersIndexRoute
+  '/admin/content/contact/': typeof AdminContentContactIndexRoute
+  '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
+  '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
+  '/admin/content/landing/': typeof AdminContentLandingIndexRoute
+  '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
+  '/admin/content/media/': typeof AdminContentMediaIndexRoute
+  '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/services/': typeof AdminContentServicesIndexRoute
+  '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
+  '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
+  '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
+  '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
+  '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
+  '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
+  '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
+  '/admin/system/users/': typeof AdminSystemUsersIndexRoute
+  '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
+  '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
+  '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
+  '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
+  '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/faqs/': typeof ApiV1publicFaqsIndexRoute
+  '/api/v1/homepage/': typeof ApiV1publicHomepageIndexRoute
+  '/api/v1/integrations/': typeof ApiV1publicIntegrationsIndexRoute
+  '/api/v1/jobs/': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/leads/': typeof ApiV1publicLeadsIndexRoute
+  '/api/v1/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/policies/': typeof ApiV1publicPoliciesIndexRoute
+  '/api/v1/pricing/': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/services/': typeof ApiV1publicServicesIndexRoute
+  '/api/v1/shipping-routes/': typeof ApiV1publicShippingRoutesIndexRoute
+  '/api/v1/site-settings/': typeof ApiV1publicSiteSettingsIndexRoute
+  '/api/v1/sitemap/': typeof ApiV1publicSitemapIndexRoute
+  '/api/v1/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
+  '/api/v1/translations/': typeof ApiV1publicTranslationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/agent-jobs': typeof AgentJobsRoute
-  '/audit': typeof AuditRoute
-  '/blogs': typeof BlogsRoute
-  '/change-requests': typeof ChangeRequestsRoute
-  '/contact': typeof ContactRoute
-  '/faqs': typeof FaqsRoute
-  '/gallery': typeof GalleryRoute
-  '/history': typeof HistoryRoute
-  '/landing': typeof LandingRoute
-  '/marketplaces': typeof MarketplacesRoute
-  '/media': typeof MediaRoute
-  '/policies': typeof PoliciesRoute
-  '/reviews': typeof ReviewsRoute
-  '/sources': typeof SourcesRoute
-  '/telegram': typeof TelegramRoute
-  '/testimonials': typeof TestimonialsRoute
-  '/users': typeof UsersRoute
-  '/careers/$jobId': typeof CareersJobIdRoute
-  '/careers/applicants': typeof CareersApplicantsRoute
-  '/pricing/history': typeof PricingHistoryRoute
-  '/pricing/us': typeof PricingUsRoute
-  '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/careers': typeof CareersIndexRoute
-  '/pricing': typeof PricingIndexRoute
-  '/services': typeof ServicesIndexRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
+  '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
+  '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
+  '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
+  '/admin/sales/pricing/$slug': typeof AdminSalesPricingSlugRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
+  '/api/auth/google/start': typeof ApiAuthGoogleStartRoute
+  '/admin/ai/agent-jobs': typeof AdminAiAgentJobsIndexRoute
+  '/admin/ai/change-requests': typeof AdminAiChangeRequestsIndexRoute
+  '/admin/ai/history': typeof AdminAiHistoryIndexRoute
+  '/admin/ai/reviews': typeof AdminAiReviewsIndexRoute
+  '/admin/ai/sources': typeof AdminAiSourcesIndexRoute
+  '/admin/content/blogs': typeof AdminContentBlogsIndexRoute
+  '/admin/content/careers': typeof AdminContentCareersIndexRoute
+  '/admin/content/contact': typeof AdminContentContactIndexRoute
+  '/admin/content/faqs': typeof AdminContentFaqsIndexRoute
+  '/admin/content/gallery': typeof AdminContentGalleryIndexRoute
+  '/admin/content/landing': typeof AdminContentLandingIndexRoute
+  '/admin/content/marketplaces': typeof AdminContentMarketplacesIndexRoute
+  '/admin/content/media': typeof AdminContentMediaIndexRoute
+  '/admin/content/policies': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/services': typeof AdminContentServicesIndexRoute
+  '/admin/content/shipping-routes': typeof AdminContentShippingRoutesIndexRoute
+  '/admin/content/testimonials': typeof AdminContentTestimonialsIndexRoute
+  '/admin/sales/leads': typeof AdminSalesLeadsIndexRoute
+  '/admin/sales/pricing': typeof AdminSalesPricingIndexRoute
+  '/admin/system/audit': typeof AdminSystemAuditIndexRoute
+  '/admin/system/settings': typeof AdminSystemSettingsIndexRoute
+  '/admin/system/telegram': typeof AdminSystemTelegramIndexRoute
+  '/admin/system/users': typeof AdminSystemUsersIndexRoute
+  '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
+  '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
+  '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
+  '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
+  '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/contact-locations': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/faqs': typeof ApiV1publicFaqsIndexRoute
+  '/api/v1/homepage': typeof ApiV1publicHomepageIndexRoute
+  '/api/v1/integrations': typeof ApiV1publicIntegrationsIndexRoute
+  '/api/v1/jobs': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/leads': typeof ApiV1publicLeadsIndexRoute
+  '/api/v1/marquee-images': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/policies': typeof ApiV1publicPoliciesIndexRoute
+  '/api/v1/pricing': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/services': typeof ApiV1publicServicesIndexRoute
+  '/api/v1/shipping-routes': typeof ApiV1publicShippingRoutesIndexRoute
+  '/api/v1/site-settings': typeof ApiV1publicSiteSettingsIndexRoute
+  '/api/v1/sitemap': typeof ApiV1publicSitemapIndexRoute
+  '/api/v1/testimonials': typeof ApiV1publicTestimonialsIndexRoute
+  '/api/v1/translations': typeof ApiV1publicTranslationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/agent-jobs': typeof AgentJobsRoute
-  '/audit': typeof AuditRoute
-  '/blogs': typeof BlogsRoute
-  '/careers': typeof CareersRouteWithChildren
-  '/change-requests': typeof ChangeRequestsRoute
-  '/contact': typeof ContactRoute
-  '/faqs': typeof FaqsRoute
-  '/gallery': typeof GalleryRoute
-  '/history': typeof HistoryRoute
-  '/landing': typeof LandingRoute
-  '/marketplaces': typeof MarketplacesRoute
-  '/media': typeof MediaRoute
-  '/policies': typeof PoliciesRoute
-  '/pricing': typeof PricingRouteWithChildren
-  '/reviews': typeof ReviewsRoute
-  '/services': typeof ServicesRouteWithChildren
-  '/sources': typeof SourcesRoute
-  '/telegram': typeof TelegramRoute
-  '/testimonials': typeof TestimonialsRoute
-  '/users': typeof UsersRoute
-  '/careers/$jobId': typeof CareersJobIdRoute
-  '/careers/applicants': typeof CareersApplicantsRoute
-  '/pricing/history': typeof PricingHistoryRoute
-  '/pricing/us': typeof PricingUsRoute
-  '/services/$serviceId': typeof ServicesServiceIdRoute
-  '/careers/': typeof CareersIndexRoute
-  '/pricing/': typeof PricingIndexRoute
-  '/services/': typeof ServicesIndexRoute
+  '/login': typeof LoginRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/content/careers': typeof AdminContentCareersRouteRouteWithChildren
+  '/admin/content/services': typeof AdminContentServicesRouteRouteWithChildren
+  '/admin/sales/pricing': typeof AdminSalesPricingRouteRouteWithChildren
+  '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
+  '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
+  '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
+  '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
+  '/admin/sales/pricing/$slug': typeof AdminSalesPricingSlugRoute
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
+  '/api/auth/google/start': typeof ApiAuthGoogleStartRoute
+  '/admin/ai/agent-jobs/': typeof AdminAiAgentJobsIndexRoute
+  '/admin/ai/change-requests/': typeof AdminAiChangeRequestsIndexRoute
+  '/admin/ai/history/': typeof AdminAiHistoryIndexRoute
+  '/admin/ai/reviews/': typeof AdminAiReviewsIndexRoute
+  '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
+  '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
+  '/admin/content/careers/': typeof AdminContentCareersIndexRoute
+  '/admin/content/contact/': typeof AdminContentContactIndexRoute
+  '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
+  '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
+  '/admin/content/landing/': typeof AdminContentLandingIndexRoute
+  '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
+  '/admin/content/media/': typeof AdminContentMediaIndexRoute
+  '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/services/': typeof AdminContentServicesIndexRoute
+  '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
+  '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
+  '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
+  '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
+  '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
+  '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
+  '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
+  '/admin/system/users/': typeof AdminSystemUsersIndexRoute
+  '/api/v1/(admin)/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/(public)/jobs/$slug': typeof ApiV1publicJobsSlugRoute
+  '/api/v1/(public)/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
+  '/api/v1/(public)/pricing/$slug': typeof ApiV1publicPricingSlugRoute
+  '/api/v1/(public)/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
+  '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/(public)/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/(public)/faqs/': typeof ApiV1publicFaqsIndexRoute
+  '/api/v1/(public)/homepage/': typeof ApiV1publicHomepageIndexRoute
+  '/api/v1/(public)/integrations/': typeof ApiV1publicIntegrationsIndexRoute
+  '/api/v1/(public)/jobs/': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/(public)/leads/': typeof ApiV1publicLeadsIndexRoute
+  '/api/v1/(public)/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/(public)/policies/': typeof ApiV1publicPoliciesIndexRoute
+  '/api/v1/(public)/pricing/': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/(public)/services/': typeof ApiV1publicServicesIndexRoute
+  '/api/v1/(public)/shipping-routes/': typeof ApiV1publicShippingRoutesIndexRoute
+  '/api/v1/(public)/site-settings/': typeof ApiV1publicSiteSettingsIndexRoute
+  '/api/v1/(public)/sitemap/': typeof ApiV1publicSitemapIndexRoute
+  '/api/v1/(public)/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
+  '/api/v1/(public)/translations/': typeof ApiV1publicTranslationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/agent-jobs'
-    | '/audit'
-    | '/blogs'
-    | '/careers'
-    | '/change-requests'
-    | '/contact'
-    | '/faqs'
-    | '/gallery'
-    | '/history'
-    | '/landing'
-    | '/marketplaces'
-    | '/media'
-    | '/policies'
-    | '/pricing'
-    | '/reviews'
-    | '/services'
-    | '/sources'
-    | '/telegram'
-    | '/testimonials'
-    | '/users'
-    | '/careers/$jobId'
-    | '/careers/applicants'
-    | '/pricing/history'
-    | '/pricing/us'
-    | '/services/$serviceId'
-    | '/careers/'
-    | '/pricing/'
-    | '/services/'
+    | '/login'
+    | '/admin/'
+    | '/admin/content/careers'
+    | '/admin/content/services'
+    | '/admin/sales/pricing'
+    | '/admin/content/blogs/$slug'
+    | '/admin/content/careers/$jobId'
+    | '/admin/content/careers/applicants'
+    | '/admin/content/policies/$slug'
+    | '/admin/content/services/$serviceId'
+    | '/admin/content/shipping-routes/$slug'
+    | '/admin/sales/pricing/$slug'
+    | '/api/auth/google/callback'
+    | '/api/auth/google/start'
+    | '/admin/ai/agent-jobs/'
+    | '/admin/ai/change-requests/'
+    | '/admin/ai/history/'
+    | '/admin/ai/reviews/'
+    | '/admin/ai/sources/'
+    | '/admin/content/blogs/'
+    | '/admin/content/careers/'
+    | '/admin/content/contact/'
+    | '/admin/content/faqs/'
+    | '/admin/content/gallery/'
+    | '/admin/content/landing/'
+    | '/admin/content/marketplaces/'
+    | '/admin/content/media/'
+    | '/admin/content/policies/'
+    | '/admin/content/services/'
+    | '/admin/content/shipping-routes/'
+    | '/admin/content/testimonials/'
+    | '/admin/sales/leads/'
+    | '/admin/sales/pricing/'
+    | '/admin/system/audit/'
+    | '/admin/system/settings/'
+    | '/admin/system/telegram/'
+    | '/admin/system/users/'
+    | '/api/v1/media/upload'
+    | '/api/v1/blog/$slug'
+    | '/api/v1/jobs/$slug'
+    | '/api/v1/media/$'
+    | '/api/v1/policies/$slug'
+    | '/api/v1/pricing/$slug'
+    | '/api/v1/shipping-routes/$slug'
+    | '/api/v1/applicants/'
+    | '/api/v1/blog/'
+    | '/api/v1/contact-locations/'
+    | '/api/v1/faqs/'
+    | '/api/v1/homepage/'
+    | '/api/v1/integrations/'
+    | '/api/v1/jobs/'
+    | '/api/v1/leads/'
+    | '/api/v1/marquee-images/'
+    | '/api/v1/policies/'
+    | '/api/v1/pricing/'
+    | '/api/v1/services/'
+    | '/api/v1/shipping-routes/'
+    | '/api/v1/site-settings/'
+    | '/api/v1/sitemap/'
+    | '/api/v1/testimonials/'
+    | '/api/v1/translations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/agent-jobs'
-    | '/audit'
-    | '/blogs'
-    | '/change-requests'
-    | '/contact'
-    | '/faqs'
-    | '/gallery'
-    | '/history'
-    | '/landing'
-    | '/marketplaces'
-    | '/media'
-    | '/policies'
-    | '/reviews'
-    | '/sources'
-    | '/telegram'
-    | '/testimonials'
-    | '/users'
-    | '/careers/$jobId'
-    | '/careers/applicants'
-    | '/pricing/history'
-    | '/pricing/us'
-    | '/services/$serviceId'
-    | '/careers'
-    | '/pricing'
-    | '/services'
+    | '/login'
+    | '/admin'
+    | '/admin/content/blogs/$slug'
+    | '/admin/content/careers/$jobId'
+    | '/admin/content/careers/applicants'
+    | '/admin/content/policies/$slug'
+    | '/admin/content/services/$serviceId'
+    | '/admin/content/shipping-routes/$slug'
+    | '/admin/sales/pricing/$slug'
+    | '/api/auth/google/callback'
+    | '/api/auth/google/start'
+    | '/admin/ai/agent-jobs'
+    | '/admin/ai/change-requests'
+    | '/admin/ai/history'
+    | '/admin/ai/reviews'
+    | '/admin/ai/sources'
+    | '/admin/content/blogs'
+    | '/admin/content/careers'
+    | '/admin/content/contact'
+    | '/admin/content/faqs'
+    | '/admin/content/gallery'
+    | '/admin/content/landing'
+    | '/admin/content/marketplaces'
+    | '/admin/content/media'
+    | '/admin/content/policies'
+    | '/admin/content/services'
+    | '/admin/content/shipping-routes'
+    | '/admin/content/testimonials'
+    | '/admin/sales/leads'
+    | '/admin/sales/pricing'
+    | '/admin/system/audit'
+    | '/admin/system/settings'
+    | '/admin/system/telegram'
+    | '/admin/system/users'
+    | '/api/v1/media/upload'
+    | '/api/v1/blog/$slug'
+    | '/api/v1/jobs/$slug'
+    | '/api/v1/media/$'
+    | '/api/v1/policies/$slug'
+    | '/api/v1/pricing/$slug'
+    | '/api/v1/shipping-routes/$slug'
+    | '/api/v1/applicants'
+    | '/api/v1/blog'
+    | '/api/v1/contact-locations'
+    | '/api/v1/faqs'
+    | '/api/v1/homepage'
+    | '/api/v1/integrations'
+    | '/api/v1/jobs'
+    | '/api/v1/leads'
+    | '/api/v1/marquee-images'
+    | '/api/v1/policies'
+    | '/api/v1/pricing'
+    | '/api/v1/services'
+    | '/api/v1/shipping-routes'
+    | '/api/v1/site-settings'
+    | '/api/v1/sitemap'
+    | '/api/v1/testimonials'
+    | '/api/v1/translations'
   id:
     | '__root__'
     | '/'
-    | '/agent-jobs'
-    | '/audit'
-    | '/blogs'
-    | '/careers'
-    | '/change-requests'
-    | '/contact'
-    | '/faqs'
-    | '/gallery'
-    | '/history'
-    | '/landing'
-    | '/marketplaces'
-    | '/media'
-    | '/policies'
-    | '/pricing'
-    | '/reviews'
-    | '/services'
-    | '/sources'
-    | '/telegram'
-    | '/testimonials'
-    | '/users'
-    | '/careers/$jobId'
-    | '/careers/applicants'
-    | '/pricing/history'
-    | '/pricing/us'
-    | '/services/$serviceId'
-    | '/careers/'
-    | '/pricing/'
-    | '/services/'
+    | '/login'
+    | '/admin/'
+    | '/admin/content/careers'
+    | '/admin/content/services'
+    | '/admin/sales/pricing'
+    | '/admin/content/blogs/$slug'
+    | '/admin/content/careers/$jobId'
+    | '/admin/content/careers/applicants'
+    | '/admin/content/policies/$slug'
+    | '/admin/content/services/$serviceId'
+    | '/admin/content/shipping-routes/$slug'
+    | '/admin/sales/pricing/$slug'
+    | '/api/auth/google/callback'
+    | '/api/auth/google/start'
+    | '/admin/ai/agent-jobs/'
+    | '/admin/ai/change-requests/'
+    | '/admin/ai/history/'
+    | '/admin/ai/reviews/'
+    | '/admin/ai/sources/'
+    | '/admin/content/blogs/'
+    | '/admin/content/careers/'
+    | '/admin/content/contact/'
+    | '/admin/content/faqs/'
+    | '/admin/content/gallery/'
+    | '/admin/content/landing/'
+    | '/admin/content/marketplaces/'
+    | '/admin/content/media/'
+    | '/admin/content/policies/'
+    | '/admin/content/services/'
+    | '/admin/content/shipping-routes/'
+    | '/admin/content/testimonials/'
+    | '/admin/sales/leads/'
+    | '/admin/sales/pricing/'
+    | '/admin/system/audit/'
+    | '/admin/system/settings/'
+    | '/admin/system/telegram/'
+    | '/admin/system/users/'
+    | '/api/v1/(admin)/media/upload'
+    | '/api/v1/(public)/blog/$slug'
+    | '/api/v1/(public)/jobs/$slug'
+    | '/api/v1/(public)/media/$'
+    | '/api/v1/(public)/policies/$slug'
+    | '/api/v1/(public)/pricing/$slug'
+    | '/api/v1/(public)/shipping-routes/$slug'
+    | '/api/v1/(public)/applicants/'
+    | '/api/v1/(public)/blog/'
+    | '/api/v1/(public)/contact-locations/'
+    | '/api/v1/(public)/faqs/'
+    | '/api/v1/(public)/homepage/'
+    | '/api/v1/(public)/integrations/'
+    | '/api/v1/(public)/jobs/'
+    | '/api/v1/(public)/leads/'
+    | '/api/v1/(public)/marquee-images/'
+    | '/api/v1/(public)/policies/'
+    | '/api/v1/(public)/pricing/'
+    | '/api/v1/(public)/services/'
+    | '/api/v1/(public)/shipping-routes/'
+    | '/api/v1/(public)/site-settings/'
+    | '/api/v1/(public)/sitemap/'
+    | '/api/v1/(public)/testimonials/'
+    | '/api/v1/(public)/translations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AgentJobsRoute: typeof AgentJobsRoute
-  AuditRoute: typeof AuditRoute
-  BlogsRoute: typeof BlogsRoute
-  CareersRoute: typeof CareersRouteWithChildren
-  ChangeRequestsRoute: typeof ChangeRequestsRoute
-  ContactRoute: typeof ContactRoute
-  FaqsRoute: typeof FaqsRoute
-  GalleryRoute: typeof GalleryRoute
-  HistoryRoute: typeof HistoryRoute
-  LandingRoute: typeof LandingRoute
-  MarketplacesRoute: typeof MarketplacesRoute
-  MediaRoute: typeof MediaRoute
-  PoliciesRoute: typeof PoliciesRoute
-  PricingRoute: typeof PricingRouteWithChildren
-  ReviewsRoute: typeof ReviewsRoute
-  ServicesRoute: typeof ServicesRouteWithChildren
-  SourcesRoute: typeof SourcesRoute
-  TelegramRoute: typeof TelegramRoute
-  TestimonialsRoute: typeof TestimonialsRoute
-  UsersRoute: typeof UsersRoute
+  LoginRoute: typeof LoginRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminContentCareersRouteRoute: typeof AdminContentCareersRouteRouteWithChildren
+  AdminContentServicesRouteRoute: typeof AdminContentServicesRouteRouteWithChildren
+  AdminSalesPricingRouteRoute: typeof AdminSalesPricingRouteRouteWithChildren
+  AdminContentBlogsSlugRoute: typeof AdminContentBlogsSlugRoute
+  AdminContentPoliciesSlugRoute: typeof AdminContentPoliciesSlugRoute
+  AdminContentShippingRoutesSlugRoute: typeof AdminContentShippingRoutesSlugRoute
+  ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
+  ApiAuthGoogleStartRoute: typeof ApiAuthGoogleStartRoute
+  AdminAiAgentJobsIndexRoute: typeof AdminAiAgentJobsIndexRoute
+  AdminAiChangeRequestsIndexRoute: typeof AdminAiChangeRequestsIndexRoute
+  AdminAiHistoryIndexRoute: typeof AdminAiHistoryIndexRoute
+  AdminAiReviewsIndexRoute: typeof AdminAiReviewsIndexRoute
+  AdminAiSourcesIndexRoute: typeof AdminAiSourcesIndexRoute
+  AdminContentBlogsIndexRoute: typeof AdminContentBlogsIndexRoute
+  AdminContentContactIndexRoute: typeof AdminContentContactIndexRoute
+  AdminContentFaqsIndexRoute: typeof AdminContentFaqsIndexRoute
+  AdminContentGalleryIndexRoute: typeof AdminContentGalleryIndexRoute
+  AdminContentLandingIndexRoute: typeof AdminContentLandingIndexRoute
+  AdminContentMarketplacesIndexRoute: typeof AdminContentMarketplacesIndexRoute
+  AdminContentMediaIndexRoute: typeof AdminContentMediaIndexRoute
+  AdminContentPoliciesIndexRoute: typeof AdminContentPoliciesIndexRoute
+  AdminContentShippingRoutesIndexRoute: typeof AdminContentShippingRoutesIndexRoute
+  AdminContentTestimonialsIndexRoute: typeof AdminContentTestimonialsIndexRoute
+  AdminSalesLeadsIndexRoute: typeof AdminSalesLeadsIndexRoute
+  AdminSystemAuditIndexRoute: typeof AdminSystemAuditIndexRoute
+  AdminSystemSettingsIndexRoute: typeof AdminSystemSettingsIndexRoute
+  AdminSystemTelegramIndexRoute: typeof AdminSystemTelegramIndexRoute
+  AdminSystemUsersIndexRoute: typeof AdminSystemUsersIndexRoute
+  ApiV1adminMediaUploadRoute: typeof ApiV1adminMediaUploadRoute
+  ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
+  ApiV1publicJobsSlugRoute: typeof ApiV1publicJobsSlugRoute
+  ApiV1publicMediaSplatRoute: typeof ApiV1publicMediaSplatRoute
+  ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
+  ApiV1publicPricingSlugRoute: typeof ApiV1publicPricingSlugRoute
+  ApiV1publicShippingRoutesSlugRoute: typeof ApiV1publicShippingRoutesSlugRoute
+  ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
+  ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
+  ApiV1publicContactLocationsIndexRoute: typeof ApiV1publicContactLocationsIndexRoute
+  ApiV1publicFaqsIndexRoute: typeof ApiV1publicFaqsIndexRoute
+  ApiV1publicHomepageIndexRoute: typeof ApiV1publicHomepageIndexRoute
+  ApiV1publicIntegrationsIndexRoute: typeof ApiV1publicIntegrationsIndexRoute
+  ApiV1publicJobsIndexRoute: typeof ApiV1publicJobsIndexRoute
+  ApiV1publicLeadsIndexRoute: typeof ApiV1publicLeadsIndexRoute
+  ApiV1publicMarqueeImagesIndexRoute: typeof ApiV1publicMarqueeImagesIndexRoute
+  ApiV1publicPoliciesIndexRoute: typeof ApiV1publicPoliciesIndexRoute
+  ApiV1publicPricingIndexRoute: typeof ApiV1publicPricingIndexRoute
+  ApiV1publicServicesIndexRoute: typeof ApiV1publicServicesIndexRoute
+  ApiV1publicShippingRoutesIndexRoute: typeof ApiV1publicShippingRoutesIndexRoute
+  ApiV1publicSiteSettingsIndexRoute: typeof ApiV1publicSiteSettingsIndexRoute
+  ApiV1publicSitemapIndexRoute: typeof ApiV1publicSitemapIndexRoute
+  ApiV1publicTestimonialsIndexRoute: typeof ApiV1publicTestimonialsIndexRoute
+  ApiV1publicTranslationsIndexRoute: typeof ApiV1publicTranslationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/testimonials': {
-      id: '/testimonials'
-      path: '/testimonials'
-      fullPath: '/testimonials'
-      preLoaderRoute: typeof TestimonialsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/telegram': {
-      id: '/telegram'
-      path: '/telegram'
-      fullPath: '/telegram'
-      preLoaderRoute: typeof TelegramRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sources': {
-      id: '/sources'
-      path: '/sources'
-      fullPath: '/sources'
-      preLoaderRoute: typeof SourcesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/services': {
-      id: '/services'
-      path: '/services'
-      fullPath: '/services'
-      preLoaderRoute: typeof ServicesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reviews': {
-      id: '/reviews'
-      path: '/reviews'
-      fullPath: '/reviews'
-      preLoaderRoute: typeof ReviewsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/policies': {
-      id: '/policies'
-      path: '/policies'
-      fullPath: '/policies'
-      preLoaderRoute: typeof PoliciesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/media': {
-      id: '/media'
-      path: '/media'
-      fullPath: '/media'
-      preLoaderRoute: typeof MediaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/marketplaces': {
-      id: '/marketplaces'
-      path: '/marketplaces'
-      fullPath: '/marketplaces'
-      preLoaderRoute: typeof MarketplacesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/landing': {
-      id: '/landing'
-      path: '/landing'
-      fullPath: '/landing'
-      preLoaderRoute: typeof LandingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/gallery': {
-      id: '/gallery'
-      path: '/gallery'
-      fullPath: '/gallery'
-      preLoaderRoute: typeof GalleryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faqs': {
-      id: '/faqs'
-      path: '/faqs'
-      fullPath: '/faqs'
-      preLoaderRoute: typeof FaqsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/change-requests': {
-      id: '/change-requests'
-      path: '/change-requests'
-      fullPath: '/change-requests'
-      preLoaderRoute: typeof ChangeRequestsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/careers': {
-      id: '/careers'
-      path: '/careers'
-      fullPath: '/careers'
-      preLoaderRoute: typeof CareersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/blogs': {
-      id: '/blogs'
-      path: '/blogs'
-      fullPath: '/blogs'
-      preLoaderRoute: typeof BlogsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/audit': {
-      id: '/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agent-jobs': {
-      id: '/agent-jobs'
-      path: '/agent-jobs'
-      fullPath: '/agent-jobs'
-      preLoaderRoute: typeof AgentJobsRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -542,132 +870,546 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/services/': {
-      id: '/services/'
-      path: '/'
-      fullPath: '/services/'
-      preLoaderRoute: typeof ServicesIndexRouteImport
-      parentRoute: typeof ServicesRoute
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/pricing/': {
-      id: '/pricing/'
-      path: '/'
-      fullPath: '/pricing/'
-      preLoaderRoute: typeof PricingIndexRouteImport
-      parentRoute: typeof PricingRoute
+    '/admin/sales/pricing': {
+      id: '/admin/sales/pricing'
+      path: '/admin/sales/pricing'
+      fullPath: '/admin/sales/pricing'
+      preLoaderRoute: typeof AdminSalesPricingRouteRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/careers/': {
-      id: '/careers/'
-      path: '/'
-      fullPath: '/careers/'
-      preLoaderRoute: typeof CareersIndexRouteImport
-      parentRoute: typeof CareersRoute
+    '/admin/content/services': {
+      id: '/admin/content/services'
+      path: '/admin/content/services'
+      fullPath: '/admin/content/services'
+      preLoaderRoute: typeof AdminContentServicesRouteRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/services/$serviceId': {
-      id: '/services/$serviceId'
+    '/admin/content/careers': {
+      id: '/admin/content/careers'
+      path: '/admin/content/careers'
+      fullPath: '/admin/content/careers'
+      preLoaderRoute: typeof AdminContentCareersRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/system/users/': {
+      id: '/admin/system/users/'
+      path: '/admin/system/users'
+      fullPath: '/admin/system/users/'
+      preLoaderRoute: typeof AdminSystemUsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/system/telegram/': {
+      id: '/admin/system/telegram/'
+      path: '/admin/system/telegram'
+      fullPath: '/admin/system/telegram/'
+      preLoaderRoute: typeof AdminSystemTelegramIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/system/settings/': {
+      id: '/admin/system/settings/'
+      path: '/admin/system/settings'
+      fullPath: '/admin/system/settings/'
+      preLoaderRoute: typeof AdminSystemSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/system/audit/': {
+      id: '/admin/system/audit/'
+      path: '/admin/system/audit'
+      fullPath: '/admin/system/audit/'
+      preLoaderRoute: typeof AdminSystemAuditIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/sales/pricing/': {
+      id: '/admin/sales/pricing/'
+      path: '/'
+      fullPath: '/admin/sales/pricing/'
+      preLoaderRoute: typeof AdminSalesPricingIndexRouteImport
+      parentRoute: typeof AdminSalesPricingRouteRoute
+    }
+    '/admin/sales/leads/': {
+      id: '/admin/sales/leads/'
+      path: '/admin/sales/leads'
+      fullPath: '/admin/sales/leads/'
+      preLoaderRoute: typeof AdminSalesLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/testimonials/': {
+      id: '/admin/content/testimonials/'
+      path: '/admin/content/testimonials'
+      fullPath: '/admin/content/testimonials/'
+      preLoaderRoute: typeof AdminContentTestimonialsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/shipping-routes/': {
+      id: '/admin/content/shipping-routes/'
+      path: '/admin/content/shipping-routes'
+      fullPath: '/admin/content/shipping-routes/'
+      preLoaderRoute: typeof AdminContentShippingRoutesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/services/': {
+      id: '/admin/content/services/'
+      path: '/'
+      fullPath: '/admin/content/services/'
+      preLoaderRoute: typeof AdminContentServicesIndexRouteImport
+      parentRoute: typeof AdminContentServicesRouteRoute
+    }
+    '/admin/content/policies/': {
+      id: '/admin/content/policies/'
+      path: '/admin/content/policies'
+      fullPath: '/admin/content/policies/'
+      preLoaderRoute: typeof AdminContentPoliciesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/media/': {
+      id: '/admin/content/media/'
+      path: '/admin/content/media'
+      fullPath: '/admin/content/media/'
+      preLoaderRoute: typeof AdminContentMediaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/marketplaces/': {
+      id: '/admin/content/marketplaces/'
+      path: '/admin/content/marketplaces'
+      fullPath: '/admin/content/marketplaces/'
+      preLoaderRoute: typeof AdminContentMarketplacesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/landing/': {
+      id: '/admin/content/landing/'
+      path: '/admin/content/landing'
+      fullPath: '/admin/content/landing/'
+      preLoaderRoute: typeof AdminContentLandingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/gallery/': {
+      id: '/admin/content/gallery/'
+      path: '/admin/content/gallery'
+      fullPath: '/admin/content/gallery/'
+      preLoaderRoute: typeof AdminContentGalleryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/faqs/': {
+      id: '/admin/content/faqs/'
+      path: '/admin/content/faqs'
+      fullPath: '/admin/content/faqs/'
+      preLoaderRoute: typeof AdminContentFaqsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/contact/': {
+      id: '/admin/content/contact/'
+      path: '/admin/content/contact'
+      fullPath: '/admin/content/contact/'
+      preLoaderRoute: typeof AdminContentContactIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/careers/': {
+      id: '/admin/content/careers/'
+      path: '/'
+      fullPath: '/admin/content/careers/'
+      preLoaderRoute: typeof AdminContentCareersIndexRouteImport
+      parentRoute: typeof AdminContentCareersRouteRoute
+    }
+    '/admin/content/blogs/': {
+      id: '/admin/content/blogs/'
+      path: '/admin/content/blogs'
+      fullPath: '/admin/content/blogs/'
+      preLoaderRoute: typeof AdminContentBlogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai/sources/': {
+      id: '/admin/ai/sources/'
+      path: '/admin/ai/sources'
+      fullPath: '/admin/ai/sources/'
+      preLoaderRoute: typeof AdminAiSourcesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai/reviews/': {
+      id: '/admin/ai/reviews/'
+      path: '/admin/ai/reviews'
+      fullPath: '/admin/ai/reviews/'
+      preLoaderRoute: typeof AdminAiReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai/history/': {
+      id: '/admin/ai/history/'
+      path: '/admin/ai/history'
+      fullPath: '/admin/ai/history/'
+      preLoaderRoute: typeof AdminAiHistoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai/change-requests/': {
+      id: '/admin/ai/change-requests/'
+      path: '/admin/ai/change-requests'
+      fullPath: '/admin/ai/change-requests/'
+      preLoaderRoute: typeof AdminAiChangeRequestsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai/agent-jobs/': {
+      id: '/admin/ai/agent-jobs/'
+      path: '/admin/ai/agent-jobs'
+      fullPath: '/admin/ai/agent-jobs/'
+      preLoaderRoute: typeof AdminAiAgentJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google/start': {
+      id: '/api/auth/google/start'
+      path: '/api/auth/google/start'
+      fullPath: '/api/auth/google/start'
+      preLoaderRoute: typeof ApiAuthGoogleStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google/callback': {
+      id: '/api/auth/google/callback'
+      path: '/api/auth/google/callback'
+      fullPath: '/api/auth/google/callback'
+      preLoaderRoute: typeof ApiAuthGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/sales/pricing/$slug': {
+      id: '/admin/sales/pricing/$slug'
+      path: '/$slug'
+      fullPath: '/admin/sales/pricing/$slug'
+      preLoaderRoute: typeof AdminSalesPricingSlugRouteImport
+      parentRoute: typeof AdminSalesPricingRouteRoute
+    }
+    '/admin/content/shipping-routes/$slug': {
+      id: '/admin/content/shipping-routes/$slug'
+      path: '/admin/content/shipping-routes/$slug'
+      fullPath: '/admin/content/shipping-routes/$slug'
+      preLoaderRoute: typeof AdminContentShippingRoutesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/services/$serviceId': {
+      id: '/admin/content/services/$serviceId'
       path: '/$serviceId'
-      fullPath: '/services/$serviceId'
-      preLoaderRoute: typeof ServicesServiceIdRouteImport
-      parentRoute: typeof ServicesRoute
+      fullPath: '/admin/content/services/$serviceId'
+      preLoaderRoute: typeof AdminContentServicesServiceIdRouteImport
+      parentRoute: typeof AdminContentServicesRouteRoute
     }
-    '/pricing/us': {
-      id: '/pricing/us'
-      path: '/us'
-      fullPath: '/pricing/us'
-      preLoaderRoute: typeof PricingUsRouteImport
-      parentRoute: typeof PricingRoute
+    '/admin/content/policies/$slug': {
+      id: '/admin/content/policies/$slug'
+      path: '/admin/content/policies/$slug'
+      fullPath: '/admin/content/policies/$slug'
+      preLoaderRoute: typeof AdminContentPoliciesSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/pricing/history': {
-      id: '/pricing/history'
-      path: '/history'
-      fullPath: '/pricing/history'
-      preLoaderRoute: typeof PricingHistoryRouteImport
-      parentRoute: typeof PricingRoute
-    }
-    '/careers/applicants': {
-      id: '/careers/applicants'
+    '/admin/content/careers/applicants': {
+      id: '/admin/content/careers/applicants'
       path: '/applicants'
-      fullPath: '/careers/applicants'
-      preLoaderRoute: typeof CareersApplicantsRouteImport
-      parentRoute: typeof CareersRoute
+      fullPath: '/admin/content/careers/applicants'
+      preLoaderRoute: typeof AdminContentCareersApplicantsRouteImport
+      parentRoute: typeof AdminContentCareersRouteRoute
     }
-    '/careers/$jobId': {
-      id: '/careers/$jobId'
+    '/admin/content/careers/$jobId': {
+      id: '/admin/content/careers/$jobId'
       path: '/$jobId'
-      fullPath: '/careers/$jobId'
-      preLoaderRoute: typeof CareersJobIdRouteImport
-      parentRoute: typeof CareersRoute
+      fullPath: '/admin/content/careers/$jobId'
+      preLoaderRoute: typeof AdminContentCareersJobIdRouteImport
+      parentRoute: typeof AdminContentCareersRouteRoute
+    }
+    '/admin/content/blogs/$slug': {
+      id: '/admin/content/blogs/$slug'
+      path: '/admin/content/blogs/$slug'
+      fullPath: '/admin/content/blogs/$slug'
+      preLoaderRoute: typeof AdminContentBlogsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/translations/': {
+      id: '/api/v1/(public)/translations/'
+      path: '/api/v1/translations'
+      fullPath: '/api/v1/translations/'
+      preLoaderRoute: typeof ApiV1publicTranslationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/testimonials/': {
+      id: '/api/v1/(public)/testimonials/'
+      path: '/api/v1/testimonials'
+      fullPath: '/api/v1/testimonials/'
+      preLoaderRoute: typeof ApiV1publicTestimonialsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/sitemap/': {
+      id: '/api/v1/(public)/sitemap/'
+      path: '/api/v1/sitemap'
+      fullPath: '/api/v1/sitemap/'
+      preLoaderRoute: typeof ApiV1publicSitemapIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/site-settings/': {
+      id: '/api/v1/(public)/site-settings/'
+      path: '/api/v1/site-settings'
+      fullPath: '/api/v1/site-settings/'
+      preLoaderRoute: typeof ApiV1publicSiteSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/shipping-routes/': {
+      id: '/api/v1/(public)/shipping-routes/'
+      path: '/api/v1/shipping-routes'
+      fullPath: '/api/v1/shipping-routes/'
+      preLoaderRoute: typeof ApiV1publicShippingRoutesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/services/': {
+      id: '/api/v1/(public)/services/'
+      path: '/api/v1/services'
+      fullPath: '/api/v1/services/'
+      preLoaderRoute: typeof ApiV1publicServicesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/pricing/': {
+      id: '/api/v1/(public)/pricing/'
+      path: '/api/v1/pricing'
+      fullPath: '/api/v1/pricing/'
+      preLoaderRoute: typeof ApiV1publicPricingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/policies/': {
+      id: '/api/v1/(public)/policies/'
+      path: '/api/v1/policies'
+      fullPath: '/api/v1/policies/'
+      preLoaderRoute: typeof ApiV1publicPoliciesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/marquee-images/': {
+      id: '/api/v1/(public)/marquee-images/'
+      path: '/api/v1/marquee-images'
+      fullPath: '/api/v1/marquee-images/'
+      preLoaderRoute: typeof ApiV1publicMarqueeImagesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/leads/': {
+      id: '/api/v1/(public)/leads/'
+      path: '/api/v1/leads'
+      fullPath: '/api/v1/leads/'
+      preLoaderRoute: typeof ApiV1publicLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/jobs/': {
+      id: '/api/v1/(public)/jobs/'
+      path: '/api/v1/jobs'
+      fullPath: '/api/v1/jobs/'
+      preLoaderRoute: typeof ApiV1publicJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/integrations/': {
+      id: '/api/v1/(public)/integrations/'
+      path: '/api/v1/integrations'
+      fullPath: '/api/v1/integrations/'
+      preLoaderRoute: typeof ApiV1publicIntegrationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/homepage/': {
+      id: '/api/v1/(public)/homepage/'
+      path: '/api/v1/homepage'
+      fullPath: '/api/v1/homepage/'
+      preLoaderRoute: typeof ApiV1publicHomepageIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/faqs/': {
+      id: '/api/v1/(public)/faqs/'
+      path: '/api/v1/faqs'
+      fullPath: '/api/v1/faqs/'
+      preLoaderRoute: typeof ApiV1publicFaqsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/contact-locations/': {
+      id: '/api/v1/(public)/contact-locations/'
+      path: '/api/v1/contact-locations'
+      fullPath: '/api/v1/contact-locations/'
+      preLoaderRoute: typeof ApiV1publicContactLocationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/blog/': {
+      id: '/api/v1/(public)/blog/'
+      path: '/api/v1/blog'
+      fullPath: '/api/v1/blog/'
+      preLoaderRoute: typeof ApiV1publicBlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/applicants/': {
+      id: '/api/v1/(public)/applicants/'
+      path: '/api/v1/applicants'
+      fullPath: '/api/v1/applicants/'
+      preLoaderRoute: typeof ApiV1publicApplicantsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/shipping-routes/$slug': {
+      id: '/api/v1/(public)/shipping-routes/$slug'
+      path: '/api/v1/shipping-routes/$slug'
+      fullPath: '/api/v1/shipping-routes/$slug'
+      preLoaderRoute: typeof ApiV1publicShippingRoutesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/pricing/$slug': {
+      id: '/api/v1/(public)/pricing/$slug'
+      path: '/api/v1/pricing/$slug'
+      fullPath: '/api/v1/pricing/$slug'
+      preLoaderRoute: typeof ApiV1publicPricingSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/policies/$slug': {
+      id: '/api/v1/(public)/policies/$slug'
+      path: '/api/v1/policies/$slug'
+      fullPath: '/api/v1/policies/$slug'
+      preLoaderRoute: typeof ApiV1publicPoliciesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/media/$': {
+      id: '/api/v1/(public)/media/$'
+      path: '/api/v1/media/$'
+      fullPath: '/api/v1/media/$'
+      preLoaderRoute: typeof ApiV1publicMediaSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/jobs/$slug': {
+      id: '/api/v1/(public)/jobs/$slug'
+      path: '/api/v1/jobs/$slug'
+      fullPath: '/api/v1/jobs/$slug'
+      preLoaderRoute: typeof ApiV1publicJobsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/blog/$slug': {
+      id: '/api/v1/(public)/blog/$slug'
+      path: '/api/v1/blog/$slug'
+      fullPath: '/api/v1/blog/$slug'
+      preLoaderRoute: typeof ApiV1publicBlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(admin)/media/upload': {
+      id: '/api/v1/(admin)/media/upload'
+      path: '/api/v1/media/upload'
+      fullPath: '/api/v1/media/upload'
+      preLoaderRoute: typeof ApiV1adminMediaUploadRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface CareersRouteChildren {
-  CareersJobIdRoute: typeof CareersJobIdRoute
-  CareersApplicantsRoute: typeof CareersApplicantsRoute
-  CareersIndexRoute: typeof CareersIndexRoute
+interface AdminContentCareersRouteRouteChildren {
+  AdminContentCareersJobIdRoute: typeof AdminContentCareersJobIdRoute
+  AdminContentCareersApplicantsRoute: typeof AdminContentCareersApplicantsRoute
+  AdminContentCareersIndexRoute: typeof AdminContentCareersIndexRoute
 }
 
-const CareersRouteChildren: CareersRouteChildren = {
-  CareersJobIdRoute: CareersJobIdRoute,
-  CareersApplicantsRoute: CareersApplicantsRoute,
-  CareersIndexRoute: CareersIndexRoute,
+const AdminContentCareersRouteRouteChildren: AdminContentCareersRouteRouteChildren =
+  {
+    AdminContentCareersJobIdRoute: AdminContentCareersJobIdRoute,
+    AdminContentCareersApplicantsRoute: AdminContentCareersApplicantsRoute,
+    AdminContentCareersIndexRoute: AdminContentCareersIndexRoute,
+  }
+
+const AdminContentCareersRouteRouteWithChildren =
+  AdminContentCareersRouteRoute._addFileChildren(
+    AdminContentCareersRouteRouteChildren,
+  )
+
+interface AdminContentServicesRouteRouteChildren {
+  AdminContentServicesServiceIdRoute: typeof AdminContentServicesServiceIdRoute
+  AdminContentServicesIndexRoute: typeof AdminContentServicesIndexRoute
 }
 
-const CareersRouteWithChildren =
-  CareersRoute._addFileChildren(CareersRouteChildren)
+const AdminContentServicesRouteRouteChildren: AdminContentServicesRouteRouteChildren =
+  {
+    AdminContentServicesServiceIdRoute: AdminContentServicesServiceIdRoute,
+    AdminContentServicesIndexRoute: AdminContentServicesIndexRoute,
+  }
 
-interface PricingRouteChildren {
-  PricingHistoryRoute: typeof PricingHistoryRoute
-  PricingUsRoute: typeof PricingUsRoute
-  PricingIndexRoute: typeof PricingIndexRoute
+const AdminContentServicesRouteRouteWithChildren =
+  AdminContentServicesRouteRoute._addFileChildren(
+    AdminContentServicesRouteRouteChildren,
+  )
+
+interface AdminSalesPricingRouteRouteChildren {
+  AdminSalesPricingSlugRoute: typeof AdminSalesPricingSlugRoute
+  AdminSalesPricingIndexRoute: typeof AdminSalesPricingIndexRoute
 }
 
-const PricingRouteChildren: PricingRouteChildren = {
-  PricingHistoryRoute: PricingHistoryRoute,
-  PricingUsRoute: PricingUsRoute,
-  PricingIndexRoute: PricingIndexRoute,
-}
+const AdminSalesPricingRouteRouteChildren: AdminSalesPricingRouteRouteChildren =
+  {
+    AdminSalesPricingSlugRoute: AdminSalesPricingSlugRoute,
+    AdminSalesPricingIndexRoute: AdminSalesPricingIndexRoute,
+  }
 
-const PricingRouteWithChildren =
-  PricingRoute._addFileChildren(PricingRouteChildren)
-
-interface ServicesRouteChildren {
-  ServicesServiceIdRoute: typeof ServicesServiceIdRoute
-  ServicesIndexRoute: typeof ServicesIndexRoute
-}
-
-const ServicesRouteChildren: ServicesRouteChildren = {
-  ServicesServiceIdRoute: ServicesServiceIdRoute,
-  ServicesIndexRoute: ServicesIndexRoute,
-}
-
-const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
-  ServicesRouteChildren,
-)
+const AdminSalesPricingRouteRouteWithChildren =
+  AdminSalesPricingRouteRoute._addFileChildren(
+    AdminSalesPricingRouteRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AgentJobsRoute: AgentJobsRoute,
-  AuditRoute: AuditRoute,
-  BlogsRoute: BlogsRoute,
-  CareersRoute: CareersRouteWithChildren,
-  ChangeRequestsRoute: ChangeRequestsRoute,
-  ContactRoute: ContactRoute,
-  FaqsRoute: FaqsRoute,
-  GalleryRoute: GalleryRoute,
-  HistoryRoute: HistoryRoute,
-  LandingRoute: LandingRoute,
-  MarketplacesRoute: MarketplacesRoute,
-  MediaRoute: MediaRoute,
-  PoliciesRoute: PoliciesRoute,
-  PricingRoute: PricingRouteWithChildren,
-  ReviewsRoute: ReviewsRoute,
-  ServicesRoute: ServicesRouteWithChildren,
-  SourcesRoute: SourcesRoute,
-  TelegramRoute: TelegramRoute,
-  TestimonialsRoute: TestimonialsRoute,
-  UsersRoute: UsersRoute,
+  LoginRoute: LoginRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminContentCareersRouteRoute: AdminContentCareersRouteRouteWithChildren,
+  AdminContentServicesRouteRoute: AdminContentServicesRouteRouteWithChildren,
+  AdminSalesPricingRouteRoute: AdminSalesPricingRouteRouteWithChildren,
+  AdminContentBlogsSlugRoute: AdminContentBlogsSlugRoute,
+  AdminContentPoliciesSlugRoute: AdminContentPoliciesSlugRoute,
+  AdminContentShippingRoutesSlugRoute: AdminContentShippingRoutesSlugRoute,
+  ApiAuthGoogleCallbackRoute: ApiAuthGoogleCallbackRoute,
+  ApiAuthGoogleStartRoute: ApiAuthGoogleStartRoute,
+  AdminAiAgentJobsIndexRoute: AdminAiAgentJobsIndexRoute,
+  AdminAiChangeRequestsIndexRoute: AdminAiChangeRequestsIndexRoute,
+  AdminAiHistoryIndexRoute: AdminAiHistoryIndexRoute,
+  AdminAiReviewsIndexRoute: AdminAiReviewsIndexRoute,
+  AdminAiSourcesIndexRoute: AdminAiSourcesIndexRoute,
+  AdminContentBlogsIndexRoute: AdminContentBlogsIndexRoute,
+  AdminContentContactIndexRoute: AdminContentContactIndexRoute,
+  AdminContentFaqsIndexRoute: AdminContentFaqsIndexRoute,
+  AdminContentGalleryIndexRoute: AdminContentGalleryIndexRoute,
+  AdminContentLandingIndexRoute: AdminContentLandingIndexRoute,
+  AdminContentMarketplacesIndexRoute: AdminContentMarketplacesIndexRoute,
+  AdminContentMediaIndexRoute: AdminContentMediaIndexRoute,
+  AdminContentPoliciesIndexRoute: AdminContentPoliciesIndexRoute,
+  AdminContentShippingRoutesIndexRoute: AdminContentShippingRoutesIndexRoute,
+  AdminContentTestimonialsIndexRoute: AdminContentTestimonialsIndexRoute,
+  AdminSalesLeadsIndexRoute: AdminSalesLeadsIndexRoute,
+  AdminSystemAuditIndexRoute: AdminSystemAuditIndexRoute,
+  AdminSystemSettingsIndexRoute: AdminSystemSettingsIndexRoute,
+  AdminSystemTelegramIndexRoute: AdminSystemTelegramIndexRoute,
+  AdminSystemUsersIndexRoute: AdminSystemUsersIndexRoute,
+  ApiV1adminMediaUploadRoute: ApiV1adminMediaUploadRoute,
+  ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
+  ApiV1publicJobsSlugRoute: ApiV1publicJobsSlugRoute,
+  ApiV1publicMediaSplatRoute: ApiV1publicMediaSplatRoute,
+  ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,
+  ApiV1publicPricingSlugRoute: ApiV1publicPricingSlugRoute,
+  ApiV1publicShippingRoutesSlugRoute: ApiV1publicShippingRoutesSlugRoute,
+  ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
+  ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
+  ApiV1publicContactLocationsIndexRoute: ApiV1publicContactLocationsIndexRoute,
+  ApiV1publicFaqsIndexRoute: ApiV1publicFaqsIndexRoute,
+  ApiV1publicHomepageIndexRoute: ApiV1publicHomepageIndexRoute,
+  ApiV1publicIntegrationsIndexRoute: ApiV1publicIntegrationsIndexRoute,
+  ApiV1publicJobsIndexRoute: ApiV1publicJobsIndexRoute,
+  ApiV1publicLeadsIndexRoute: ApiV1publicLeadsIndexRoute,
+  ApiV1publicMarqueeImagesIndexRoute: ApiV1publicMarqueeImagesIndexRoute,
+  ApiV1publicPoliciesIndexRoute: ApiV1publicPoliciesIndexRoute,
+  ApiV1publicPricingIndexRoute: ApiV1publicPricingIndexRoute,
+  ApiV1publicServicesIndexRoute: ApiV1publicServicesIndexRoute,
+  ApiV1publicShippingRoutesIndexRoute: ApiV1publicShippingRoutesIndexRoute,
+  ApiV1publicSiteSettingsIndexRoute: ApiV1publicSiteSettingsIndexRoute,
+  ApiV1publicSitemapIndexRoute: ApiV1publicSitemapIndexRoute,
+  ApiV1publicTestimonialsIndexRoute: ApiV1publicTestimonialsIndexRoute,
+  ApiV1publicTranslationsIndexRoute: ApiV1publicTranslationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

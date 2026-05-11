@@ -1,4 +1,4 @@
-import { STATUS_BADGE, RISK_BADGE } from "@/lib/cms-mock";
+import { STATUS_BADGE, RISK_BADGE } from "@/core/_mock/cms-mock";
 
 export function StatusBadge({ status }: { status: string }) {
   const s = STATUS_BADGE[status] ?? { label: status, className: "bg-muted text-muted-foreground border-border" };
@@ -41,5 +41,5 @@ export function CardHeader({ title, hint, action }: { title: string; hint?: stri
 }
 
 export function PageContainer({ children }: { children: React.ReactNode }) {
-  return <div className="px-6 py-6 max-w-[1400px] mx-auto w-full">{children}</div>;
+  return <div className="px-6 py-6 max-w-350 mx-auto w-full">{children}</div>;
 }

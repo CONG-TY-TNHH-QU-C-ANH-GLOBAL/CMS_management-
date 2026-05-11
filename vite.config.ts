@@ -1,15 +1,48 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, cloudflare (build-only),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... } }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
-// Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-// @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
+// Plugin order matters: tanstackStart() must come before viteReact().
+// cloudflare() runs in BOTH dev and build so server code that imports
+// `cloudflare:workers` (D1/R2/KV bindings) works in dev as well as production.
+// In dev, code executes inside workerd via the plugin, matching prod runtime.
 export default defineConfig({
-  tanstackStart: {
-    server: { entry: "server" },
+  plugins: [
+    tsconfigPaths({ projects: ["./tsconfig.json"] }),
+    tailwindcss(),
+    tanstackStart({
+      server: { entry: "server" },
+      importProtection: {
+        behavior: "error",
+        client: {
+          // Block server-only files from client bundle:
+          //   - features/<name>/<name>.service.ts (DB queries, internal logic)
+          //   - core/db/** (D1 bindings)
+          //   - core/middlewares/** (CORS, rate-limit — server-only context)
+          // Files importable from BOTH client and server:
+          //   - features/<name>/<name>.actions.ts (createServerFn RPC stubs)
+          //   - features/<name>/<name>.schema.ts (Zod schemas)
+          //   - features/<name>/components/** (React UI)
+          files: ["**/*.service.ts", "**/core/db/**", "**/core/middlewares/**"],
+          specifiers: ["server-only"],
+        },
+      },
+    }),
+    viteReact(),
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
+  ],
+  resolve: {
+    dedupe: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "@tanstack/react-query",
+      "@tanstack/query-core",
+    ],
   },
+  server: { host: "::", port: 8080 },
 });

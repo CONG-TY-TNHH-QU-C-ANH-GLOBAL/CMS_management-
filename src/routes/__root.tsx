@@ -3,15 +3,28 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { CmsSidebar } from "@/components/cms/Sidebar";
-import { CommandPalette } from "@/components/cms/CommandPalette";
+import { CmsSidebar } from "@/components/app-shell/Sidebar";
+import { CommandPalette } from "@/components/app-shell/CommandPalette";
 import { Toaster } from "@/components/ui/sonner";
+import { meFn } from "@/features/auth/auth.actions";
+
+// /admin/* requires Google OAuth session. Everything else (/, /login,
+// /api/auth/*, /api/v1/*) is open. /api/v1/* serves landing via REST.
+function requiresAuth(pathname: string): boolean {
+  return pathname.startsWith("/admin");
+}
+
+function isAppShellRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin");
+}
 
 function NotFoundComponent() {
   return (
@@ -71,6 +84,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: async ({ location }) => {
+    if (!requiresAuth(location.pathname)) return { user: null };
+    const { user } = await meFn();
+    if (!user) {
+      throw redirect({
+        to: "/login",
+        search: { redirect: location.href },
+      });
+    }
+    return { user };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -117,16 +141,22 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const showAppShell = isAppShellRoute(pathname);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen w-full bg-background">
-        <CmsSidebar />
-        <main className="flex-1 min-w-0 flex flex-col">
-          <Outlet />
-        </main>
-      </div>
-      <CommandPalette />
+      {showAppShell ? (
+        <div className="flex min-h-screen w-full bg-background">
+          <CmsSidebar />
+          <main className="flex-1 min-w-0 flex flex-col">
+            <Outlet />
+          </main>
+        </div>
+      ) : (
+        <Outlet />
+      )}
+      {showAppShell && <CommandPalette />}
       <Toaster position="bottom-right" richColors />
     </QueryClientProvider>
   );

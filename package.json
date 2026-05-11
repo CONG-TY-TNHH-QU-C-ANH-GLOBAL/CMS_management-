@@ -1,7 +1,7 @@
 {
   "name": "tanstack_start_ts",
   "private": true,
-  "sideEffects": false,
+  "sideEffects": ["**/core/utils/error-capture.ts", "**/styles.css"],
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -9,7 +9,14 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply thg-cms --local",
+    "db:migrate:prod": "wrangler d1 migrations apply thg-cms --remote --env production",
+    "db:console:local": "wrangler d1 execute thg-cms --local --command",
+    "db:console:prod": "wrangler d1 execute thg-cms --remote --env production --command",
+    "deploy": "vite build && wrangler deploy --env production",
+    "deploy:dryrun": "vite build && wrangler deploy --env production --dry-run"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
@@ -50,9 +57,11 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
+    "hash-wasm": "^4.12.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
+    "react-data-grid": "^7.0.0-beta.59",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.2",
@@ -67,6 +76,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260510.1",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "^1.5.1",
     "@types/node": "^22.16.5",

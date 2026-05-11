@@ -1,7 +1,89 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tanstack-start-app",
-  "compatibility_date": "2025-09-24",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": "src/server.ts",
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "thg-cms",
+	"compatibility_date": "2025-09-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "src/server.ts",
+
+	// ── Root section = local dev (`bun run dev`) ──────────────────────────
+	// In dev, Cloudflare bindings use local emulation (D1 → .wrangler/state/v3/d1,
+	// R2/KV → in-memory). vars below apply to dev. Secrets come from .dev.vars.
+	"vars": {
+		"DEFAULT_LOCALE": "en",
+		"BASE_URL": "http://localhost:8080",
+		"SUPPORTED_LOCALES": "en,vi,zh",
+		"OAUTH_REDIRECT_BASE": "http://localhost:8080",
+		"CORS_ORIGIN": "http://localhost:5173,http://localhost:8080"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "thg-cms",
+			"database_id": "88eca4ff-c915-4b76-a227-88dfb4b1bcbc",
+			"migrations_dir": "db/migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "thg-media"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "CMS_REV",
+			"id": "29652717320f496f89e6e25189ef9ca3"
+		}
+	],
+
+	// ── Production deploy: `bunx wrangler deploy --env production` ───────
+	// Wrangler quirk: env.* sections do NOT inherit bindings from root, so
+	// d1_databases / r2_buckets / kv_namespaces must be declared again.
+	// Reusing the same IDs means dev (--local) and prod share one Cloudflare
+	// resource set, but local dev emulation keeps your dev data isolated.
+	// Secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) for prod are set via
+	// `bunx wrangler secret put <NAME>` (NOT in this file).
+	"env": {
+		"production": {
+			"name": "thg-cms",
+			"vars": {
+				"DEFAULT_LOCALE": "en",
+				// Self-reference: built by media.service.ts into public R2 URLs
+				// (`${BASE_URL}/api/v1/media/<key>`) and by OAuth as the callback host.
+				"BASE_URL": "https://cms.thgfulfill.com",
+				"SUPPORTED_LOCALES": "en,vi,zh",
+				"OAUTH_REDIRECT_BASE": "https://cms.thgfulfill.com",
+				// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
+				// Admin /admin/* is same-origin so doesn't need to appear here.
+				"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "thg-cms",
+					"database_id": "88eca4ff-c915-4b76-a227-88dfb4b1bcbc",
+					"migrations_dir": "db/migrations"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "thg-media"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "CMS_REV",
+					"id": "29652717320f496f89e6e25189ef9ca3"
+				}
+			]
+			// Custom domain — uncomment when DNS for cms.thgfulfill.com is set up
+			// in the Cloudflare zone (CNAME or proxied A record).
+			// Until then, deploy uses the workers.dev subdomain auto-assigned by Cloudflare.
+			// IMPORTANT: target subdomain is cms.thgfulfill.com (NOT thgfulfill.com — that's landing)
+			// "routes": [
+			//   { "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
+			// ]
+		}
+	}
 }
