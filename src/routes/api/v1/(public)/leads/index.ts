@@ -4,6 +4,7 @@ import { z } from "zod";
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createLead } from "@/features/leads";
+import { formatLeadMessage, notifyTelegram } from "@/features/telegram";
 
 const leadSchema = z.object({
   name: z.string().trim().min(1, "Tên không được rỗng").max(120),
@@ -60,6 +61,20 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           user_agent: userAgent,
           utm: data.utm ?? null,
         });
+
+        // Fire-and-forget Telegram notify (no await — don't block response)
+        notifyTelegram({
+          event: "new_lead",
+          text: formatLeadMessage({
+            id,
+            name: data.name,
+            email: data.email,
+            phone: data.phone ?? null,
+            message: data.message ?? null,
+            source_page: data.source_page ?? null,
+            locale: data.locale ?? null,
+          }),
+        }).catch(() => {});
 
         return corsJson(
           request,

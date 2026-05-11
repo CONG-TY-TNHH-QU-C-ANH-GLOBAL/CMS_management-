@@ -4,6 +4,7 @@ import { z } from "zod";
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createApplicant, getCareersJob } from "@/features/careers";
+import { formatApplicantMessage, notifyTelegram } from "@/features/telegram";
 
 const applicantSchema = z.object({
   job_slug: z.string().trim().min(1).max(200),
@@ -67,6 +68,22 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
           ip,
           user_agent: request.headers.get("user-agent") ?? null,
         });
+
+        // Fire-and-forget Telegram notify
+        notifyTelegram({
+          event: "new_applicant",
+          text: formatApplicantMessage({
+            id: inserted.id,
+            name: input.name,
+            email: input.email,
+            phone: input.phone ?? null,
+            cv_url: input.cv_url ?? null,
+            cover_letter: input.cover_letter ?? null,
+            job_slug: input.job_slug,
+            job_title: job.title,
+            locale: input.locale,
+          }),
+        }).catch(() => {});
 
         return corsJson(request, { ok: true, id: inserted.id });
       },
