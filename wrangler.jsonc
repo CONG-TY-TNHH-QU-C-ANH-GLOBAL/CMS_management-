@@ -46,6 +46,6 @@
 	// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
 	// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
 	"routes": [
-		{ "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
+		{ "pattern": "cms.thgfulfill.com", "zone_name": "thgfulfill.com", "custom_domain": true }
 	]
 }
