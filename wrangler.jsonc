@@ -76,14 +76,12 @@
 					"binding": "CMS_REV",
 					"id": "29652717320f496f89e6e25189ef9ca3"
 				}
+			],
+			// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
+			// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
+			"routes": [
+				{ "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
 			]
-			// Custom domain — uncomment when DNS for cms.thgfulfill.com is set up
-			// in the Cloudflare zone (CNAME or proxied A record).
-			// Until then, deploy uses the workers.dev subdomain auto-assigned by Cloudflare.
-			// IMPORTANT: target subdomain is cms.thgfulfill.com (NOT thgfulfill.com — that's landing)
-			// "routes": [
-			//   { "pattern": "cms.thgfulfill.com/*", "zone_name": "thgfulfill.com", "custom_domain": true }
-			// ]
 		}
 	}
 }
