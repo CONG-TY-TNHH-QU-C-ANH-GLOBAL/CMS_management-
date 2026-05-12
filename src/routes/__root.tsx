@@ -13,6 +13,7 @@ import {
 import appCss from "../styles.css?url";
 import { CmsSidebar } from "@/components/app-shell/Sidebar";
 import { CommandPalette } from "@/components/app-shell/CommandPalette";
+import { CopilotWidget } from "@/features/copilot/components/CopilotWidget";
 import { Toaster } from "@/components/ui/sonner";
 import { meFn } from "@/features/auth/auth.actions";
 
@@ -157,6 +158,7 @@ function RootComponent() {
         <Outlet />
       )}
       {showAppShell && <CommandPalette />}
+      {showAppShell && <CopilotWidget />}
       <Toaster position="bottom-right" richColors />
     </QueryClientProvider>
   );
