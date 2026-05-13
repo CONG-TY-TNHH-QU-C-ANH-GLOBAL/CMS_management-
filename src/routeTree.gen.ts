@@ -29,6 +29,7 @@ import { Route as AdminContentPoliciesIndexRouteImport } from './routes/admin/co
 import { Route as AdminContentMediaIndexRouteImport } from './routes/admin/content/media/index'
 import { Route as AdminContentMarketplacesIndexRouteImport } from './routes/admin/content/marketplaces/index'
 import { Route as AdminContentLandingIndexRouteImport } from './routes/admin/content/landing/index'
+import { Route as AdminContentGlossaryIndexRouteImport } from './routes/admin/content/glossary/index'
 import { Route as AdminContentGalleryIndexRouteImport } from './routes/admin/content/gallery/index'
 import { Route as AdminContentFaqsIndexRouteImport } from './routes/admin/content/faqs/index'
 import { Route as AdminContentContactIndexRouteImport } from './routes/admin/content/contact/index'
@@ -184,6 +185,12 @@ const AdminContentLandingIndexRoute =
   AdminContentLandingIndexRouteImport.update({
     id: '/admin/content/landing/',
     path: '/admin/content/landing/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentGlossaryIndexRoute =
+  AdminContentGlossaryIndexRouteImport.update({
+    id: '/admin/content/glossary/',
+    path: '/admin/content/glossary/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentGalleryIndexRoute =
@@ -461,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
+  '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing/': typeof AdminContentLandingIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
@@ -525,6 +533,7 @@ export interface FileRoutesByTo {
   '/admin/content/contact': typeof AdminContentContactIndexRoute
   '/admin/content/faqs': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery': typeof AdminContentGalleryIndexRoute
+  '/admin/content/glossary': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing': typeof AdminContentLandingIndexRoute
   '/admin/content/marketplaces': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media': typeof AdminContentMediaIndexRoute
@@ -593,6 +602,7 @@ export interface FileRoutesById {
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
+  '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing/': typeof AdminContentLandingIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
@@ -662,6 +672,7 @@ export interface FileRouteTypes {
     | '/admin/content/contact/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
+    | '/admin/content/glossary/'
     | '/admin/content/landing/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
@@ -726,6 +737,7 @@ export interface FileRouteTypes {
     | '/admin/content/contact'
     | '/admin/content/faqs'
     | '/admin/content/gallery'
+    | '/admin/content/glossary'
     | '/admin/content/landing'
     | '/admin/content/marketplaces'
     | '/admin/content/media'
@@ -793,6 +805,7 @@ export interface FileRouteTypes {
     | '/admin/content/contact/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
+    | '/admin/content/glossary/'
     | '/admin/content/landing/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
@@ -856,6 +869,7 @@ export interface RootRouteChildren {
   AdminContentContactIndexRoute: typeof AdminContentContactIndexRoute
   AdminContentFaqsIndexRoute: typeof AdminContentFaqsIndexRoute
   AdminContentGalleryIndexRoute: typeof AdminContentGalleryIndexRoute
+  AdminContentGlossaryIndexRoute: typeof AdminContentGlossaryIndexRoute
   AdminContentLandingIndexRoute: typeof AdminContentLandingIndexRoute
   AdminContentMarketplacesIndexRoute: typeof AdminContentMarketplacesIndexRoute
   AdminContentMediaIndexRoute: typeof AdminContentMediaIndexRoute
@@ -1036,6 +1050,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/content/landing'
       fullPath: '/admin/content/landing/'
       preLoaderRoute: typeof AdminContentLandingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/glossary/': {
+      id: '/admin/content/glossary/'
+      path: '/admin/content/glossary'
+      fullPath: '/admin/content/glossary/'
+      preLoaderRoute: typeof AdminContentGlossaryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/gallery/': {
@@ -1427,6 +1448,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentContactIndexRoute: AdminContentContactIndexRoute,
   AdminContentFaqsIndexRoute: AdminContentFaqsIndexRoute,
   AdminContentGalleryIndexRoute: AdminContentGalleryIndexRoute,
+  AdminContentGlossaryIndexRoute: AdminContentGlossaryIndexRoute,
   AdminContentLandingIndexRoute: AdminContentLandingIndexRoute,
   AdminContentMarketplacesIndexRoute: AdminContentMarketplacesIndexRoute,
   AdminContentMediaIndexRoute: AdminContentMediaIndexRoute,
