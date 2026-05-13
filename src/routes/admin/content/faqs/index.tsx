@@ -11,20 +11,30 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { FaqDialog } from "@/features/content/components/FaqDialog";
 import {
   deleteFaqFn,
-  listHomeFaqsFn,
+  listAllFaqsFn,
   reorderFaqsFn,
   type FaqRow,
 } from "@/features/content/content.actions";
 
+/** Scopes the operator can author FAQs for. Each entry maps to a public
+ *  landing route + the `scope` column in the `faqs` table. To enable a new
+ *  scope, add an entry here AND make sure the matching landing page calls
+ *  `useCmsFaqs(language, "<scope-id>")` with that scope id. */
+const SCOPE_OPTIONS: { id: string; label: string; routeHint: string }[] = [
+  { id: "home", label: "Trang chủ", routeHint: "/" },
+  { id: "order", label: "THG Order", routeHint: "/thg-order" },
+];
+
 export const Route = createFileRoute("/admin/content/faqs/")({
   head: () => ({ meta: [{ title: "FAQ — THG Content OS" }] }),
-  loader: () => listHomeFaqsFn(),
+  loader: () => listAllFaqsFn(),
   component: FaqsPage,
 });
 
 function FaqsPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
+  const [scope, setScope] = useState<string>("home");
   const [locale, setLocale] = useState<Locale>("en");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<FaqRow | null>(null);
@@ -32,14 +42,22 @@ function FaqsPage() {
   const deleteFaq = useServerFn(deleteFaqFn);
   const reorder = useServerFn(reorderFaqsFn);
 
+  const allRows = data.faqs as FaqRow[];
+
   const filtered = useMemo(
     () =>
-      (data.faqs as FaqRow[])
-        .filter((f) => f.locale === locale)
+      allRows
+        .filter((f) => f.scope === scope && f.locale === locale)
         .sort((a, b) => a.position - b.position),
-    [data.faqs, locale],
+    [allRows, scope, locale],
   );
-  const distinctPositions = new Set((data.faqs as FaqRow[]).map((f) => f.position)).size;
+  // Distinct positions within the current scope (across locales) — used as
+  // the "question count" hint in the topbar.
+  const distinctPositions = new Set(
+    allRows.filter((f) => f.scope === scope).map((f) => f.position),
+  ).size;
+
+  const currentScope = SCOPE_OPTIONS.find((s) => s.id === scope) ?? SCOPE_OPTIONS[0];
 
   async function handleDelete() {
     if (!confirmDelete) return;
@@ -58,7 +76,7 @@ function FaqsPage() {
     if (target < 0 || target >= newOrder.length) return;
     [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
     try {
-      await reorder({ data: { scope: "home", locale, orderedIds: newOrder.map((f) => f.id) } });
+      await reorder({ data: { scope, locale, orderedIds: newOrder.map((f) => f.id) } });
       await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sắp xếp thất bại");
@@ -69,7 +87,7 @@ function FaqsPage() {
     <>
       <CmsTopbar
         title="Câu hỏi thường gặp"
-        subtitle={`${distinctPositions} câu hỏi — hiển thị tại trang chủ, có 3 bản dịch mỗi câu`}
+        subtitle={`${distinctPositions} câu hỏi tại ${currentScope.label} (${currentScope.routeHint}) — mỗi câu cần 3 bản dịch`}
         action={
           <button
             onClick={() => {
@@ -83,12 +101,34 @@ function FaqsPage() {
         }
       />
       <PageContainer>
+        {/* Scope tabs — switch which page's FAQ list we're editing. */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {SCOPE_OPTIONS.map((s) => {
+            const count = new Set(allRows.filter((f) => f.scope === s.id).map((f) => f.position)).size;
+            const active = scope === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setScope(s.id)}
+                className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg text-sm font-medium transition border ${
+                  active
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-surface text-foreground border-border hover:bg-surface-muted"
+                }`}
+              >
+                <span>{s.label}</span>
+                <span className={`text-xs ${active ? "text-background/70" : "text-muted-foreground"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <Card className="overflow-hidden">
           <LocaleTabs value={locale} onChange={setLocale} />
           <div className="divide-y divide-border">
             {filtered.length === 0 && (
               <div className="px-5 py-12 text-center text-muted-foreground text-sm">
-                Chưa có FAQ nào ở ngôn ngữ này.
+                Chưa có FAQ nào ở {currentScope.label} — ngôn ngữ {locale.toUpperCase()}.
               </div>
             )}
             {filtered.map((f, idx) => (
@@ -149,10 +189,10 @@ function FaqsPage() {
 
       {/* Remount on row change so useState defaults pick up new values */}
       <FaqDialog
-        key={editingRow?.id ?? "new"}
+        key={editingRow?.id ?? `new-${scope}-${locale}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        scope="home"
+        scope={scope}
         locale={locale}
         row={editingRow}
         onSaved={() => router.invalidate()}

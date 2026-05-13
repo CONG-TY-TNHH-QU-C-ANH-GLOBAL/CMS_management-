@@ -279,6 +279,16 @@ export async function listFaqs(scope: string = "home"): Promise<FaqRow[]> {
   return result.results ?? [];
 }
 
+/** Lists every FAQ row across all scopes. Used by the admin index so the
+ *  operator can browse + edit FAQs for multiple page scopes (home, order,
+ *  …) under one screen with scope tabs. */
+export async function listAllFaqs(): Promise<FaqRow[]> {
+  const result = await getDb()
+    .prepare(`SELECT id, scope, position, locale, question, answer FROM faqs ORDER BY scope, position, locale`)
+    .all<FaqRow>();
+  return result.results ?? [];
+}
+
 export async function createFaq(
   actorId: number,
   input: { scope: string; position: number; locale: Locale; question: string; answer: string },

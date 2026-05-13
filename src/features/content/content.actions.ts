@@ -36,6 +36,15 @@ export const listHomeFaqsFn = createServerFn({ method: "GET" }).handler(async ()
   return { faqs: await listFaqs("home") };
 });
 
+/** All FAQs across scopes — admin surfaces scope tabs (home / order / …)
+ *  on one page rather than a separate route per scope. */
+export const listAllFaqsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { listAllFaqs } = await import("@/features/content");
+  await requireSession("viewer");
+  return { faqs: await listAllFaqs() };
+});
+
 export const listTestimonialsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { requireSession } = await import("@/features/auth");
   const { listTestimonials } = await import("@/features/content");
