@@ -289,6 +289,63 @@ export async function listAllFaqs(): Promise<FaqRow[]> {
   return result.results ?? [];
 }
 
+// ================================================================
+// SERVICE BLOCKS (generic per-page card sections)
+// ================================================================
+
+export interface ServiceBlockRow {
+  id: number;
+  page_slug: string;
+  kind: string;
+  position: number;
+  locale: Locale;
+  icon: string | null;
+  title: string | null;
+  description: string | null;
+  /** Stringified JSON. Callers parse on the consumer side. */
+  payload_json: string;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Public-facing read. Returns blocks for one page+locale, optionally
+ *  filtered to a single kind. Sorted by position so renderers can iterate
+ *  the result as-is. */
+export async function listServiceBlocks(input: {
+  page_slug: string;
+  locale: Locale;
+  kind?: string;
+}): Promise<ServiceBlockRow[]> {
+  const where: string[] = ["page_slug = ?", "locale = ?"];
+  const params: unknown[] = [input.page_slug, input.locale];
+  if (input.kind) {
+    where.push("kind = ?");
+    params.push(input.kind);
+  }
+  const result = await getDb()
+    .prepare(
+      `SELECT id, page_slug, kind, position, locale, icon, title, description, payload_json, created_at, updated_at
+         FROM service_blocks
+        WHERE ${where.join(" AND ")}
+        ORDER BY kind, position, id`,
+    )
+    .bind(...params)
+    .all<ServiceBlockRow>();
+  return result.results ?? [];
+}
+
+/** Admin read — every row, every locale. Used by the management screen. */
+export async function listAllServiceBlocks(): Promise<ServiceBlockRow[]> {
+  const result = await getDb()
+    .prepare(
+      `SELECT id, page_slug, kind, position, locale, icon, title, description, payload_json, created_at, updated_at
+         FROM service_blocks
+        ORDER BY page_slug, kind, position, locale`,
+    )
+    .all<ServiceBlockRow>();
+  return result.results ?? [];
+}
+
 export async function createFaq(
   actorId: number,
   input: { scope: string; position: number; locale: Locale; question: string; answer: string },
