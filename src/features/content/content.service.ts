@@ -32,8 +32,8 @@ export interface ServiceProduct {
   price?: string;
   time?: string;
   origin?: string;
-  image?: string;        // direct URL (legacy seed)
-  media_id?: number;     // preferred — references media table
+  image?: string; // direct URL (legacy seed)
+  media_id?: number; // preferred — references media table
 }
 
 export interface ServiceGalleryItem {
@@ -74,23 +74,26 @@ function safeJsonArray<T>(s: string | null): T[] {
 }
 
 export async function listServices(): Promise<ServiceWithI18n[]> {
-  const services = (
-    await getDb()
-      .prepare(`SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services ORDER BY position`)
-      .all<ServiceRow>()
-  ).results ?? [];
+  const services =
+    (
+      await getDb()
+        .prepare(
+          `SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services ORDER BY position`,
+        )
+        .all<ServiceRow>()
+    ).results ?? [];
 
-  const i18nRows = (
-    await getDb()
-      .prepare(`SELECT * FROM services_i18n`)
-      .all<ServiceI18nRow>()
-  ).results ?? [];
+  const i18nRows =
+    (await getDb().prepare(`SELECT * FROM services_i18n`).all<ServiceI18nRow>()).results ?? [];
 
-  const bulletRows = (
-    await getDb()
-      .prepare(`SELECT service_id, locale, position, text FROM service_bullets ORDER BY service_id, locale, position`)
-      .all<{ service_id: string; locale: Locale; position: number; text: string }>()
-  ).results ?? [];
+  const bulletRows =
+    (
+      await getDb()
+        .prepare(
+          `SELECT service_id, locale, position, text FROM service_bullets ORDER BY service_id, locale, position`,
+        )
+        .all<{ service_id: string; locale: Locale; position: number; text: string }>()
+    ).results ?? [];
 
   return services.map((s) => {
     const i18n: Record<Locale, ServiceI18nRow | null> = { en: null, vi: null, zh: null };
@@ -124,16 +127,27 @@ export async function updateServiceBase(
   },
 ): Promise<ServiceRow> {
   const before = await getDb()
-    .prepare(`SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services WHERE id = ? LIMIT 1`,
+    )
     .bind(input.id)
     .first<ServiceRow>();
   if (!before) throw Object.assign(new Error("Service không tồn tại."), { statusCode: 404 });
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
-  if (input.icon !== undefined) { fields.push("icon = ?"); values.push(input.icon); }
-  if (input.status !== undefined) { fields.push("status = ?"); values.push(input.status); }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.icon !== undefined) {
+    fields.push("icon = ?");
+    values.push(input.icon);
+  }
+  if (input.status !== undefined) {
+    fields.push("status = ?");
+    values.push(input.status);
+  }
   if (input.gallery !== undefined) {
     fields.push("gallery_json = ?");
     values.push(input.gallery && input.gallery.length > 0 ? JSON.stringify(input.gallery) : null);
@@ -144,14 +158,21 @@ export async function updateServiceBase(
   }
   if (input.products !== undefined) {
     fields.push("products_json = ?");
-    values.push(input.products && input.products.length > 0 ? JSON.stringify(input.products) : null);
+    values.push(
+      input.products && input.products.length > 0 ? JSON.stringify(input.products) : null,
+    );
   }
   if (fields.length === 0) return before;
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE services SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE services SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
-    .prepare(`SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services WHERE id = ?`)
+    .prepare(
+      `SELECT id, position, icon, status, gallery_json, videos_json, products_json FROM services WHERE id = ?`,
+    )
     .bind(input.id)
     .first<ServiceRow>();
   await auditLog(actorId, "update", "services", input.id, before, after);
@@ -224,7 +245,14 @@ export async function upsertServiceI18n(
     .prepare(`SELECT * FROM services_i18n WHERE service_id = ? AND locale = ?`)
     .bind(input.service_id, input.locale)
     .first<ServiceI18nRow>();
-  await auditLog(actorId, before ? "update" : "create", "services_i18n", `${input.service_id}:${input.locale}`, before, after);
+  await auditLog(
+    actorId,
+    before ? "update" : "create",
+    "services_i18n",
+    `${input.service_id}:${input.locale}`,
+    before,
+    after,
+  );
   return after!;
 }
 
@@ -234,12 +262,15 @@ export async function replaceServiceBullets(
   actorId: number,
   input: { service_id: string; locale: Locale; bullets: string[] },
 ): Promise<string[]> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT text FROM service_bullets WHERE service_id = ? AND locale = ? ORDER BY position`)
-      .bind(input.service_id, input.locale)
-      .all<{ text: string }>()
-  ).results?.map((r) => r.text) ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(
+          `SELECT text FROM service_bullets WHERE service_id = ? AND locale = ? ORDER BY position`,
+        )
+        .bind(input.service_id, input.locale)
+        .all<{ text: string }>()
+    ).results?.map((r) => r.text) ?? [];
 
   await getDb()
     .prepare(`DELETE FROM service_bullets WHERE service_id = ? AND locale = ?`)
@@ -250,11 +281,20 @@ export async function replaceServiceBullets(
     const text = input.bullets[i].trim();
     if (!text) continue;
     await getDb()
-      .prepare(`INSERT INTO service_bullets (service_id, locale, position, text) VALUES (?, ?, ?, ?)`)
+      .prepare(
+        `INSERT INTO service_bullets (service_id, locale, position, text) VALUES (?, ?, ?, ?)`,
+      )
       .bind(input.service_id, input.locale, i + 1, text)
       .run();
   }
-  await auditLog(actorId, "update", "service_bullets", `${input.service_id}:${input.locale}`, before, input.bullets);
+  await auditLog(
+    actorId,
+    "update",
+    "service_bullets",
+    `${input.service_id}:${input.locale}`,
+    before,
+    input.bullets,
+  );
   return input.bullets;
 }
 
@@ -273,7 +313,9 @@ export interface FaqRow {
 
 export async function listFaqs(scope: string = "home"): Promise<FaqRow[]> {
   const result = await getDb()
-    .prepare(`SELECT id, scope, position, locale, question, answer FROM faqs WHERE scope = ? ORDER BY position, locale`)
+    .prepare(
+      `SELECT id, scope, position, locale, question, answer FROM faqs WHERE scope = ? ORDER BY position, locale`,
+    )
     .bind(scope)
     .all<FaqRow>();
   return result.results ?? [];
@@ -284,7 +326,9 @@ export async function listFaqs(scope: string = "home"): Promise<FaqRow[]> {
  *  …) under one screen with scope tabs. */
 export async function listAllFaqs(): Promise<FaqRow[]> {
   const result = await getDb()
-    .prepare(`SELECT id, scope, position, locale, question, answer FROM faqs ORDER BY scope, position, locale`)
+    .prepare(
+      `SELECT id, scope, position, locale, question, answer FROM faqs ORDER BY scope, position, locale`,
+    )
     .all<FaqRow>();
   return result.results ?? [];
 }
@@ -375,18 +419,50 @@ export async function updateFaq(
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.question !== undefined) { fields.push("question = ?"); values.push(input.question); }
-  if (input.answer !== undefined) { fields.push("answer = ?"); values.push(input.answer); }
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
+  if (input.question !== undefined) {
+    fields.push("question = ?");
+    values.push(input.question);
+  }
+  if (input.answer !== undefined) {
+    fields.push("answer = ?");
+    values.push(input.answer);
+  }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
   if (fields.length === 0) return before;
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE faqs SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE faqs SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
     .prepare(`SELECT id, scope, position, locale, question, answer FROM faqs WHERE id = ?`)
     .bind(input.id)
     .first<FaqRow>();
   await auditLog(actorId, "update", "faqs", input.id, before, after);
+
+  // Spec §3.3 + §11.7: editing a VI source row auto-fires `source_changed`
+  // on every dependent translation whose source_hash has actually changed.
+  // ONLY auto-firing transition; everything else is operator-initiated.
+  // Wrap in try/catch so a failure here doesn't roll back the FAQ edit
+  // itself — the operator sees the row updated, stale propagation happens
+  // best-effort. (Audit log still captures the FAQ change above.)
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.question !== undefined || input.answer !== undefined)
+  ) {
+    try {
+      const { onFaqSourceChanged } = await import("@/features/translations");
+      await onFaqSourceChanged(after.id, { question: after.question, answer: after.answer });
+    } catch (err) {
+      console.warn(`[faqs] source_changed propagation failed for id=${after.id}:`, err);
+    }
+  }
+
   return after!;
 }
 
@@ -405,12 +481,13 @@ export async function reorderFaqs(
   actorId: number,
   input: { scope: string; locale: Locale; orderedIds: number[] },
 ): Promise<void> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT id, position FROM faqs WHERE scope = ? AND locale = ? ORDER BY position`)
-      .bind(input.scope, input.locale)
-      .all<{ id: number; position: number }>()
-  ).results ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(`SELECT id, position FROM faqs WHERE scope = ? AND locale = ? ORDER BY position`)
+        .bind(input.scope, input.locale)
+        .all<{ id: number; position: number }>()
+    ).results ?? [];
 
   for (let i = 0; i < input.orderedIds.length; i++) {
     await getDb()
@@ -418,7 +495,14 @@ export async function reorderFaqs(
       .bind(i + 1, input.orderedIds[i], input.scope, input.locale)
       .run();
   }
-  await auditLog(actorId, "reorder", "faqs", `${input.scope}:${input.locale}`, before, input.orderedIds);
+  await auditLog(
+    actorId,
+    "reorder",
+    "faqs",
+    `${input.scope}:${input.locale}`,
+    before,
+    input.orderedIds,
+  );
 }
 
 // ================================================================
@@ -447,7 +531,14 @@ export async function listTestimonials(): Promise<TestimonialRow[]> {
 
 export async function createTestimonial(
   actorId: number,
-  input: { position: number; locale: Locale; quote: string; author_name: string; author_role?: string | null; avatar_media_id?: number | null },
+  input: {
+    position: number;
+    locale: Locale;
+    quote: string;
+    author_name: string;
+    author_role?: string | null;
+    avatar_media_id?: number | null;
+  },
 ): Promise<TestimonialRow> {
   const inserted = await getDb()
     .prepare(
@@ -455,7 +546,14 @@ export async function createTestimonial(
          VALUES (?, ?, ?, ?, ?, ?)
          RETURNING id, position, locale, quote, author_name, author_role, avatar_media_id`,
     )
-    .bind(input.position, input.locale, input.quote, input.author_name, input.author_role ?? null, input.avatar_media_id ?? null)
+    .bind(
+      input.position,
+      input.locale,
+      input.quote,
+      input.author_name,
+      input.author_role ?? null,
+      input.avatar_media_id ?? null,
+    )
     .first<TestimonialRow>();
   if (!inserted) throw new Error("Không tạo được testimonial.");
   await auditLog(actorId, "create", "testimonials", inserted.id, null, inserted);
@@ -464,27 +562,56 @@ export async function createTestimonial(
 
 export async function updateTestimonial(
   actorId: number,
-  input: { id: number; position?: number; quote?: string; author_name?: string; author_role?: string | null; avatar_media_id?: number | null },
+  input: {
+    id: number;
+    position?: number;
+    quote?: string;
+    author_name?: string;
+    author_role?: string | null;
+    avatar_media_id?: number | null;
+  },
 ): Promise<TestimonialRow> {
   const before = await getDb()
-    .prepare(`SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ? LIMIT 1`,
+    )
     .bind(input.id)
     .first<TestimonialRow>();
   if (!before) throw Object.assign(new Error("Testimonial không tồn tại."), { statusCode: 404 });
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
-  if (input.quote !== undefined) { fields.push("quote = ?"); values.push(input.quote); }
-  if (input.author_name !== undefined) { fields.push("author_name = ?"); values.push(input.author_name); }
-  if (input.author_role !== undefined) { fields.push("author_role = ?"); values.push(input.author_role); }
-  if (input.avatar_media_id !== undefined) { fields.push("avatar_media_id = ?"); values.push(input.avatar_media_id); }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.quote !== undefined) {
+    fields.push("quote = ?");
+    values.push(input.quote);
+  }
+  if (input.author_name !== undefined) {
+    fields.push("author_name = ?");
+    values.push(input.author_name);
+  }
+  if (input.author_role !== undefined) {
+    fields.push("author_role = ?");
+    values.push(input.author_role);
+  }
+  if (input.avatar_media_id !== undefined) {
+    fields.push("avatar_media_id = ?");
+    values.push(input.avatar_media_id);
+  }
   if (fields.length === 0) return before;
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE testimonials SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE testimonials SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
-    .prepare(`SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ?`)
+    .prepare(
+      `SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ?`,
+    )
     .bind(input.id)
     .first<TestimonialRow>();
   await auditLog(actorId, "update", "testimonials", input.id, before, after);
@@ -493,7 +620,9 @@ export async function updateTestimonial(
 
 export async function deleteTestimonial(actorId: number, id: number): Promise<void> {
   const before = await getDb()
-    .prepare(`SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, locale, quote, author_name, author_role, avatar_media_id FROM testimonials WHERE id = ? LIMIT 1`,
+    )
     .bind(id)
     .first<TestimonialRow>();
   if (!before) return;
@@ -505,12 +634,13 @@ export async function reorderTestimonials(
   actorId: number,
   input: { locale: Locale; orderedIds: number[] },
 ): Promise<void> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT id, position FROM testimonials WHERE locale = ? ORDER BY position`)
-      .bind(input.locale)
-      .all<{ id: number; position: number }>()
-  ).results ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(`SELECT id, position FROM testimonials WHERE locale = ? ORDER BY position`)
+        .bind(input.locale)
+        .all<{ id: number; position: number }>()
+    ).results ?? [];
   for (let i = 0; i < input.orderedIds.length; i++) {
     await getDb()
       .prepare(`UPDATE testimonials SET position = ? WHERE id = ? AND locale = ?`)
@@ -548,7 +678,16 @@ export async function listContactLocations(): Promise<ContactLocationRow[]> {
 
 export async function createContactLocation(
   actorId: number,
-  input: { position: number; kind: ContactLocationRow["kind"]; locale: Locale; label: string; address?: string | null; phone?: string | null; url?: string | null; lang_class?: string | null },
+  input: {
+    position: number;
+    kind: ContactLocationRow["kind"];
+    locale: Locale;
+    label: string;
+    address?: string | null;
+    phone?: string | null;
+    url?: string | null;
+    lang_class?: string | null;
+  },
 ): Promise<ContactLocationRow> {
   const inserted = await getDb()
     .prepare(
@@ -574,29 +713,66 @@ export async function createContactLocation(
 
 export async function updateContactLocation(
   actorId: number,
-  input: { id: number; position?: number; kind?: ContactLocationRow["kind"]; label?: string; address?: string | null; phone?: string | null; url?: string | null; lang_class?: string | null },
+  input: {
+    id: number;
+    position?: number;
+    kind?: ContactLocationRow["kind"];
+    label?: string;
+    address?: string | null;
+    phone?: string | null;
+    url?: string | null;
+    lang_class?: string | null;
+  },
 ): Promise<ContactLocationRow> {
   const before = await getDb()
-    .prepare(`SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ? LIMIT 1`,
+    )
     .bind(input.id)
     .first<ContactLocationRow>();
   if (!before) throw Object.assign(new Error("Location không tồn tại."), { statusCode: 404 });
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
-  if (input.kind !== undefined) { fields.push("kind = ?"); values.push(input.kind); }
-  if (input.label !== undefined) { fields.push("label = ?"); values.push(input.label); }
-  if (input.address !== undefined) { fields.push("address = ?"); values.push(input.address); }
-  if (input.phone !== undefined) { fields.push("phone = ?"); values.push(input.phone); }
-  if (input.url !== undefined) { fields.push("url = ?"); values.push(input.url); }
-  if (input.lang_class !== undefined) { fields.push("lang_class = ?"); values.push(input.lang_class); }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.kind !== undefined) {
+    fields.push("kind = ?");
+    values.push(input.kind);
+  }
+  if (input.label !== undefined) {
+    fields.push("label = ?");
+    values.push(input.label);
+  }
+  if (input.address !== undefined) {
+    fields.push("address = ?");
+    values.push(input.address);
+  }
+  if (input.phone !== undefined) {
+    fields.push("phone = ?");
+    values.push(input.phone);
+  }
+  if (input.url !== undefined) {
+    fields.push("url = ?");
+    values.push(input.url);
+  }
+  if (input.lang_class !== undefined) {
+    fields.push("lang_class = ?");
+    values.push(input.lang_class);
+  }
   if (fields.length === 0) return before;
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE contact_locations SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE contact_locations SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
-    .prepare(`SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ?`)
+    .prepare(
+      `SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ?`,
+    )
     .bind(input.id)
     .first<ContactLocationRow>();
   await auditLog(actorId, "update", "contact_locations", input.id, before, after);
@@ -605,7 +781,9 @@ export async function updateContactLocation(
 
 export async function deleteContactLocation(actorId: number, id: number): Promise<void> {
   const before = await getDb()
-    .prepare(`SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, kind, locale, label, address, phone, url, lang_class FROM contact_locations WHERE id = ? LIMIT 1`,
+    )
     .bind(id)
     .first<ContactLocationRow>();
   if (!before) return;
@@ -617,12 +795,13 @@ export async function reorderContactLocations(
   actorId: number,
   input: { locale: Locale; orderedIds: number[] },
 ): Promise<void> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT id, position FROM contact_locations WHERE locale = ? ORDER BY position`)
-      .bind(input.locale)
-      .all<{ id: number; position: number }>()
-  ).results ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(`SELECT id, position FROM contact_locations WHERE locale = ? ORDER BY position`)
+        .bind(input.locale)
+        .all<{ id: number; position: number }>()
+    ).results ?? [];
   for (let i = 0; i < input.orderedIds.length; i++) {
     await getDb()
       .prepare(`UPDATE contact_locations SET position = ? WHERE id = ? AND locale = ?`)
@@ -647,14 +826,22 @@ export interface IntegrationRow {
 
 export async function listIntegrations(): Promise<IntegrationRow[]> {
   const result = await getDb()
-    .prepare(`SELECT id, position, name, logo_media_id, url, color_class FROM integrations ORDER BY position`)
+    .prepare(
+      `SELECT id, position, name, logo_media_id, url, color_class FROM integrations ORDER BY position`,
+    )
     .all<IntegrationRow>();
   return result.results ?? [];
 }
 
 export async function createIntegration(
   actorId: number,
-  input: { position: number; name: string; logo_media_id?: number | null; url?: string | null; color_class?: string | null },
+  input: {
+    position: number;
+    name: string;
+    logo_media_id?: number | null;
+    url?: string | null;
+    color_class?: string | null;
+  },
 ): Promise<IntegrationRow> {
   const inserted = await getDb()
     .prepare(
@@ -662,7 +849,13 @@ export async function createIntegration(
          VALUES (?, ?, ?, ?, ?)
          RETURNING id, position, name, logo_media_id, url, color_class`,
     )
-    .bind(input.position, input.name, input.logo_media_id ?? null, input.url ?? null, input.color_class ?? null)
+    .bind(
+      input.position,
+      input.name,
+      input.logo_media_id ?? null,
+      input.url ?? null,
+      input.color_class ?? null,
+    )
     .first<IntegrationRow>();
   if (!inserted) throw new Error("Không tạo được integration.");
   await auditLog(actorId, "create", "integrations", inserted.id, null, inserted);
@@ -671,27 +864,56 @@ export async function createIntegration(
 
 export async function updateIntegration(
   actorId: number,
-  input: { id: number; position?: number; name?: string; logo_media_id?: number | null; url?: string | null; color_class?: string | null },
+  input: {
+    id: number;
+    position?: number;
+    name?: string;
+    logo_media_id?: number | null;
+    url?: string | null;
+    color_class?: string | null;
+  },
 ): Promise<IntegrationRow> {
   const before = await getDb()
-    .prepare(`SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ? LIMIT 1`,
+    )
     .bind(input.id)
     .first<IntegrationRow>();
   if (!before) throw Object.assign(new Error("Integration không tồn tại."), { statusCode: 404 });
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
-  if (input.name !== undefined) { fields.push("name = ?"); values.push(input.name); }
-  if (input.logo_media_id !== undefined) { fields.push("logo_media_id = ?"); values.push(input.logo_media_id); }
-  if (input.url !== undefined) { fields.push("url = ?"); values.push(input.url); }
-  if (input.color_class !== undefined) { fields.push("color_class = ?"); values.push(input.color_class); }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.name !== undefined) {
+    fields.push("name = ?");
+    values.push(input.name);
+  }
+  if (input.logo_media_id !== undefined) {
+    fields.push("logo_media_id = ?");
+    values.push(input.logo_media_id);
+  }
+  if (input.url !== undefined) {
+    fields.push("url = ?");
+    values.push(input.url);
+  }
+  if (input.color_class !== undefined) {
+    fields.push("color_class = ?");
+    values.push(input.color_class);
+  }
   if (fields.length === 0) return before;
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE integrations SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE integrations SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
-    .prepare(`SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ?`)
+    .prepare(
+      `SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ?`,
+    )
     .bind(input.id)
     .first<IntegrationRow>();
   await auditLog(actorId, "update", "integrations", input.id, before, after);
@@ -700,7 +922,9 @@ export async function updateIntegration(
 
 export async function deleteIntegration(actorId: number, id: number): Promise<void> {
   const before = await getDb()
-    .prepare(`SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ? LIMIT 1`)
+    .prepare(
+      `SELECT id, position, name, logo_media_id, url, color_class FROM integrations WHERE id = ? LIMIT 1`,
+    )
     .bind(id)
     .first<IntegrationRow>();
   if (!before) return;
@@ -709,13 +933,17 @@ export async function deleteIntegration(actorId: number, id: number): Promise<vo
 }
 
 export async function reorderIntegrations(actorId: number, orderedIds: number[]): Promise<void> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT id, position FROM integrations ORDER BY position`)
-      .all<{ id: number; position: number }>()
-  ).results ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(`SELECT id, position FROM integrations ORDER BY position`)
+        .all<{ id: number; position: number }>()
+    ).results ?? [];
   for (let i = 0; i < orderedIds.length; i++) {
-    await getDb().prepare(`UPDATE integrations SET position = ? WHERE id = ?`).bind(i + 1, orderedIds[i]).run();
+    await getDb()
+      .prepare(`UPDATE integrations SET position = ? WHERE id = ?`)
+      .bind(i + 1, orderedIds[i])
+      .run();
   }
   await auditLog(actorId, "reorder", "integrations", "all", before, orderedIds);
 }
@@ -769,7 +997,11 @@ export async function createMarqueeImageFromUrl(
     if (!inserted) throw new Error("Không tạo được media row.");
     mediaId = inserted.id;
   }
-  return createMarqueeImage(actorId, { position: input.position, media_id: mediaId, alt_text: input.alt_text });
+  return createMarqueeImage(actorId, {
+    position: input.position,
+    media_id: mediaId,
+    alt_text: input.alt_text,
+  });
 }
 
 // Marquee references existing media row. Caller must have created/uploaded media first.
@@ -809,9 +1041,18 @@ export async function updateMarqueeImage(
 
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
-  if (input.media_id !== undefined) { fields.push("media_id = ?"); values.push(input.media_id); }
-  if (input.alt_text !== undefined) { fields.push("alt_text = ?"); values.push(input.alt_text); }
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.media_id !== undefined) {
+    fields.push("media_id = ?");
+    values.push(input.media_id);
+  }
+  if (input.alt_text !== undefined) {
+    fields.push("alt_text = ?");
+    values.push(input.alt_text);
+  }
   if (fields.length === 0) {
     const full = await getDb()
       .prepare(
@@ -824,7 +1065,10 @@ export async function updateMarqueeImage(
   }
   values.push(input.id);
 
-  await getDb().prepare(`UPDATE marquee_images SET ${fields.join(", ")} WHERE id = ?`).bind(...values).run();
+  await getDb()
+    .prepare(`UPDATE marquee_images SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
   const after = await getDb()
     .prepare(
       `SELECT m.id, m.position, m.media_id, m.alt_text, md.r2_key AS src
@@ -847,13 +1091,17 @@ export async function deleteMarqueeImage(actorId: number, id: number): Promise<v
 }
 
 export async function reorderMarqueeImages(actorId: number, orderedIds: number[]): Promise<void> {
-  const before = (
-    await getDb()
-      .prepare(`SELECT id, position FROM marquee_images ORDER BY position`)
-      .all<{ id: number; position: number }>()
-  ).results ?? [];
+  const before =
+    (
+      await getDb()
+        .prepare(`SELECT id, position FROM marquee_images ORDER BY position`)
+        .all<{ id: number; position: number }>()
+    ).results ?? [];
   for (let i = 0; i < orderedIds.length; i++) {
-    await getDb().prepare(`UPDATE marquee_images SET position = ? WHERE id = ?`).bind(i + 1, orderedIds[i]).run();
+    await getDb()
+      .prepare(`UPDATE marquee_images SET position = ? WHERE id = ?`)
+      .bind(i + 1, orderedIds[i])
+      .run();
   }
   await auditLog(actorId, "reorder", "marquee_images", "all", before, orderedIds);
 }
