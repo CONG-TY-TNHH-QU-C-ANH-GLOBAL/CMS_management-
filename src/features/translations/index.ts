@@ -35,7 +35,9 @@ export {
 } from "./translations.pricing";
 export {
   approveFaqTranslation,
+  deleteFaqTranslation,
   editFaqTranslation,
+  listAllFaqTranslations,
   listFaqTranslationsForId,
   markFaqTranslationStale,
   onFaqSourceChanged,

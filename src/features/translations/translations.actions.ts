@@ -30,6 +30,15 @@ export const listFaqTranslationsFn = createServerFn({ method: "POST" })
     return { rows: await listFaqTranslationsForId(data.faq_id) };
   });
 
+/** All translation rows across every FAQ. Used by the admin index loader so
+ *  VI rows can render inline EN/ZH status pills without N+1 fetches. */
+export const listAllFaqTranslationsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { listAllFaqTranslations } = await import("./faq.translation.service");
+  await requireSession("viewer");
+  return { rows: await listAllFaqTranslations() };
+});
+
 export const listAiTranslationLogsFn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
@@ -126,6 +135,18 @@ export const editFaqTranslationFn = createServerFn({ method: "POST" })
     const result = await editFaqTranslation(me.id, data);
     await bumpCmsRev();
     return result;
+  });
+
+export const deleteFaqTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteFaqTranslation } = await import("./faq.translation.service");
+    const me = await requireSession("editor");
+    await deleteFaqTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
   });
 
 export const markFaqTranslationStaleFn = createServerFn({ method: "POST" })

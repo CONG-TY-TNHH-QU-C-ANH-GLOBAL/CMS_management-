@@ -111,6 +111,30 @@ export async function markFaqTranslationStale(
   });
 }
 
+/** Hard-delete a translation row. Used when operator rejects a bad AI
+ *  draft and wants to start clean. The row is removed entirely; the next
+ *  /translate call creates a fresh one. Reviewed rows can also be deleted
+ *  (operator confirms in UI) — they fall back to the static i18n
+ *  dictionary on the landing page until re-translated. */
+export async function deleteFaqTranslation(actorId: number, id: number): Promise<void> {
+  const before = await getDb()
+    .prepare(`SELECT ${FAQ_TRANS_COLUMNS} FROM faq_translations WHERE id = ? LIMIT 1`)
+    .bind(id)
+    .first<FaqTranslationRow>();
+  if (!before) return;
+  await getDb().prepare(`DELETE FROM faq_translations WHERE id = ?`).bind(id).run();
+  await auditLog(actorId, "delete", "faq_translations", id, before, null);
+}
+
+/** Return every translation row across all FAQs. Used by the admin index
+ *  loader so VI rows can show inline EN/ZH status pills without N+1 fetches. */
+export async function listAllFaqTranslations(): Promise<FaqTranslationRow[]> {
+  const result = await getDb()
+    .prepare(`SELECT ${FAQ_TRANS_COLUMNS} FROM faq_translations ORDER BY faq_id, locale`)
+    .all<FaqTranslationRow>();
+  return result.results ?? [];
+}
+
 /** Called from the FAQ update handler when the VI source row changes.
  *  Fires `source_changed` on every dependent translation whose source_hash
  *  differs from the new normalized hash. Spec §3.3 + §11.7 (only auto-fire
