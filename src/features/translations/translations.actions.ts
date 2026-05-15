@@ -7,11 +7,12 @@ import { z } from "zod";
 export type { FaqTranslationRow } from "./faq.translation.service";
 export type { ServiceBlockTranslationRow } from "./service-block.translation.service";
 export type { TestimonialTranslationRow } from "./testimonial.translation.service";
+export type { HomepageBlockTranslationRow } from "./homepage-block.translation.service";
 export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
 const TARGET_LOCALE = z.enum(["en", "zh"]);
-const ENTITY_TYPE = z.enum(["faq", "service_block", "testimonial"]);
+const ENTITY_TYPE = z.enum(["faq", "service_block", "testimonial", "homepage_block"]);
 
 const translateSchema = z.object({
   entity_type: ENTITY_TYPE,
@@ -332,6 +333,88 @@ export const markTestimonialTranslationStaleFn = createServerFn({ method: "POST"
     );
     const me = await requireSession("editor");
     const result = await markTestimonialTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 7: homepage_block lifecycle RPC ───────────────
+
+export const listHomepageBlockTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ homepage_block_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listHomepageBlockTranslationsForId } = await import(
+      "./homepage-block.translation.service"
+    );
+    await requireSession("viewer");
+    return await listHomepageBlockTranslationsForId(data.homepage_block_id);
+  });
+
+export const listAllHomepageBlockTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllHomepageBlockTranslations } = await import(
+      "./homepage-block.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllHomepageBlockTranslations();
+  },
+);
+
+export const approveHomepageBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveHomepageBlockTranslation } = await import(
+      "./homepage-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveHomepageBlockTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editHomepageBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ id: ID, payload_json: z.string().max(50000) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editHomepageBlockTranslation } = await import(
+      "./homepage-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await editHomepageBlockTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteHomepageBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteHomepageBlockTranslation } = await import(
+      "./homepage-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteHomepageBlockTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markHomepageBlockTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markHomepageBlockTranslationStale } = await import(
+      "./homepage-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markHomepageBlockTranslationStale(me.id, data.id);
     await bumpCmsRev();
     return result;
   });

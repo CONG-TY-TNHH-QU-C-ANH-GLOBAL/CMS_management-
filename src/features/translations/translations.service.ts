@@ -18,7 +18,7 @@ import { buildPrompt, PROMPT_VERSION_V1 } from "./translations.prompt";
 import { computeCostUsd, defaultModelForEntity, type SupportedModel } from "./translations.pricing";
 import { hasAllExpectedFields, passesStructuralChecks } from "./translations.structural";
 
-export type TranslateEntityType = "faq" | "service_block" | "testimonial";
+export type TranslateEntityType = "faq" | "service_block" | "testimonial" | "homepage_block";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -60,6 +60,12 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     sourceFkColumn: "testimonial_id",
     sourceTable: "testimonials",
     fieldColumns: ["quote", "author_role"],
+  },
+  homepage_block: {
+    translationsTable: "homepage_block_translations",
+    sourceFkColumn: "homepage_block_id",
+    sourceTable: "homepage_blocks",
+    fieldColumns: ["payload_json"],
   },
 };
 

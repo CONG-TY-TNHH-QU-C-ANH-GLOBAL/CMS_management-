@@ -12,7 +12,8 @@ export type StaleReason = "source_changed" | "prompt_changed" | "model_changed" 
 export type TranslationTable =
   | "faq_translations"
   | "service_block_translations"
-  | "testimonial_translations";
+  | "testimonial_translations"
+  | "homepage_block_translations";
 
 export type TransitionEvent =
   | { kind: "ai_completed" }

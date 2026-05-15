@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import {
   translateFn,
   type FaqTranslationRow,
+  type HomepageBlockTranslationRow,
   type ServiceBlockTranslationRow,
   type TestimonialTranslationRow,
 } from "@/features/translations/translations.actions";
@@ -52,7 +53,11 @@ export interface LifecycleRpcs {
   delete: any;
 }
 
-type AnyTranslationRow = FaqTranslationRow | ServiceBlockTranslationRow | TestimonialTranslationRow;
+type AnyTranslationRow =
+  | FaqTranslationRow
+  | ServiceBlockTranslationRow
+  | TestimonialTranslationRow
+  | HomepageBlockTranslationRow;
 
 interface Props {
   open: boolean;
@@ -60,7 +65,7 @@ interface Props {
   /** Triggers parent loader invalidate so the source list refreshes status pills. */
   onChanged: () => void;
   /** What entity is being translated. Drives header label + translateFn payload. */
-  entityType: "faq" | "service_block" | "testimonial";
+  entityType: "faq" | "service_block" | "testimonial" | "homepage_block";
   /** Source row ID (locale=vi row in the source table). */
   entityId: number;
   /** Friendly singular label for header copy ("FAQ", "Service block", …). */

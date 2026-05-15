@@ -538,12 +538,15 @@ export async function updateServiceBlock(
       input.payload_json !== undefined)
   ) {
     try {
-      const { onServiceBlockSourceChanged } = await import("@/features/translations");
+      const { onServiceBlockSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
       await onServiceBlockSourceChanged(after.id, {
         title: after.title,
         description: after.description,
         payload_json: after.payload_json,
       });
+      await autoTranslateMissingLocales(actorId, "service_block", after.id);
     } catch (err) {
       console.error("[service_blocks] onServiceBlockSourceChanged failed", err);
     }
@@ -631,8 +634,12 @@ export async function updateFaq(
     (input.question !== undefined || input.answer !== undefined)
   ) {
     try {
-      const { onFaqSourceChanged } = await import("@/features/translations");
+      const { onFaqSourceChanged, autoTranslateMissingLocales } = await import("@/features/translations");
       await onFaqSourceChanged(after.id, { question: after.question, answer: after.answer });
+      // Auto-create drafts for any locale that has no translation yet.
+      // Existing drafts are NOT touched — onFaqSourceChanged already marked
+      // them stale. Operator decides via 🤖 whether to re-translate.
+      await autoTranslateMissingLocales(actorId, "faq", after.id);
     } catch (err) {
       console.warn(`[faqs] source_changed propagation failed for id=${after.id}:`, err);
     }
@@ -830,11 +837,14 @@ export async function updateTestimonial(
     (input.quote !== undefined || input.author_role !== undefined)
   ) {
     try {
-      const { onTestimonialSourceChanged } = await import("@/features/translations");
+      const { onTestimonialSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
       await onTestimonialSourceChanged(after.id, {
         quote: after.quote,
         author_role: after.author_role,
       });
+      await autoTranslateMissingLocales(actorId, "testimonial", after.id);
     } catch (err) {
       console.error("[testimonials] onTestimonialSourceChanged failed", err);
     }

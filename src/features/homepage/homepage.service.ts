@@ -126,6 +126,24 @@ export async function upsertHomepageBlock(
       .run();
     const after = { ...existing, payload_json: payloadJson, position: newPos };
     await auditLog(actorId, "update", "homepage_blocks", existing.id, existing, after);
+
+    // Spec §3.3 + §11.7 + auto-translate (Phase 7): when VI source row payload
+    // changes, mark dependent EN/ZH translations stale, then auto-create
+    // drafts for any locale that has no translation row yet. Both wrapped in
+    // try/catch so a translation pipeline failure doesn't roll back the
+    // source save itself.
+    if (input.locale === "vi" && existing.payload_json !== payloadJson) {
+      try {
+        const { onHomepageBlockSourceChanged, autoTranslateMissingLocales } = await import(
+          "@/features/translations"
+        );
+        await onHomepageBlockSourceChanged(existing.id, { payload_json: payloadJson });
+        await autoTranslateMissingLocales(actorId, "homepage_block", existing.id);
+      } catch (err) {
+        console.error("[homepage_blocks] translation pipeline failed", err);
+      }
+    }
+
     return {
       id: existing.id,
       kind: existing.kind,
@@ -157,5 +175,17 @@ export async function upsertHomepageBlock(
     payload_json: payloadJson,
     locale: input.locale,
   });
+
+  // Auto-create EN+ZH drafts on first VI insert (operator gets translations
+  // immediately on the EN/ZH tabs, still requires Approve before going live).
+  if (input.locale === "vi") {
+    try {
+      const { autoTranslateMissingLocales } = await import("@/features/translations");
+      await autoTranslateMissingLocales(actorId, "homepage_block", id);
+    } catch (err) {
+      console.error("[homepage_blocks] autoTranslateMissingLocales failed", err);
+    }
+  }
+
   return { id, kind: input.kind, position, payload: input.payload, locale: input.locale };
 }

@@ -64,6 +64,17 @@ export {
   type TestimonialTranslationRow,
 } from "./testimonial.translation.service";
 export {
+  approveHomepageBlockTranslation,
+  deleteHomepageBlockTranslation,
+  editHomepageBlockTranslation,
+  listAllHomepageBlockTranslations,
+  listHomepageBlockTranslationsForId,
+  markHomepageBlockTranslationStale,
+  onHomepageBlockSourceChanged,
+  type HomepageBlockTranslationRow,
+} from "./homepage-block.translation.service";
+export { autoTranslateMissingLocales } from "./translations.auto";
+export {
   insertAiTranslationLog,
   listAiTranslationLogsForEntity,
   summarizeAiTranslationLog,

@@ -18,6 +18,17 @@ import {
   type HomepageBlock,
   type HomepageBlockKind,
 } from "@/features/homepage/homepage.actions";
+import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
+import {
+  approveHomepageBlockTranslationFn,
+  deleteHomepageBlockTranslationFn,
+  editHomepageBlockTranslationFn,
+  listHomepageBlockTranslationsFn,
+} from "@/features/translations/translations.actions";
+
+const HB_FIELDS = [
+  { key: "payload_json", label: "Payload (JSON cả block)", rows: 12 },
+] as const;
 
 export const Route = createFileRoute("/admin/content/landing/")({
   head: () => ({ meta: [{ title: "Trang chủ — THG Content OS" }] }),
@@ -152,6 +163,7 @@ function LandingPage() {
   const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
+  const [reviewing, setReviewing] = useState<HomepageBlock | null>(null);
 
   const active = useMemo(() => SECTIONS.find((s) => s.kind === activeKind)!, [activeKind]);
   const activeBlock = blocks.find((b) => b.kind === activeKind);
@@ -336,8 +348,24 @@ function LandingPage() {
               <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border bg-surface-muted/40 rounded-b-xl">
                 <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  Thay đổi sẽ lưu thẳng vào trang chủ — bấm "Lưu thay đổi" để cập nhật.
+                  {locale === "vi"
+                    ? "Lưu VI sẽ tự dịch sang EN+ZH (drafts) — duyệt trước khi lên live."
+                    : "Bản dịch chỉ hiện trên web sau khi operator Approve."}
                 </div>
+                {locale === "vi" && activeBlock ? (
+                  <button
+                    onClick={() => setReviewing(activeBlock)}
+                    disabled={dirtyKinds.has(activeKind)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-blue-300 bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      dirtyKinds.has(activeKind)
+                        ? "Lưu thay đổi VI trước khi xem bản dịch"
+                        : "Xem / sửa / duyệt bản dịch EN + ZH cho khu vực này"
+                    }
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Bản dịch EN + ZH
+                  </button>
+                ) : null}
               </div>
             </Card>
 
@@ -416,6 +444,26 @@ function LandingPage() {
           </div>
         </div>
       </PageContainer>
+
+      {reviewing ? (
+        <TranslationReviewDialog
+          open={reviewing !== null}
+          onOpenChange={(o) => !o && setReviewing(null)}
+          onChanged={() => router.invalidate()}
+          entityType="homepage_block"
+          entityId={reviewing.id}
+          entityLabel={`hero/${reviewing.kind}`}
+          source={{ payload_json: JSON.stringify(reviewing.payload, null, 2) }}
+          fields={HB_FIELDS}
+          rpcs={{
+            list: listHomepageBlockTranslationsFn,
+            approve: approveHomepageBlockTranslationFn,
+            edit: editHomepageBlockTranslationFn,
+            delete: deleteHomepageBlockTranslationFn,
+          }}
+          listIdKey="homepage_block_id"
+        />
+      ) : null}
     </>
   );
 }
