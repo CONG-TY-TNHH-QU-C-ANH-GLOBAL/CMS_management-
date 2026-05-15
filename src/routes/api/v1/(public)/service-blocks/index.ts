@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { listServiceBlocks } from "@/features/content";
+import { listServiceBlocksForLocale } from "@/features/content";
 import { isLocale } from "@/features/i18n";
 
 /**
@@ -36,7 +36,9 @@ export const Route = createFileRoute("/api/v1/(public)/service-blocks/")({
           return corsError(request, 400, "Missing required `page_slug`");
         }
 
-        const rows = await listServiceBlocks({ page_slug: pageSlug, locale: lang, kind });
+        // VI reads from service_blocks; EN/ZH JOINs service_block_translations
+        // filtered by status='reviewed' per spec §7.1 + Rule 8.
+        const rows = await listServiceBlocksForLocale({ page_slug: pageSlug, lang, kind });
 
         const blocks = rows.map((r) => {
           let payload: Record<string, unknown> = {};

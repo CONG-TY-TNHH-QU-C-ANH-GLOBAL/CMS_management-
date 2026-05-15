@@ -419,6 +419,39 @@ export async function listServiceBlocks(input: {
   return result.results ?? [];
 }
 
+/** Public-facing read for a single locale, translation-gated for en/zh.
+ *  Mirrors listFaqsForLocale (see that doc) — VI reads from `service_blocks`
+ *  directly; EN/ZH JOIN `service_block_translations` filtered by status='reviewed'.
+ *  Non-translatable columns (icon, kind, position) come from the VI source row. */
+export async function listServiceBlocksForLocale(input: {
+  page_slug: string;
+  lang: Locale;
+  kind?: string;
+}): Promise<ServiceBlockRow[]> {
+  if (input.lang === "vi") {
+    return listServiceBlocks({ page_slug: input.page_slug, locale: "vi", kind: input.kind });
+  }
+  const where: string[] = ["sb.page_slug = ?", "sb.locale = 'vi'", "t.locale = ?", "t.status = 'reviewed'"];
+  const params: unknown[] = [input.page_slug, input.lang];
+  if (input.kind) {
+    where.push("sb.kind = ?");
+    params.push(input.kind);
+  }
+  const result = await getDb()
+    .prepare(
+      `SELECT sb.id, sb.page_slug, sb.kind, sb.position, ? AS locale,
+              sb.icon, t.title, t.description, t.payload_json,
+              sb.created_at, t.updated_at
+         FROM service_blocks sb
+         JOIN service_block_translations t ON t.service_block_id = sb.id
+        WHERE ${where.join(" AND ")}
+        ORDER BY sb.kind, sb.position, sb.id`,
+    )
+    .bind(input.lang, ...params)
+    .all<ServiceBlockRow>();
+  return result.results ?? [];
+}
+
 /** Admin read — every row, every locale. Used by the management screen. */
 export async function listAllServiceBlocks(): Promise<ServiceBlockRow[]> {
   const result = await getDb()
@@ -566,6 +599,34 @@ export async function listTestimonials(): Promise<TestimonialRow[]> {
       `SELECT id, position, locale, quote, author_name, author_role, avatar_media_id
          FROM testimonials ORDER BY position, locale`,
     )
+    .all<TestimonialRow>();
+  return result.results ?? [];
+}
+
+/** Public-facing read for a single locale, translation-gated for en/zh.
+ *  VI reads from `testimonials` directly. EN/ZH JOIN `testimonial_translations`
+ *  filtered by status='reviewed'. author_name and avatar_media_id are
+ *  non-translatable and always come from the VI source row. */
+export async function listTestimonialsForLocale(lang: Locale): Promise<TestimonialRow[]> {
+  if (lang === "vi") {
+    const result = await getDb()
+      .prepare(
+        `SELECT id, position, locale, quote, author_name, author_role, avatar_media_id
+           FROM testimonials WHERE locale = 'vi' ORDER BY position`,
+      )
+      .all<TestimonialRow>();
+    return result.results ?? [];
+  }
+  const result = await getDb()
+    .prepare(
+      `SELECT ts.id, ts.position, ? AS locale,
+              t.quote, ts.author_name, t.author_role, ts.avatar_media_id
+         FROM testimonials ts
+         JOIN testimonial_translations t ON t.testimonial_id = ts.id
+        WHERE ts.locale = 'vi' AND t.locale = ? AND t.status = 'reviewed'
+        ORDER BY ts.position`,
+    )
+    .bind(lang, lang)
     .all<TestimonialRow>();
   return result.results ?? [];
 }

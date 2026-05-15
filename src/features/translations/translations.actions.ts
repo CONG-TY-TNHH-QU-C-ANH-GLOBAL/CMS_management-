@@ -5,6 +5,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 export type { FaqTranslationRow } from "./faq.translation.service";
+export type { ServiceBlockTranslationRow } from "./service-block.translation.service";
+export type { TestimonialTranslationRow } from "./testimonial.translation.service";
 export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
@@ -157,6 +159,179 @@ export const markFaqTranslationStaleFn = createServerFn({ method: "POST" })
     const { markFaqTranslationStale } = await import("./faq.translation.service");
     const me = await requireSession("editor");
     const result = await markFaqTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 6: service_block lifecycle RPC ───────────────
+
+export const listServiceBlockTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ service_block_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listServiceBlockTranslationsForId } = await import(
+      "./service-block.translation.service"
+    );
+    await requireSession("viewer");
+    return await listServiceBlockTranslationsForId(data.service_block_id);
+  });
+
+export const listAllServiceBlockTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllServiceBlockTranslations } = await import(
+      "./service-block.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllServiceBlockTranslations();
+  },
+);
+
+export const approveServiceBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveServiceBlockTranslation } = await import(
+      "./service-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveServiceBlockTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editServiceBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().max(2000).nullable(),
+        description: z.string().max(20000).nullable(),
+        payload_json: z.string().max(50000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editServiceBlockTranslation } = await import("./service-block.translation.service");
+    const me = await requireSession("editor");
+    const result = await editServiceBlockTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteServiceBlockTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteServiceBlockTranslation } = await import(
+      "./service-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteServiceBlockTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markServiceBlockTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markServiceBlockTranslationStale } = await import(
+      "./service-block.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markServiceBlockTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 6: testimonial lifecycle RPC ───────────────
+
+export const listTestimonialTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ testimonial_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listTestimonialTranslationsForId } = await import(
+      "./testimonial.translation.service"
+    );
+    await requireSession("viewer");
+    return await listTestimonialTranslationsForId(data.testimonial_id);
+  });
+
+export const listAllTestimonialTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllTestimonialTranslations } = await import(
+      "./testimonial.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllTestimonialTranslations();
+  },
+);
+
+export const approveTestimonialTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveTestimonialTranslation } = await import(
+      "./testimonial.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveTestimonialTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editTestimonialTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        quote: z.string().trim().min(1).max(5000),
+        author_role: z.string().max(500).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editTestimonialTranslation } = await import("./testimonial.translation.service");
+    const me = await requireSession("editor");
+    const result = await editTestimonialTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteTestimonialTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteTestimonialTranslation } = await import(
+      "./testimonial.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteTestimonialTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markTestimonialTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markTestimonialTranslationStale } = await import(
+      "./testimonial.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markTestimonialTranslationStale(me.id, data.id);
     await bumpCmsRev();
     return result;
   });
