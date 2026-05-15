@@ -319,12 +319,9 @@ function LandingPage() {
                           onChange={(v) => updateField(active.kind, f.key, v)}
                         />
                       </div>
-                      {f.key === "title" && (
-                        <div className="text-[10px] text-muted-foreground flex justify-between">
-                          <span>Gợi ý: tiêu đề nên dưới 70 ký tự để Google hiển thị đầy đủ</span>
-                          <span className={value.length > 70 ? "text-rose-600" : "text-emerald-700"}>
-                            {value.length} ký tự
-                          </span>
+                      {f.key === "title" && active.kind === "hero" && (
+                        <div className="text-[10px] text-muted-foreground">
+                          Mẹo: bọc từ cần <span className="font-semibold text-amber-600">tô vàng</span> bằng dấu <code className="font-mono px-1 bg-muted rounded">**hai sao**</code>. Ví dụ: <code className="font-mono px-1 bg-muted rounded">Giải pháp **vận chuyển quốc tế** cho mọi **nhà bán hàng**</code>
                         </div>
                       )}
                       {f.key === "video_url" && (
