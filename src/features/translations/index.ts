@@ -44,6 +44,26 @@ export {
   type FaqTranslationRow,
 } from "./faq.translation.service";
 export {
+  approveServiceBlockTranslation,
+  deleteServiceBlockTranslation,
+  editServiceBlockTranslation,
+  listAllServiceBlockTranslations,
+  listServiceBlockTranslationsForId,
+  markServiceBlockTranslationStale,
+  onServiceBlockSourceChanged,
+  type ServiceBlockTranslationRow,
+} from "./service-block.translation.service";
+export {
+  approveTestimonialTranslation,
+  deleteTestimonialTranslation,
+  editTestimonialTranslation,
+  listAllTestimonialTranslations,
+  listTestimonialTranslationsForId,
+  markTestimonialTranslationStale,
+  onTestimonialSourceChanged,
+  type TestimonialTranslationRow,
+} from "./testimonial.translation.service";
+export {
   insertAiTranslationLog,
   listAiTranslationLogsForEntity,
   summarizeAiTranslationLog,

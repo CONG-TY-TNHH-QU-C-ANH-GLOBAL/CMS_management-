@@ -18,7 +18,7 @@ import { buildPrompt, PROMPT_VERSION_V1 } from "./translations.prompt";
 import { computeCostUsd, defaultModelForEntity, type SupportedModel } from "./translations.pricing";
 import { hasAllExpectedFields, passesStructuralChecks } from "./translations.structural";
 
-export type TranslateEntityType = "faq"; // Phase 1 scope
+export type TranslateEntityType = "faq" | "service_block" | "testimonial";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -27,33 +27,67 @@ export type TargetLocale = "en" | "zh";
 const IN_FLIGHT_TTL_SEC = 60;
 
 // ────────────────────────────────────────────────────────────────────────
-// Source loading — Phase 1 supports `faq` only
+// Entity registry — single source of truth for which table, FK column,
+// and translatable fields belong to each entity type. Adding a new
+// entity in Phase 7+ means a new row here + a loadSource case below.
+// ────────────────────────────────────────────────────────────────────────
+
+interface EntityConfig {
+  translationsTable: string;
+  sourceFkColumn: string;
+  sourceTable: string;
+  /** Translatable column names on the source row. Order matters — it
+   *  drives the SQL field list in INSERT/UPDATE/SELECT and the JSON
+   *  payload shape sent to OpenAI. */
+  fieldColumns: readonly string[];
+}
+
+const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
+  faq: {
+    translationsTable: "faq_translations",
+    sourceFkColumn: "faq_id",
+    sourceTable: "faqs",
+    fieldColumns: ["question", "answer"],
+  },
+  service_block: {
+    translationsTable: "service_block_translations",
+    sourceFkColumn: "service_block_id",
+    sourceTable: "service_blocks",
+    fieldColumns: ["title", "description", "payload_json"],
+  },
+  testimonial: {
+    translationsTable: "testimonial_translations",
+    sourceFkColumn: "testimonial_id",
+    sourceTable: "testimonials",
+    fieldColumns: ["quote", "author_role"],
+  },
+};
+
+// ────────────────────────────────────────────────────────────────────────
+// Source loading — VI row from the canonical table
 // ────────────────────────────────────────────────────────────────────────
 
 interface LoadedSource {
   fields: Record<string, string>;
 }
 
-async function loadFaqSource(faqId: number): Promise<LoadedSource | null> {
-  const row = await getDb()
-    .prepare(
-      `SELECT question, answer FROM faqs
-        WHERE id = ? AND locale = 'vi' LIMIT 1`,
-    )
-    .bind(faqId)
-    .first<{ question: string; answer: string }>();
-  if (!row) return null;
-  return { fields: { question: row.question, answer: row.answer } };
-}
-
 async function loadSource(
   entityType: TranslateEntityType,
   entityId: number,
 ): Promise<LoadedSource | null> {
-  switch (entityType) {
-    case "faq":
-      return loadFaqSource(entityId);
-  }
+  const cfg = ENTITY_CONFIG[entityType];
+  const columnList = cfg.fieldColumns.join(", ");
+  const row = await getDb()
+    .prepare(
+      `SELECT ${columnList} FROM ${cfg.sourceTable}
+        WHERE id = ? AND locale = 'vi' LIMIT 1`,
+    )
+    .bind(entityId)
+    .first<Record<string, string | null>>();
+  if (!row) return null;
+  const fields: Record<string, string> = {};
+  for (const col of cfg.fieldColumns) fields[col] = row[col] ?? "";
+  return { fields };
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -77,19 +111,26 @@ async function acquireDraftLocks(
   targetLocales: TargetLocale[],
   sourceHash: string,
 ): Promise<LockResult> {
-  if (entityType !== "faq") {
-    throw new Error(`acquireDraftLocks: unsupported entity_type '${entityType}'`);
-  }
+  const cfg = ENTITY_CONFIG[entityType];
   const now = Math.floor(Date.now() / 1000);
   const newExpiry = now + IN_FLIGHT_TTL_SEC;
 
   const result: LockResult = { reusable: [], inFlight: [], toTranslate: [] };
 
+  // Placeholder columns for the failed-stub INSERT. Most field columns are
+  // TEXT and accept '' as a safe placeholder; payload_json columns expect
+  // valid JSON so we hand them '{}'.
+  const placeholderValues = cfg.fieldColumns.map((col) =>
+    col === "payload_json" ? "{}" : "",
+  );
+  const fieldList = cfg.fieldColumns.join(", ");
+  const fieldPlaceholders = cfg.fieldColumns.map(() => "?").join(", ");
+
   for (const locale of targetLocales) {
     const existing = await getDb()
       .prepare(
         `SELECT id, status, source_hash, in_flight_until
-           FROM faq_translations WHERE faq_id = ? AND locale = ? LIMIT 1`,
+           FROM ${cfg.translationsTable} WHERE ${cfg.sourceFkColumn} = ? AND locale = ? LIMIT 1`,
       )
       .bind(entityId, locale)
       .first<{
@@ -116,7 +157,7 @@ async function acquireDraftLocks(
     // the actual UPSERT happens after OpenAI returns.
     if (existing) {
       await getDb()
-        .prepare(`UPDATE faq_translations SET in_flight_until = ? WHERE id = ?`)
+        .prepare(`UPDATE ${cfg.translationsTable} SET in_flight_until = ? WHERE id = ?`)
         .bind(newExpiry, existing.id)
         .run();
     } else {
@@ -125,11 +166,11 @@ async function acquireDraftLocks(
       // public API; OpenAI flow upgrades it to draft on success.
       await getDb()
         .prepare(
-          `INSERT INTO faq_translations (
-             faq_id, locale, question, answer, status, source_hash, in_flight_until
-           ) VALUES (?, ?, '', '', 'failed', ?, ?)`,
+          `INSERT INTO ${cfg.translationsTable} (
+             ${cfg.sourceFkColumn}, locale, ${fieldList}, status, source_hash, in_flight_until
+           ) VALUES (?, ?, ${fieldPlaceholders}, 'failed', ?, ?)`,
         )
-        .bind(entityId, locale, sourceHash, newExpiry)
+        .bind(entityId, locale, ...placeholderValues, sourceHash, newExpiry)
         .run();
     }
     result.toTranslate.push(locale);
@@ -143,11 +184,11 @@ async function clearInFlightLock(
   entityId: number,
   locale: TargetLocale,
 ): Promise<void> {
-  if (entityType !== "faq") return;
+  const cfg = ENTITY_CONFIG[entityType];
   await getDb()
     .prepare(
-      `UPDATE faq_translations SET in_flight_until = NULL
-        WHERE faq_id = ? AND locale = ?`,
+      `UPDATE ${cfg.translationsTable} SET in_flight_until = NULL
+        WHERE ${cfg.sourceFkColumn} = ? AND locale = ?`,
     )
     .bind(entityId, locale)
     .run();
@@ -158,6 +199,7 @@ async function clearInFlightLock(
 // ────────────────────────────────────────────────────────────────────────
 
 interface UpsertInput {
+  entityType: TranslateEntityType;
   entityId: number;
   locale: TargetLocale;
   fields: Record<string, string> | null; // null on failed
@@ -169,22 +211,33 @@ interface UpsertInput {
   actorId: number;
 }
 
-async function upsertFaqTranslation(input: UpsertInput): Promise<number> {
+async function upsertTranslation(input: UpsertInput): Promise<number> {
+  const cfg = ENTITY_CONFIG[input.entityType];
   const now = Math.floor(Date.now() / 1000);
-  const question = input.fields?.question ?? "";
-  const answer = input.fields?.answer ?? "";
+
+  // Pull translated field values in cfg.fieldColumns order. Empty strings on
+  // failed (when fields is null) — keeps the placeholder row intact.
+  const fieldValues = cfg.fieldColumns.map((col) =>
+    input.fields?.[col] ?? (col === "payload_json" ? "{}" : ""),
+  );
 
   const existing = await getDb()
-    .prepare(`SELECT id FROM faq_translations WHERE faq_id = ? AND locale = ? LIMIT 1`)
+    .prepare(
+      `SELECT id FROM ${cfg.translationsTable}
+        WHERE ${cfg.sourceFkColumn} = ? AND locale = ? LIMIT 1`,
+    )
     .bind(input.entityId, input.locale)
     .first<{ id: number }>();
+
+  const fieldList = cfg.fieldColumns.join(", ");
+  const fieldPlaceholders = cfg.fieldColumns.map(() => "?").join(", ");
+  const fieldUpdates = cfg.fieldColumns.map((col) => `${col} = ?`).join(",\n            ");
 
   if (existing) {
     await getDb()
       .prepare(
-        `UPDATE faq_translations SET
-            question = ?,
-            answer = ?,
+        `UPDATE ${cfg.translationsTable} SET
+            ${fieldUpdates},
             status = ?,
             stale_reason = NULL,
             source_hash = ?,
@@ -199,8 +252,7 @@ async function upsertFaqTranslation(input: UpsertInput): Promise<number> {
           WHERE id = ?`,
       )
       .bind(
-        question,
-        answer,
+        ...fieldValues,
         input.status,
         input.sourceHash,
         input.sourceSnapshot,
@@ -211,7 +263,7 @@ async function upsertFaqTranslation(input: UpsertInput): Promise<number> {
         existing.id,
       )
       .run();
-    await auditLog(input.actorId, "update", "faq_translations", existing.id, null, {
+    await auditLog(input.actorId, "update", cfg.translationsTable, existing.id, null, {
       status: input.status,
       ai_generated_at: now,
       locale: input.locale,
@@ -221,17 +273,16 @@ async function upsertFaqTranslation(input: UpsertInput): Promise<number> {
 
   const inserted = await getDb()
     .prepare(
-      `INSERT INTO faq_translations (
-         faq_id, locale, question, answer, status, source_hash, source_snapshot,
+      `INSERT INTO ${cfg.translationsTable} (
+         ${cfg.sourceFkColumn}, locale, ${fieldList}, status, source_hash, source_snapshot,
          ai_generated_at, ai_model, prompt_version, in_flight_until
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+       ) VALUES (?, ?, ${fieldPlaceholders}, ?, ?, ?, ?, ?, ?, NULL)
        RETURNING id`,
     )
     .bind(
       input.entityId,
       input.locale,
-      question,
-      answer,
+      ...fieldValues,
       input.status,
       input.sourceHash,
       input.sourceSnapshot,
@@ -240,8 +291,8 @@ async function upsertFaqTranslation(input: UpsertInput): Promise<number> {
       input.promptVersion,
     )
     .first<{ id: number }>();
-  if (!inserted) throw new Error("Failed to insert faq_translations row");
-  await auditLog(input.actorId, "create", "faq_translations", inserted.id, null, {
+  if (!inserted) throw new Error(`Failed to insert ${cfg.translationsTable} row`);
+  await auditLog(input.actorId, "create", cfg.translationsTable, inserted.id, null, {
     status: input.status,
     ai_generated_at: now,
     locale: input.locale,
@@ -325,9 +376,13 @@ export async function translate(
 
   // Collect reused-existing draft rows for the response (no OpenAI call needed).
   const drafts: { id: number; locale: TargetLocale; status: "draft" | "failed" }[] = [];
+  const reuseCfg = ENTITY_CONFIG[input.entity_type];
   for (const locale of locks.reusable) {
     const row = await getDb()
-      .prepare(`SELECT id FROM faq_translations WHERE faq_id = ? AND locale = ?`)
+      .prepare(
+        `SELECT id FROM ${reuseCfg.translationsTable}
+          WHERE ${reuseCfg.sourceFkColumn} = ? AND locale = ?`,
+      )
       .bind(input.entity_id, locale)
       .first<{ id: number }>();
     if (row) drafts.push({ id: row.id, locale, status: "draft" });
@@ -381,7 +436,8 @@ export async function translate(
       }
     }
 
-    const id = await upsertFaqTranslation({
+    const id = await upsertTranslation({
+      entityType: input.entity_type,
       entityId: input.entity_id,
       locale,
       fields,

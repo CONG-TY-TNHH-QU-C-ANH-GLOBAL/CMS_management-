@@ -9,7 +9,7 @@ export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
 const TARGET_LOCALE = z.enum(["en", "zh"]);
-const ENTITY_TYPE = z.enum(["faq"]); // Phase 1 scope
+const ENTITY_TYPE = z.enum(["faq", "service_block", "testimonial"]);
 
 const translateSchema = z.object({
   entity_type: ENTITY_TYPE,
