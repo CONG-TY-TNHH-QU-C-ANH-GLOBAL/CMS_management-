@@ -1,14 +1,14 @@
-// Side-by-side review modal for one FAQ's translations.
-// Single-row scope per spec §6.1 (no bulk in Phase 3). Operator can:
+// Side-by-side review modal for one source row's translations. Generic across
+// entity types (faq / service_block / testimonial / future) — caller passes
+// the entity discriminator, the translatable field schema, and the lifecycle
+// RPC functions for that entity.
+//
+// Per spec §6.1 single-row review (no bulk in Phase 3). Operator can:
 //   - Generate EN+ZH drafts (or just missing ones)
 //   - Edit draft/reviewed content + save
 //   - Approve a draft → reviewed
 //   - Re-translate (replaces current with fresh AI call)
 //   - Delete a translation row (operator must not be trapped by bad AI)
-//
-// Stale visual: if row.status === 'stale', show source_snapshot preview
-// (the VI text the AI translated from) so operator can decide between
-// re-translate vs approve-as-is.
 
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, X } from "lucide-react";
@@ -17,54 +17,110 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import {
-  approveFaqTranslationFn,
-  deleteFaqTranslationFn,
-  editFaqTranslationFn,
-  listFaqTranslationsFn,
   translateFn,
   type FaqTranslationRow,
+  type ServiceBlockTranslationRow,
+  type TestimonialTranslationRow,
 } from "@/features/translations/translations.actions";
 
 import { TranslationStatusBadge } from "./TranslationStatusBadge";
-
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** Triggers parent loader invalidate so VI list refreshes status pills. */
-  onChanged: () => void;
-  /** Source FAQ ID (locale=vi row in `faqs` table). */
-  faqId: number;
-  /** Snapshot of the current VI source to show on the left side. */
-  source: { question: string; answer: string };
-}
 
 type Locale = "en" | "zh";
 const LOCALES: Locale[] = ["en", "zh"];
 const LOCALE_FLAG: Record<Locale, string> = { en: "🇺🇸", zh: "🇨🇳" };
 const LOCALE_LABEL: Record<Locale, string> = { en: "English", zh: "中文" };
 
+/** Translatable field on the source row. Order = render order in the dialog. */
+export interface FieldSpec {
+  key: string;
+  label: string;
+  /** Textarea rows. Default 4. */
+  rows?: number;
+}
+
+/** Lifecycle RPC functions for the entity being translated. The dialog calls
+ *  these via useServerFn(). Caller wires the entity-specific server fns
+ *  (e.g. listFaqTranslationsFn vs listServiceBlockTranslationsFn). */
+export interface LifecycleRpcs {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  list: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  approve: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  edit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete: any;
+}
+
+type AnyTranslationRow = FaqTranslationRow | ServiceBlockTranslationRow | TestimonialTranslationRow;
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Triggers parent loader invalidate so the source list refreshes status pills. */
+  onChanged: () => void;
+  /** What entity is being translated. Drives header label + translateFn payload. */
+  entityType: "faq" | "service_block" | "testimonial";
+  /** Source row ID (locale=vi row in the source table). */
+  entityId: number;
+  /** Friendly singular label for header copy ("FAQ", "Service block", …). */
+  entityLabel: string;
+  /** Snapshot of the current VI source. Keys must match `fields[].key`. */
+  source: Record<string, string>;
+  /** Translatable field schema. */
+  fields: readonly FieldSpec[];
+  /** Entity-specific lifecycle RPC server fns. */
+  rpcs: LifecycleRpcs;
+  /** What request key holds the source ID for the list RPC. Defaults vary
+   *  per entity: faq_id / service_block_id / testimonial_id. */
+  listIdKey: string;
+}
+
 interface LocaleEditState {
-  question: string;
-  answer: string;
+  values: Record<string, string>;
   dirty: boolean;
 }
 
-export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, source }: Props) {
-  const listFn = useServerFn(listFaqTranslationsFn);
+function makeEmptyEdit(fields: readonly FieldSpec[]): LocaleEditState {
+  const values: Record<string, string> = {};
+  for (const f of fields) values[f.key] = "";
+  return { values, dirty: false };
+}
+
+function rowField(row: AnyTranslationRow | null, key: string): string {
+  if (!row) return "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const v = (row as any)[key];
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+export function TranslationReviewDialog({
+  open,
+  onOpenChange,
+  onChanged,
+  entityType,
+  entityId,
+  entityLabel,
+  source,
+  fields,
+  rpcs,
+  listIdKey,
+}: Props) {
+  const listFn = useServerFn(rpcs.list);
   const translate = useServerFn(translateFn);
-  const approve = useServerFn(approveFaqTranslationFn);
-  const edit = useServerFn(editFaqTranslationFn);
-  const del = useServerFn(deleteFaqTranslationFn);
+  const approve = useServerFn(rpcs.approve);
+  const edit = useServerFn(rpcs.edit);
+  const del = useServerFn(rpcs.delete);
 
   const [loading, setLoading] = useState(false);
   const [translating, setTranslating] = useState(false);
-  const [rows, setRows] = useState<Record<Locale, FaqTranslationRow | null>>({
+  const [rows, setRows] = useState<Record<Locale, AnyTranslationRow | null>>({
     en: null,
     zh: null,
   });
   const [edits, setEdits] = useState<Record<Locale, LocaleEditState>>({
-    en: { question: "", answer: "", dirty: false },
-    zh: { question: "", answer: "", dirty: false },
+    en: makeEmptyEdit(fields),
+    zh: makeEmptyEdit(fields),
   });
   const [confirmDelete, setConfirmDelete] = useState<{ locale: Locale; id: number } | null>(null);
   const [translateError, setTranslateError] = useState<string | null>(null);
@@ -72,30 +128,23 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listFn({ data: { faq_id: faqId } });
-      const byLocale: Record<Locale, FaqTranslationRow | null> = { en: null, zh: null };
-      for (const r of res.rows) {
+      const res = await listFn({ data: { [listIdKey]: entityId } });
+      const list: AnyTranslationRow[] = Array.isArray(res) ? res : (res.rows ?? []);
+      const byLocale: Record<Locale, AnyTranslationRow | null> = { en: null, zh: null };
+      for (const r of list) {
         if (r.locale === "en" || r.locale === "zh") byLocale[r.locale as Locale] = r;
       }
       setRows(byLocale);
       setEdits({
-        en: {
-          question: byLocale.en?.question ?? "",
-          answer: byLocale.en?.answer ?? "",
-          dirty: false,
-        },
-        zh: {
-          question: byLocale.zh?.question ?? "",
-          answer: byLocale.zh?.answer ?? "",
-          dirty: false,
-        },
+        en: localeEditFromRow(byLocale.en, fields),
+        zh: localeEditFromRow(byLocale.zh, fields),
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Không tải được bản dịch");
     } finally {
       setLoading(false);
     }
-  }, [faqId, listFn]);
+  }, [entityId, fields, listFn, listIdKey]);
 
   useEffect(() => {
     if (open) reload();
@@ -118,8 +167,8 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
     try {
       const res = await translate({
         data: {
-          entity_type: "faq",
-          entity_id: faqId,
+          entity_type: entityType,
+          entity_id: entityId,
           target_locales: targetLocales,
         },
       });
@@ -143,9 +192,6 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
     const row = rows[locale];
     if (!row) return;
     if (edits[locale].dirty) {
-      // Save edits first; this demotes the row to draft. Operator must
-      // explicitly Approve again after save — prevents accidental
-      // "edit and ship" without conscious approval step.
       toast.info("Lưu chỉnh sửa trước khi Approve nhé.");
       return;
     }
@@ -165,7 +211,7 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
     const e = edits[locale];
     if (!e.dirty) return;
     try {
-      await edit({ data: { id: row.id, question: e.question, answer: e.answer } });
+      await edit({ data: { id: row.id, ...e.values } });
       toast.success(`Đã lưu chỉnh sửa ${LOCALE_LABEL[locale]} — status quay về draft`);
       await reload();
       onChanged();
@@ -188,13 +234,12 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
     }
   }
 
-  function setEditField(locale: Locale, field: "question" | "answer", value: string) {
+  function setEditField(locale: Locale, key: string, value: string) {
     setEdits((prev) => {
-      const next = { ...prev[locale], [field]: value };
+      const nextValues = { ...prev[locale].values, [key]: value };
       const original = rows[locale];
-      const dirty =
-        (original?.question ?? "") !== next.question || (original?.answer ?? "") !== next.answer;
-      return { ...prev, [locale]: { ...next, dirty } };
+      const dirty = fields.some((f) => rowField(original, f.key) !== nextValues[f.key]);
+      return { ...prev, [locale]: { values: nextValues, dirty } };
     });
   }
 
@@ -217,7 +262,7 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
           <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600" /> AI Translate · FAQ #{faqId}
+                <Sparkles className="w-4 h-4 text-blue-600" /> AI Translate · {entityLabel} #{entityId}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 VI source (canonical) → EN + ZH drafts. Review từng ngôn ngữ trước khi Approve.
@@ -267,26 +312,19 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
                   canonical
                 </span>
               </div>
-              <div>
-                <label className="block text-[11px] font-medium text-foreground mb-1">
-                  Question
-                </label>
-                <textarea
-                  readOnly
-                  rows={3}
-                  value={source.question}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-surface-muted/40 text-sm text-foreground resize-y"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-foreground mb-1">Answer</label>
-                <textarea
-                  readOnly
-                  rows={8}
-                  value={source.answer}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-surface-muted/40 text-sm text-foreground resize-y"
-                />
-              </div>
+              {fields.map((f) => (
+                <div key={f.key}>
+                  <label className="block text-[11px] font-medium text-foreground mb-1">
+                    {f.label}
+                  </label>
+                  <textarea
+                    readOnly
+                    rows={f.rows ?? 4}
+                    value={source[f.key] ?? ""}
+                    className="w-full px-3 py-2 rounded-md border border-border bg-surface-muted/40 text-sm text-foreground resize-y"
+                  />
+                </div>
+              ))}
             </div>
 
             {/* EN + ZH columns */}
@@ -306,7 +344,6 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
                     </div>
                   </div>
 
-                  {/* Stale source-snapshot preview */}
                   {isStale && row?.source_snapshot ? (
                     <details className="rounded-md border border-amber-300 bg-amber-50 text-[11px] text-amber-900">
                       <summary className="px-2 py-1.5 cursor-pointer font-medium">
@@ -326,30 +363,20 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
                     </div>
                   ) : (
                     <>
-                      <div>
-                        <label className="block text-[11px] font-medium text-foreground mb-1">
-                          Question
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={e.question}
-                          onChange={(ev) => setEditField(locale, "question", ev.target.value)}
-                          disabled={translating || isFailed}
-                          className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y disabled:bg-surface-muted disabled:opacity-60"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-medium text-foreground mb-1">
-                          Answer
-                        </label>
-                        <textarea
-                          rows={8}
-                          value={e.answer}
-                          onChange={(ev) => setEditField(locale, "answer", ev.target.value)}
-                          disabled={translating || isFailed}
-                          className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y disabled:bg-surface-muted disabled:opacity-60"
-                        />
-                      </div>
+                      {fields.map((f) => (
+                        <div key={f.key}>
+                          <label className="block text-[11px] font-medium text-foreground mb-1">
+                            {f.label}
+                          </label>
+                          <textarea
+                            rows={f.rows ?? 4}
+                            value={e.values[f.key] ?? ""}
+                            onChange={(ev) => setEditField(locale, f.key, ev.target.value)}
+                            disabled={translating || isFailed}
+                            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y disabled:bg-surface-muted disabled:opacity-60"
+                          />
+                        </div>
+                      ))}
 
                       {/* Action row */}
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -441,4 +468,13 @@ export function TranslationReviewDialog({ open, onOpenChange, onChanged, faqId, 
       />
     </>
   );
+}
+
+function localeEditFromRow(
+  row: AnyTranslationRow | null,
+  fields: readonly FieldSpec[],
+): LocaleEditState {
+  const values: Record<string, string> = {};
+  for (const f of fields) values[f.key] = rowField(row, f.key);
+  return { values, dirty: false };
 }

@@ -18,9 +18,18 @@ import {
 import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
 import { TranslationStatusBadge } from "@/features/translations/components/TranslationStatusBadge";
 import {
+  approveFaqTranslationFn,
+  deleteFaqTranslationFn,
+  editFaqTranslationFn,
   listAllFaqTranslationsFn,
+  listFaqTranslationsFn,
   type FaqTranslationRow,
 } from "@/features/translations/translations.actions";
+
+const FAQ_FIELDS = [
+  { key: "question", label: "Question", rows: 3 },
+  { key: "answer", label: "Answer", rows: 8 },
+] as const;
 
 /** Scopes the operator can author FAQs for. Each entry maps to a public
  *  landing route + the `scope` column in the `faqs` table. To enable a new
@@ -269,8 +278,18 @@ function FaqsPage() {
           open={reviewing !== null}
           onOpenChange={(o) => !o && setReviewing(null)}
           onChanged={() => router.invalidate()}
-          faqId={reviewing.faqId}
+          entityType="faq"
+          entityId={reviewing.faqId}
+          entityLabel="FAQ"
           source={{ question: reviewing.question, answer: reviewing.answer }}
+          fields={FAQ_FIELDS}
+          rpcs={{
+            list: listFaqTranslationsFn,
+            approve: approveFaqTranslationFn,
+            edit: editFaqTranslationFn,
+            delete: deleteFaqTranslationFn,
+          }}
+          listIdKey="faq_id"
         />
       ) : null}
     </>

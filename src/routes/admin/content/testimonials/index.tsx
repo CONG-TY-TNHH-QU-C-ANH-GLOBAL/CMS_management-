@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronUp, Edit3, Plus, Star, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +15,18 @@ import {
   reorderTestimonialsFn,
   type TestimonialRow,
 } from "@/features/content/content.actions";
+import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
+import {
+  approveTestimonialTranslationFn,
+  deleteTestimonialTranslationFn,
+  editTestimonialTranslationFn,
+  listTestimonialTranslationsFn,
+} from "@/features/translations/translations.actions";
+
+const TESTIMONIAL_FIELDS = [
+  { key: "quote", label: "Quote", rows: 5 },
+  { key: "author_role", label: "Author role", rows: 2 },
+] as const;
 
 export const Route = createFileRoute("/admin/content/testimonials/")({
   head: () => ({ meta: [{ title: "Testimonials — THG Content OS" }] }),
@@ -29,6 +41,7 @@ function TestimonialsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<TestimonialRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<TestimonialRow | null>(null);
+  const [reviewing, setReviewing] = useState<TestimonialRow | null>(null);
   const del = useServerFn(deleteTestimonialFn);
   const reorder = useServerFn(reorderTestimonialsFn);
 
@@ -127,12 +140,21 @@ function TestimonialsPage() {
                   <div className="text-[11px] text-muted-foreground">{t.author_role}</div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-border flex items-center justify-end gap-1">
+                  {locale === "vi" ? (
+                    <button
+                      onClick={() => setReviewing(t)}
+                      className="text-[11px] font-medium text-blue-700 hover:underline inline-flex items-center gap-1"
+                      title="AI Translate (EN + ZH)"
+                    >
+                      <Sparkles className="w-3 h-3" /> AI dịch
+                    </button>
+                  ) : null}
                   <button
                     onClick={() => {
                       setEditingRow(t);
                       setDialogOpen(true);
                     }}
-                    className="text-[11px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+                    className="ml-2 text-[11px] font-medium text-primary hover:underline inline-flex items-center gap-1"
                   >
                     <Edit3 className="w-3 h-3" /> Sửa
                   </button>
@@ -167,6 +189,26 @@ function TestimonialsPage() {
         confirmLabel="Xóa"
         destructive
       />
+
+      {reviewing ? (
+        <TranslationReviewDialog
+          open={reviewing !== null}
+          onOpenChange={(o) => !o && setReviewing(null)}
+          onChanged={() => router.invalidate()}
+          entityType="testimonial"
+          entityId={reviewing.id}
+          entityLabel="Testimonial"
+          source={{ quote: reviewing.quote, author_role: reviewing.author_role ?? "" }}
+          fields={TESTIMONIAL_FIELDS}
+          rpcs={{
+            list: listTestimonialTranslationsFn,
+            approve: approveTestimonialTranslationFn,
+            edit: editTestimonialTranslationFn,
+            delete: deleteTestimonialTranslationFn,
+          }}
+          listIdKey="testimonial_id"
+        />
+      ) : null}
     </>
   );
 }

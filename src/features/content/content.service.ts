@@ -717,6 +717,28 @@ export async function updateTestimonial(
     .bind(input.id)
     .first<TestimonialRow>();
   await auditLog(actorId, "update", "testimonials", input.id, before, after);
+
+  // Spec §3.3 + §11.7: editing a VI source row auto-fires `source_changed`
+  // on every dependent translation whose source_hash has actually changed.
+  // Only `quote` and `author_role` are translatable — name + avatar don't
+  // affect the translation hash so we only fire when those fields change.
+  // Wrap in try/catch so a failure here doesn't roll back the source edit.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.quote !== undefined || input.author_role !== undefined)
+  ) {
+    try {
+      const { onTestimonialSourceChanged } = await import("@/features/translations");
+      await onTestimonialSourceChanged(after.id, {
+        quote: after.quote,
+        author_role: after.author_role,
+      });
+    } catch (err) {
+      console.error("[testimonials] onTestimonialSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 
