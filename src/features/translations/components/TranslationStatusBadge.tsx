@@ -1,15 +1,22 @@
 // Tiny chip showing a translation row's current state. Used both inline
 // in the FAQ admin list (next to each VI row) and inside the review modal.
+// Generic over translation row type — only reads `status`, `stale_reason`,
+// and `reviewed_at` which are present on every *_translations row.
 
 import { AlertTriangle, Check, FileQuestion, XCircle } from "lucide-react";
 
-import type { FaqTranslationRow } from "@/features/translations/translations.actions";
+type Status = "draft" | "reviewed" | "stale" | "failed";
 
-type Status = FaqTranslationRow["status"];
+/** Minimum shape every translation row exposes for the badge. */
+interface TranslationRowLike {
+  status: Status;
+  stale_reason?: string | null;
+  reviewed_at?: number | null;
+}
 
 interface Props {
   /** null = no translation row exists yet for this locale. */
-  row: FaqTranslationRow | null;
+  row: TranslationRowLike | null;
   /** Compact = single chip; Full = chip + secondary info (stale_reason / "reviewed by …"). */
   variant?: "compact" | "full";
 }
