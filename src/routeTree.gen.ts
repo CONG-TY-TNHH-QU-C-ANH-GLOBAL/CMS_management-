@@ -22,9 +22,11 @@ import { Route as AdminSystemAuditIndexRouteImport } from './routes/admin/system
 import { Route as AdminSalesTerminologyIndexRouteImport } from './routes/admin/sales/terminology/index'
 import { Route as AdminSalesPricingIndexRouteImport } from './routes/admin/sales/pricing/index'
 import { Route as AdminSalesLeadsIndexRouteImport } from './routes/admin/sales/leads/index'
+import { Route as AdminContentTranslationsIndexRouteImport } from './routes/admin/content/translations/index'
 import { Route as AdminContentTestimonialsIndexRouteImport } from './routes/admin/content/testimonials/index'
 import { Route as AdminContentShippingRoutesIndexRouteImport } from './routes/admin/content/shipping-routes/index'
 import { Route as AdminContentServicesIndexRouteImport } from './routes/admin/content/services/index'
+import { Route as AdminContentServiceBlocksIndexRouteImport } from './routes/admin/content/service-blocks/index'
 import { Route as AdminContentPoliciesIndexRouteImport } from './routes/admin/content/policies/index'
 import { Route as AdminContentMediaIndexRouteImport } from './routes/admin/content/media/index'
 import { Route as AdminContentMarketplacesIndexRouteImport } from './routes/admin/content/marketplaces/index'
@@ -146,6 +148,12 @@ const AdminSalesLeadsIndexRoute = AdminSalesLeadsIndexRouteImport.update({
   path: '/admin/sales/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminContentTranslationsIndexRoute =
+  AdminContentTranslationsIndexRouteImport.update({
+    id: '/admin/content/translations/',
+    path: '/admin/content/translations/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminContentTestimonialsIndexRoute =
   AdminContentTestimonialsIndexRouteImport.update({
     id: '/admin/content/testimonials/',
@@ -163,6 +171,12 @@ const AdminContentServicesIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AdminContentServicesRouteRoute,
+  } as any)
+const AdminContentServiceBlocksIndexRoute =
+  AdminContentServiceBlocksIndexRouteImport.update({
+    id: '/admin/content/service-blocks/',
+    path: '/admin/content/service-blocks/',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentPoliciesIndexRoute =
   AdminContentPoliciesIndexRouteImport.update({
@@ -473,9 +487,11 @@ export interface FileRoutesByFullPath {
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
   '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/service-blocks/': typeof AdminContentServiceBlocksIndexRoute
   '/admin/content/services/': typeof AdminContentServicesIndexRoute
   '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
+  '/admin/content/translations/': typeof AdminContentTranslationsIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
@@ -538,9 +554,11 @@ export interface FileRoutesByTo {
   '/admin/content/marketplaces': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media': typeof AdminContentMediaIndexRoute
   '/admin/content/policies': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/service-blocks': typeof AdminContentServiceBlocksIndexRoute
   '/admin/content/services': typeof AdminContentServicesIndexRoute
   '/admin/content/shipping-routes': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials': typeof AdminContentTestimonialsIndexRoute
+  '/admin/content/translations': typeof AdminContentTranslationsIndexRoute
   '/admin/sales/leads': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology': typeof AdminSalesTerminologyIndexRoute
@@ -607,9 +625,11 @@ export interface FileRoutesById {
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
   '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
+  '/admin/content/service-blocks/': typeof AdminContentServiceBlocksIndexRoute
   '/admin/content/services/': typeof AdminContentServicesIndexRoute
   '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
+  '/admin/content/translations/': typeof AdminContentTranslationsIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
@@ -677,9 +697,11 @@ export interface FileRouteTypes {
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
     | '/admin/content/policies/'
+    | '/admin/content/service-blocks/'
     | '/admin/content/services/'
     | '/admin/content/shipping-routes/'
     | '/admin/content/testimonials/'
+    | '/admin/content/translations/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
@@ -742,9 +764,11 @@ export interface FileRouteTypes {
     | '/admin/content/marketplaces'
     | '/admin/content/media'
     | '/admin/content/policies'
+    | '/admin/content/service-blocks'
     | '/admin/content/services'
     | '/admin/content/shipping-routes'
     | '/admin/content/testimonials'
+    | '/admin/content/translations'
     | '/admin/sales/leads'
     | '/admin/sales/pricing'
     | '/admin/sales/terminology'
@@ -810,9 +834,11 @@ export interface FileRouteTypes {
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
     | '/admin/content/policies/'
+    | '/admin/content/service-blocks/'
     | '/admin/content/services/'
     | '/admin/content/shipping-routes/'
     | '/admin/content/testimonials/'
+    | '/admin/content/translations/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
@@ -874,8 +900,10 @@ export interface RootRouteChildren {
   AdminContentMarketplacesIndexRoute: typeof AdminContentMarketplacesIndexRoute
   AdminContentMediaIndexRoute: typeof AdminContentMediaIndexRoute
   AdminContentPoliciesIndexRoute: typeof AdminContentPoliciesIndexRoute
+  AdminContentServiceBlocksIndexRoute: typeof AdminContentServiceBlocksIndexRoute
   AdminContentShippingRoutesIndexRoute: typeof AdminContentShippingRoutesIndexRoute
   AdminContentTestimonialsIndexRoute: typeof AdminContentTestimonialsIndexRoute
+  AdminContentTranslationsIndexRoute: typeof AdminContentTranslationsIndexRoute
   AdminSalesLeadsIndexRoute: typeof AdminSalesLeadsIndexRoute
   AdminSalesTerminologyIndexRoute: typeof AdminSalesTerminologyIndexRoute
   AdminSystemAuditIndexRoute: typeof AdminSystemAuditIndexRoute
@@ -1003,6 +1031,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSalesLeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/content/translations/': {
+      id: '/admin/content/translations/'
+      path: '/admin/content/translations'
+      fullPath: '/admin/content/translations/'
+      preLoaderRoute: typeof AdminContentTranslationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/content/testimonials/': {
       id: '/admin/content/testimonials/'
       path: '/admin/content/testimonials'
@@ -1023,6 +1058,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/content/services/'
       preLoaderRoute: typeof AdminContentServicesIndexRouteImport
       parentRoute: typeof AdminContentServicesRouteRoute
+    }
+    '/admin/content/service-blocks/': {
+      id: '/admin/content/service-blocks/'
+      path: '/admin/content/service-blocks'
+      fullPath: '/admin/content/service-blocks/'
+      preLoaderRoute: typeof AdminContentServiceBlocksIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/content/policies/': {
       id: '/admin/content/policies/'
@@ -1453,8 +1495,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentMarketplacesIndexRoute: AdminContentMarketplacesIndexRoute,
   AdminContentMediaIndexRoute: AdminContentMediaIndexRoute,
   AdminContentPoliciesIndexRoute: AdminContentPoliciesIndexRoute,
+  AdminContentServiceBlocksIndexRoute: AdminContentServiceBlocksIndexRoute,
   AdminContentShippingRoutesIndexRoute: AdminContentShippingRoutesIndexRoute,
   AdminContentTestimonialsIndexRoute: AdminContentTestimonialsIndexRoute,
+  AdminContentTranslationsIndexRoute: AdminContentTranslationsIndexRoute,
   AdminSalesLeadsIndexRoute: AdminSalesLeadsIndexRoute,
   AdminSalesTerminologyIndexRoute: AdminSalesTerminologyIndexRoute,
   AdminSystemAuditIndexRoute: AdminSystemAuditIndexRoute,

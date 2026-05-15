@@ -524,3 +524,45 @@ export const reorderMarqueeImagesFn = createServerFn({ method: "POST" })
     await bumpCmsRev();
     return { ok: true as const };
   });
+
+// ─────────────────── Service blocks (admin CRUD) ───────────────────
+
+export const listAllServiceBlocksFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { listAllServiceBlocks } = await import("@/features/content");
+  await requireSession("viewer");
+  return { blocks: await listAllServiceBlocks() };
+});
+
+const sbUpdate = z.object({
+  id: ID,
+  position: z.number().int().min(0).optional(),
+  icon: z.string().max(40).nullable().optional(),
+  title: z.string().max(2000).nullable().optional(),
+  description: z.string().max(20000).nullable().optional(),
+  payload_json: z.string().max(50000).optional(),
+});
+
+export const updateServiceBlockFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => sbUpdate.parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { updateServiceBlock } = await import("@/features/content");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const me = await requireSession("editor");
+    const block = await updateServiceBlock(me.id, data);
+    await bumpCmsRev();
+    return { block };
+  });
+
+export const deleteServiceBlockFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: ID }).parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { deleteServiceBlock } = await import("@/features/content");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const me = await requireSession("editor");
+    await deleteServiceBlock(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });

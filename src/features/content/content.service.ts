@@ -464,6 +464,107 @@ export async function listAllServiceBlocks(): Promise<ServiceBlockRow[]> {
   return result.results ?? [];
 }
 
+export async function updateServiceBlock(
+  actorId: number,
+  input: {
+    id: number;
+    position?: number;
+    icon?: string | null;
+    title?: string | null;
+    description?: string | null;
+    payload_json?: string;
+  },
+): Promise<ServiceBlockRow> {
+  const before = await getDb()
+    .prepare(
+      `SELECT id, page_slug, kind, position, locale, icon, title, description, payload_json, created_at, updated_at
+         FROM service_blocks WHERE id = ? LIMIT 1`,
+    )
+    .bind(input.id)
+    .first<ServiceBlockRow>();
+  if (!before) {
+    throw Object.assign(new Error("Service block không tồn tại."), { statusCode: 404 });
+  }
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (input.position !== undefined) {
+    fields.push("position = ?");
+    values.push(input.position);
+  }
+  if (input.icon !== undefined) {
+    fields.push("icon = ?");
+    values.push(input.icon);
+  }
+  if (input.title !== undefined) {
+    fields.push("title = ?");
+    values.push(input.title);
+  }
+  if (input.description !== undefined) {
+    fields.push("description = ?");
+    values.push(input.description);
+  }
+  if (input.payload_json !== undefined) {
+    fields.push("payload_json = ?");
+    values.push(input.payload_json);
+  }
+  if (fields.length === 0) return before;
+  fields.push("updated_at = ?");
+  values.push(Math.floor(Date.now() / 1000));
+  values.push(input.id);
+
+  await getDb()
+    .prepare(`UPDATE service_blocks SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
+  const after = await getDb()
+    .prepare(
+      `SELECT id, page_slug, kind, position, locale, icon, title, description, payload_json, created_at, updated_at
+         FROM service_blocks WHERE id = ?`,
+    )
+    .bind(input.id)
+    .first<ServiceBlockRow>();
+  await auditLog(actorId, "update", "service_blocks", input.id, before, after);
+
+  // Spec §3.3 + §11.7: editing a VI source row auto-fires `source_changed`
+  // on every dependent translation whose source_hash actually changed.
+  // Only the translatable fields (title, description, payload_json) affect
+  // the hash — position/icon don't.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.title !== undefined ||
+      input.description !== undefined ||
+      input.payload_json !== undefined)
+  ) {
+    try {
+      const { onServiceBlockSourceChanged } = await import("@/features/translations");
+      await onServiceBlockSourceChanged(after.id, {
+        title: after.title,
+        description: after.description,
+        payload_json: after.payload_json,
+      });
+    } catch (err) {
+      console.error("[service_blocks] onServiceBlockSourceChanged failed", err);
+    }
+  }
+
+  return after!;
+}
+
+export async function deleteServiceBlock(actorId: number, id: number): Promise<void> {
+  const before = await getDb()
+    .prepare(
+      `SELECT id, page_slug, kind, position, locale, icon, title, description, payload_json, created_at, updated_at
+         FROM service_blocks WHERE id = ? LIMIT 1`,
+    )
+    .bind(id)
+    .first<ServiceBlockRow>();
+  if (!before) return;
+  await getDb().prepare(`DELETE FROM service_blocks WHERE id = ?`).bind(id).run();
+  await auditLog(actorId, "delete", "service_blocks", id, before, null);
+}
+
 export async function createFaq(
   actorId: number,
   input: { scope: string; position: number; locale: Locale; question: string; answer: string },
