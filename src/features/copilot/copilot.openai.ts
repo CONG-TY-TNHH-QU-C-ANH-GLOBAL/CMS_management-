@@ -4,7 +4,10 @@
 
 import type { ChatMessageRow, MessageRole } from "./copilot.service";
 
-const OPENAI_BASE = "https://api.openai.com/v1";
+/** Default endpoint. Overridable via OPENAI_BASE_URL worker secret —
+ *  point at Cloudflare AI Gateway to bypass OpenAI's geo-block on
+ *  Cloudflare Worker egress IPs. */
+const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
 const MODEL = "gpt-4o";
 const MAX_HISTORY_MESSAGES = 20;
 
@@ -97,13 +100,14 @@ export async function callOpenAi(
   systemPrompt: string,
   history: OpenAiMessage[],
   tools: OpenAiToolDef[],
+  baseUrl: string = DEFAULT_OPENAI_BASE,
 ): Promise<OpenAiResponse> {
   const messages: OpenAiMessage[] = [
     { role: "system", content: systemPrompt },
     ...trimHistory(history),
   ];
 
-  const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

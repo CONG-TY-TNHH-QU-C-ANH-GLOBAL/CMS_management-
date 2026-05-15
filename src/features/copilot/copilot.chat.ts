@@ -27,6 +27,9 @@ import { buildSystemPrompt } from "./copilot.system-prompt";
 
 export interface ChatRoundInput {
   apiKey: string;
+  /** Optional override of OpenAI base URL — usually env.OPENAI_BASE_URL
+   *  pointing at Cloudflare AI Gateway to bypass geo-blocked egress IPs. */
+  baseUrl?: string;
   userId: number;
   userName: string;
   userRole: "admin" | "editor" | "viewer";
@@ -79,7 +82,7 @@ export async function chatRound(input: ChatRoundInput): Promise<ChatRoundOutput>
     const history = await listMessages(input.sessionId);
     const openAiHistory = rowsToOpenAi(history);
 
-    const resp = await callOpenAi(input.apiKey, systemPrompt, openAiHistory, tools);
+    const resp = await callOpenAi(input.apiKey, systemPrompt, openAiHistory, tools, input.baseUrl);
     await recordUsage(input.userId, resp.tokens_in, resp.tokens_out);
 
     // Persist assistant message (text + any tool_calls)

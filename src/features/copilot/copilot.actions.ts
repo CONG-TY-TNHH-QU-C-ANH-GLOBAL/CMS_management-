@@ -41,6 +41,7 @@ export const chatFn = createServerFn({ method: "POST" })
 
     const out = await chatRound({
       apiKey: env.OPENAI_API_KEY,
+      baseUrl: env.OPENAI_BASE_URL,
       userId: me.id,
       userName: me.name,
       userRole: me.role,
