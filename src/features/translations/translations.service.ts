@@ -358,6 +358,7 @@ export async function translate(
   apiKey: string,
   actorId: number,
   input: TranslateInput,
+  baseUrl?: string,
 ): Promise<TranslateOutput> {
   if (!apiKey) throw new OpenAiKeyMissingError();
 
@@ -420,9 +421,16 @@ export async function translate(
     glossary,
   });
 
-  // 6. Call OpenAI with JSON recovery
+  // 6. Call OpenAI with JSON recovery (baseUrl defaults to api.openai.com;
+  // caller may override with OPENAI_BASE_URL env to route through a proxy
+  // such as Cloudflare AI Gateway when direct egress IPs hit geo-blocks)
   const t0 = Date.now();
-  const recovery: RecoveryResult = await callOpenAiWithJsonRecovery(apiKey, model, messages);
+  const recovery: RecoveryResult = await callOpenAiWithJsonRecovery(
+    apiKey,
+    model,
+    messages,
+    baseUrl,
+  );
   const latencyMs = Date.now() - t0;
 
   // 7. Per-locale outcome (spec §4.2 step 7)

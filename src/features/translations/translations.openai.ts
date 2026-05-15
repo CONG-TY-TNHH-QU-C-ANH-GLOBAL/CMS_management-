@@ -8,7 +8,12 @@
 import { tryParseJson } from "./translations.structural";
 import { buildRetryMessage, type PromptMessage } from "./translations.prompt";
 
-const OPENAI_BASE = "https://api.openai.com/v1";
+/** Default OpenAI Chat Completions endpoint. Overridable via the
+ *  OPENAI_BASE_URL worker secret — point at Cloudflare AI Gateway
+ *  (https://gateway.ai.cloudflare.com/v1/{account}/{gateway}/openai)
+ *  if direct api.openai.com calls hit geo-blocked egress IPs from
+ *  Cloudflare Workers. */
+const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
 /** Timeout per OpenAI call. gpt-4o-mini usually returns in 2-4s; we allow
  *  generous headroom before declaring api_error. */
 const TIMEOUT_MS = 30_000;
@@ -34,11 +39,12 @@ async function callOnce(
   apiKey: string,
   model: string,
   messages: PromptMessage[],
+  baseUrl: string,
 ): Promise<OpenAiCallResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -96,15 +102,19 @@ export interface RecoveryResult {
 /** Call OpenAI with malformed-JSON recovery. Per spec §4.3.
  *  - First attempt.
  *  - If parse fails AND no api error → 1 retry with stricter prompt.
- *  - Either way return raw response(s) for forensic logging. */
+ *  - Either way return raw response(s) for forensic logging.
+ *
+ *  `baseUrl` defaults to api.openai.com but the caller can override with the
+ *  OPENAI_BASE_URL worker secret (e.g. Cloudflare AI Gateway proxy URL). */
 export async function callOpenAiWithJsonRecovery(
   apiKey: string,
   model: string,
   messages: PromptMessage[],
+  baseUrl: string = DEFAULT_OPENAI_BASE,
 ): Promise<RecoveryResult> {
   let first: OpenAiCallResult;
   try {
-    first = await callOnce(apiKey, model, messages);
+    first = await callOnce(apiKey, model, messages, baseUrl);
   } catch (err) {
     return {
       rawResponse: "",
@@ -131,7 +141,7 @@ export async function callOpenAiWithJsonRecovery(
   const retryMessages = [...messages, ...buildRetryMessage(first.rawText)];
   let second: OpenAiCallResult;
   try {
-    second = await callOnce(apiKey, model, retryMessages);
+    second = await callOnce(apiKey, model, retryMessages, baseUrl);
   } catch (err) {
     return {
       rawResponse: first.rawText + "\n---RETRY-API-ERROR---\n",

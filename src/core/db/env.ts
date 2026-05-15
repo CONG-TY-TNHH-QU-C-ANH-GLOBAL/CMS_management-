@@ -17,6 +17,7 @@ declare global {
       GOOGLE_CLIENT_SECRET: string;
       TURNSTILE_SECRET_KEY?: string; // Cloudflare Turnstile for /api/v1/leads
       OPENAI_API_KEY?: string; // Copilot LLM — undefined disables /admin/ai/copilot chat
+      OPENAI_BASE_URL?: string; // Override OpenAI endpoint (e.g. Cloudflare AI Gateway proxy URL) — bypass geo-blocked egress
       SESSION_SECRET?: string; // Auth cookie signer (defined elsewhere; declaring for completeness)
     }
   }

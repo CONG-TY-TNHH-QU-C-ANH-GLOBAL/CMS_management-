@@ -53,9 +53,11 @@ export async function autoTranslateMissingLocales(
   if (missing.length === 0) return;
 
   let apiKey: string | undefined;
+  let baseUrl: string | undefined;
   try {
     const { env } = await import("cloudflare:workers");
     apiKey = env.OPENAI_API_KEY;
+    baseUrl = env.OPENAI_BASE_URL;
   } catch {
     // Outside the worker runtime (e.g. unit tests) — skip silently.
     return;
@@ -66,11 +68,16 @@ export async function autoTranslateMissingLocales(
   }
 
   try {
-    await translate(apiKey, actorId, {
-      entity_type: entityType,
-      entity_id: entityId,
-      target_locales: missing,
-    });
+    await translate(
+      apiKey,
+      actorId,
+      {
+        entity_type: entityType,
+        entity_id: entityId,
+        target_locales: missing,
+      },
+      baseUrl,
+    );
   } catch (err) {
     console.error(`[auto-translate] ${entityType}#${entityId} failed`, err);
   }

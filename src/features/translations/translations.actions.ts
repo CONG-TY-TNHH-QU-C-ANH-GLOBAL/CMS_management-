@@ -89,7 +89,7 @@ export const translateFn = createServerFn({ method: "POST" })
     }
 
     try {
-      const result = await translate(env.OPENAI_API_KEY, me.id, data);
+      const result = await translate(env.OPENAI_API_KEY, me.id, data, env.OPENAI_BASE_URL);
       // Public API edge cache invalidates so next /api/v1/faqs?lang=… picks up
       // the new in_flight_until clears (and reviewed rows when operator approves).
       await bumpCmsRev();
