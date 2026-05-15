@@ -333,6 +333,47 @@ export async function listAllFaqs(): Promise<FaqRow[]> {
   return result.results ?? [];
 }
 
+/** Public-facing FAQ list for a single locale. Used by the landing `/faqs`
+ *  endpoint to serve translation-gated copy.
+ *
+ *  - `lang='vi'` → returns VI rows from `faqs` directly (canonical source).
+ *  - `lang='en'|'zh'` → JOINs `faq_translations` and serves ONLY rows where
+ *    `status='reviewed'`. Drafts, stale, and failed translations stay
+ *    invisible to the public API per spec §7.1 + Rule 8.
+ *
+ *  NO cross-locale fallback (spec §7.2 + Rule 15). When a reviewed EN/ZH row
+ *  is missing, the row is simply omitted; landing's static i18n.tsx supplies
+ *  the default. */
+export async function listFaqsForLocale(
+  scope: string,
+  lang: Locale,
+): Promise<Pick<FaqRow, "id" | "position" | "question" | "answer">[]> {
+  if (lang === "vi") {
+    const result = await getDb()
+      .prepare(
+        `SELECT id, position, question, answer
+           FROM faqs
+          WHERE scope = ? AND locale = 'vi'
+          ORDER BY position`,
+      )
+      .bind(scope)
+      .all<{ id: number; position: number; question: string; answer: string }>();
+    return result.results ?? [];
+  }
+  const result = await getDb()
+    .prepare(
+      `SELECT f.id, f.position, t.question, t.answer
+         FROM faqs f
+         JOIN faq_translations t
+           ON t.faq_id = f.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE f.scope = ? AND f.locale = 'vi'
+        ORDER BY f.position`,
+    )
+    .bind(lang, scope)
+    .all<{ id: number; position: number; question: string; answer: string }>();
+  return result.results ?? [];
+}
+
 // ================================================================
 // SERVICE BLOCKS (generic per-page card sections)
 // ================================================================
