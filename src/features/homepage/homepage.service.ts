@@ -88,6 +88,46 @@ export async function listHomepageBlocks(locale: HomepageLocale): Promise<Homepa
   }));
 }
 
+/** Public-facing read for a single locale, translation-gated for en/zh.
+ *  Mirrors listFaqsForLocale + listServiceBlocksForLocale (spec §7.1).
+ *  - lang='vi' → returns VI rows from `homepage_blocks` directly.
+ *  - lang='en'|'zh' → JOINs `homepage_block_translations` and serves ONLY
+ *    rows where status='reviewed'. Drafts / stale / failed stay invisible.
+ *
+ *  Non-translatable columns (kind, position) come from the VI source row.
+ *  payload_json comes from the translation row. NO cross-locale fallback
+ *  (spec §7.2 + Rule 15) — missing reviewed rows simply omit; landing's
+ *  static i18n.tsx + per-component fallback covers the gap. */
+export async function listHomepageBlocksForLocale(
+  lang: HomepageLocale,
+): Promise<HomepageBlock[]> {
+  if (lang === "vi") {
+    return listHomepageBlocks("vi");
+  }
+  // VI source rows live under the VI page row; translations are linked by the
+  // homepage_block.id, so we anchor on the VI page.
+  const viPageId = await getHomepagePageId("vi");
+  if (viPageId === null) return [];
+  const res = await getDb()
+    .prepare(
+      `SELECT hb.id, hb.kind, hb.position, t.payload_json, ? AS locale
+         FROM homepage_blocks hb
+         JOIN homepage_block_translations t
+           ON t.homepage_block_id = hb.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE hb.page_id = ? AND hb.locale = 'vi'
+        ORDER BY hb.position`,
+    )
+    .bind(lang, lang, viPageId)
+    .all<{ id: number; kind: HomepageBlockKind; position: number; payload_json: string; locale: HomepageLocale }>();
+  return (res.results ?? []).map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    position: r.position,
+    payload: safeParse(r.payload_json),
+    locale: r.locale,
+  }));
+}
+
 export interface UpsertHomepageBlockInput {
   kind: HomepageBlockKind;
   locale: HomepageLocale;
