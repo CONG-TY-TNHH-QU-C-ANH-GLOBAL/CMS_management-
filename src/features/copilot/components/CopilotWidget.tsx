@@ -1,8 +1,11 @@
 // Floating Copilot launcher + drawer. Mounted in __root.tsx alongside the
 // CommandPalette so it appears on every /admin/* page. Disabled (button
 // grayed) when OPENAI_API_KEY isn't configured server-side.
+//
+// Launcher button is draggable so it does not block form save CTAs underneath.
+// Position persists in localStorage; null = default bottom-right anchor.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Bot, Loader2, Send, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +27,41 @@ interface ChatState {
   changeRequests: ChangeRequestRow[];
 }
 
+interface DragPosition { x: number; y: number }
+
+const POSITION_STORAGE_KEY = "copilot-launcher-position";
+// Treat pointer movement under this threshold as a click rather than a drag —
+// prevents accidental position changes when the user just wants to open Copilot.
+const DRAG_MOVE_THRESHOLD_PX = 5;
+// Approximate launcher size for viewport clamping. The button is rendered with
+// padding and a text label; 140×52 is a safe upper bound across locales.
+const LAUNCHER_W = 140;
+const LAUNCHER_H = 52;
+const VIEWPORT_PADDING = 8;
+
+function clampToViewport(pos: DragPosition): DragPosition {
+  if (typeof window === "undefined") return pos;
+  return {
+    x: Math.max(VIEWPORT_PADDING, Math.min(window.innerWidth - LAUNCHER_W - VIEWPORT_PADDING, pos.x)),
+    y: Math.max(VIEWPORT_PADDING, Math.min(window.innerHeight - LAUNCHER_H - VIEWPORT_PADDING, pos.y)),
+  };
+}
+
+function loadStoredPosition(): DragPosition | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(POSITION_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as DragPosition;
+    if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+      return clampToViewport(parsed);
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
 export function CopilotWidget() {
   const [open, setOpen] = useState(false);
   const [chat, setChat] = useState<ChatState>({ sessionId: null, messages: [], changeRequests: [] });
@@ -36,6 +74,80 @@ export function CopilotWidget() {
   const reject = useServerFn(rejectChangeRequestFn);
   const listSessions = useServerFn(listSessionsFn);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Launcher drag state. `position === null` keeps the default Tailwind
+  // bottom-right anchor; once dragged, we switch to explicit pixel coordinates.
+  const [position, setPosition] = useState<DragPosition | null>(() => loadStoredPosition());
+  const dragRef = useRef({
+    pointerId: null as number | null,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+    moved: false,
+  });
+
+  // Re-clamp on viewport resize so the launcher never gets stranded off-screen
+  // when the admin browser window shrinks.
+  useEffect(() => {
+    if (!position) return;
+    const onResize = () => setPosition((p) => (p ? clampToViewport(p) : p));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [position]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    // Only left mouse / primary touch — ignore right-click / middle-click.
+    if (e.button !== 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const ds = dragRef.current;
+    if (ds.pointerId !== e.pointerId) return;
+    const dx = e.clientX - ds.startX;
+    const dy = e.clientY - ds.startY;
+    if (!ds.moved && Math.abs(dx) < DRAG_MOVE_THRESHOLD_PX && Math.abs(dy) < DRAG_MOVE_THRESHOLD_PX) {
+      return; // still within click tolerance
+    }
+    ds.moved = true;
+    const next = clampToViewport({ x: e.clientX - ds.offsetX, y: e.clientY - ds.offsetY });
+    setPosition(next);
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const ds = dragRef.current;
+    if (ds.pointerId !== e.pointerId) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (ds.moved && position) {
+      // Persist final position; click handler will see moved=true and skip open.
+      try {
+        window.localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(position));
+      } catch {
+        /* localStorage full or disabled — drag still works for this session */
+      }
+    }
+    dragRef.current = { ...dragRef.current, pointerId: null };
+  }, [position]);
+
+  const handleLauncherClick = useCallback(() => {
+    // Suppress click that immediately follows a drag — pointerup fires before
+    // click, so dragRef.moved is still set here. Reset for next interaction.
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
+    setOpen(true);
+  }, []);
 
   // Lazy-load enabled status + recent session on first open
   useEffect(() => {
@@ -140,12 +252,26 @@ export function CopilotWidget() {
 
   return (
     <>
-      {/* Launcher */}
+      {/* Launcher — draggable so it never permanently obscures form CTAs */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          aria-label="Mở Copilot"
-          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 h-12 px-4 rounded-full bg-foreground text-background shadow-elevated hover:scale-105 transition-transform"
+          onClick={handleLauncherClick}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          aria-label="Mở Copilot (kéo để di chuyển)"
+          title="Kéo để di chuyển · Click để mở"
+          style={
+            position
+              ? { position: "fixed", left: position.x, top: position.y, bottom: "auto", right: "auto", touchAction: "none" }
+              : { touchAction: "none" }
+          }
+          className={
+            "z-40 inline-flex items-center gap-2 h-12 px-4 rounded-full bg-foreground text-background shadow-elevated cursor-grab active:cursor-grabbing select-none transition-transform " +
+            (position ? "" : "fixed bottom-5 right-5 ") +
+            "hover:scale-105"
+          }
         >
           <Sparkles className="w-5 h-5" />
           <span className="text-sm font-semibold pr-1">Copilot</span>
