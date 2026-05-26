@@ -280,7 +280,7 @@ export function CopilotWidget() {
 
       {/* Drawer */}
       {open && (
-        <div className="fixed bottom-0 right-0 z-50 w-full sm:w-[440px] h-[80vh] sm:h-[640px] sm:bottom-5 sm:right-5 sm:rounded-2xl bg-background border border-border shadow-elevated flex flex-col overflow-hidden">
+        <div className="fixed bottom-0 right-0 z-50 w-full sm:w-110 h-[80vh] sm:h-160 sm:bottom-5 sm:right-5 sm:rounded-2xl bg-background border border-border shadow-elevated flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted/50">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
