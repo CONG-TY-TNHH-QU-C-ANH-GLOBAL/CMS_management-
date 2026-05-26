@@ -17,16 +17,24 @@
 // appears (D2.1 brief constraint #6: no premature abstraction).
 
 import {
+  blogListResponseSchema,
+  blogPostResponseSchema,
+} from "../src/features/blog/blog.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
+  marqueeImagesResponseSchema,
   testimonialsResponseSchema,
 } from "../src/features/content/content.schemas";
 import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
 import {
+  blogListRouteConfig,
+  blogPostRouteConfig,
   contactLocationsRouteConfig,
   faqsRouteConfig,
   integrationsRouteConfig,
+  marqueeImagesRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
 } from "../src/openapi/paths";
@@ -62,6 +70,21 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/translations → 200",
     canonical: translationsResponseSchema,
     registered: translationsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/blog → 200",
+    canonical: blogListResponseSchema,
+    registered: blogListRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/blog/{slug} → 200",
+    canonical: blogPostResponseSchema,
+    registered: blogPostRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/marquee-images → 200",
+    canonical: marqueeImagesResponseSchema,
+    registered: marqueeImagesRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 
