@@ -8,6 +8,10 @@
 import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 
 import { openApiRegistry } from "./registry";
+// Side-effect import: ./paths registers every annotated route into the
+// registry singleton at module load. Must be imported BEFORE the generator
+// reads `openApiRegistry.definitions` below.
+import "./paths";
 
 // Adjust `info.version` only via Phase D2.7 (per playbook). 0.1.0-draft is
 // the deliberate signal that this spec is in active migration.
