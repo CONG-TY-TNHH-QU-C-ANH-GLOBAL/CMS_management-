@@ -16,8 +16,20 @@
 // flat list — no abstractions until a real second axis of variation
 // appears (D2.1 brief constraint #6: no premature abstraction).
 
-import { faqsResponseSchema } from "../src/features/content/content.schemas";
-import { faqsRouteConfig } from "../src/openapi/paths";
+import {
+  contactLocationsResponseSchema,
+  faqsResponseSchema,
+  integrationsResponseSchema,
+  testimonialsResponseSchema,
+} from "../src/features/content/content.schemas";
+import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
+import {
+  contactLocationsRouteConfig,
+  faqsRouteConfig,
+  integrationsRouteConfig,
+  testimonialsRouteConfig,
+  translationsRouteConfig,
+} from "../src/openapi/paths";
 
 interface Check {
   name: string;
@@ -30,6 +42,26 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/faqs → 200",
     canonical: faqsResponseSchema,
     registered: faqsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/testimonials → 200",
+    canonical: testimonialsResponseSchema,
+    registered: testimonialsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/contact-locations → 200",
+    canonical: contactLocationsResponseSchema,
+    registered: contactLocationsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/integrations → 200",
+    canonical: integrationsResponseSchema,
+    registered: integrationsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/translations → 200",
+    canonical: translationsResponseSchema,
+    registered: translationsRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 

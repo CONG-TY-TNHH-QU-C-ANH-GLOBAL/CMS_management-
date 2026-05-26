@@ -21,8 +21,19 @@
 
 import { z } from "zod";
 
-import { faqsResponseSchema } from "@/features/content/content.schemas";
+import {
+  contactLocationsResponseSchema,
+  faqsResponseSchema,
+  integrationsResponseSchema,
+  testimonialsResponseSchema,
+} from "@/features/content/content.schemas";
+import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { openApiRegistry } from "./registry";
+
+// Reused fragments. Inlined here (not extracted to a shared module) until a
+// third call site appears — see D2.1 brief constraint #6: no premature
+// abstraction.
+const errorBodySchema = z.object({ error: z.string() });
 
 // Mirrors the FAQ route at src/routes/api/v1/(public)/faqs/index.ts.
 // Query params reflect the existing handler defaults:
@@ -62,3 +73,125 @@ export const faqsRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(faqsRouteConfig);
+
+// Mirrors testimonials route at src/routes/api/v1/(public)/testimonials/index.ts.
+// Handler validates `lang` via isLocale; rejects with 400 otherwise. The
+// handler strips per-row `locale` before responding (the wrapper carries it).
+export const testimonialsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/testimonials",
+  summary: "List testimonials for a locale",
+  description:
+    "VI reads from `testimonials`; EN/ZH JOINs `testimonial_translations` " +
+    "filtered to `status='reviewed'`. Per-row `locale` is stripped from " +
+    "the response item — the wrapper's `locale` field carries it instead.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Testimonial list",
+      content: {
+        "application/json": { schema: testimonialsResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(testimonialsRouteConfig);
+
+// Mirrors contact-locations route at src/routes/api/v1/(public)/contact-locations/index.ts.
+// Handler filters by locale server-side and strips per-row `locale` before
+// responding (same pattern as testimonials).
+export const contactLocationsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/contact-locations",
+  summary: "List contact locations for a locale",
+  description:
+    "Locations include offices, warehouses, and external channels (phone, " +
+    "email, website). Filtered to the requested locale server-side.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Contact locations",
+      content: {
+        "application/json": { schema: contactLocationsResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(contactLocationsRouteConfig);
+
+// Mirrors integrations route at src/routes/api/v1/(public)/integrations/index.ts.
+// Integrations are NOT localized — handler takes no `lang` query and returns
+// no `locale` field on the response wrapper.
+export const integrationsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/integrations",
+  summary: "List logistics / platform integrations",
+  description:
+    "Returns the marquee/logo list of integration partners shown on " +
+    "landing. Sorted by `position`. Not localized.",
+  responses: {
+    200: {
+      description: "Integration list",
+      content: {
+        "application/json": { schema: integrationsResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(integrationsRouteConfig);
+
+// Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
+// Unlike the other endpoints in this batch, `lang` is REQUIRED here: the
+// handler returns 400 when omitted (handler line 13: `!lang || !isLocale(lang)`).
+export const translationsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/translations",
+  summary: "Get the i18n dictionary for a locale",
+  description:
+    "Returns `Record<string, string>` of all reviewed translation keys for " +
+    "the locale. `lang` is required — omitting it produces a 400.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Translation dictionary",
+      content: {
+        "application/json": { schema: translationsResponseSchema },
+      },
+    },
+    400: {
+      description: "Missing or invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(translationsRouteConfig);

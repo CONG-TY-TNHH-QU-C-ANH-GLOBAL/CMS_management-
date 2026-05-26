@@ -50,3 +50,82 @@ export const faqsResponseSchema = z.object({
 });
 
 export type FaqsResponse = z.infer<typeof faqsResponseSchema>;
+
+// One testimonial row as projected by the route handler (testimonials/index.ts:17-25).
+// Source type: TestimonialRow (content.service.ts:694-702). The `locale` field
+// from the row is INTENTIONALLY NOT included in the response item — the response
+// wrapper carries `locale` at the top level instead.
+// Nullability mirrors DB: quote / author_name are NOT NULL; author_role and
+// avatar_media_id are nullable. DO NOT tighten.
+const testimonialItemSchema = z.object({
+  id: z.number().int(),
+  position: z.number().int(),
+  quote: z.string(),
+  author_name: z.string(),
+  author_role: z.string().nullable(),
+  avatar_media_id: z.number().int().nullable(),
+});
+
+// /api/v1/testimonials?lang=<en|vi|zh> response body.
+// Built in testimonials/index.ts:26 as `{ locale: lang, testimonials }`.
+export const testimonialsResponseSchema = z.object({
+  locale: localeSchema,
+  testimonials: z.array(testimonialItemSchema),
+});
+
+export type TestimonialsResponse = z.infer<typeof testimonialsResponseSchema>;
+
+// One contact-location row as projected by the route handler
+// (contact-locations/index.ts:19-28). Source type: ContactLocationRow
+// (content.service.ts:892-902). The handler filters by locale and strips it
+// from the item — wrapper carries `locale` instead.
+// `kind` is a 5-value enum mirroring DB CHECK constraint. address / phone /
+// url / lang_class are nullable; label is NOT NULL.
+const contactLocationKindSchema = z.enum([
+  "office",
+  "warehouse",
+  "phone",
+  "email",
+  "website",
+]);
+
+const contactLocationItemSchema = z.object({
+  id: z.number().int(),
+  position: z.number().int(),
+  kind: contactLocationKindSchema,
+  label: z.string(),
+  address: z.string().nullable(),
+  phone: z.string().nullable(),
+  url: z.string().nullable(),
+  lang_class: z.string().nullable(),
+});
+
+// /api/v1/contact-locations?lang=<en|vi|zh> response body.
+// Built in contact-locations/index.ts:29 as `{ locale: lang, locations: filtered }`.
+export const contactLocationsResponseSchema = z.object({
+  locale: localeSchema,
+  locations: z.array(contactLocationItemSchema),
+});
+
+export type ContactLocationsResponse = z.infer<typeof contactLocationsResponseSchema>;
+
+// One integration row as projected by the route handler (integrations/index.ts:14-21).
+// Source type: IntegrationRow (content.service.ts:1053-1060). No locale on row.
+// name is NOT NULL; url / color_class / logo_media_id are nullable.
+const integrationItemSchema = z.object({
+  id: z.number().int(),
+  position: z.number().int(),
+  name: z.string(),
+  url: z.string().nullable(),
+  color_class: z.string().nullable(),
+  logo_media_id: z.number().int().nullable(),
+});
+
+// /api/v1/integrations response body.
+// Built in integrations/index.ts:22 as `{ integrations: sorted }`.
+// Note: NO `locale` field — integrations are not localized.
+export const integrationsResponseSchema = z.object({
+  integrations: z.array(integrationItemSchema),
+});
+
+export type IntegrationsResponse = z.infer<typeof integrationsResponseSchema>;
