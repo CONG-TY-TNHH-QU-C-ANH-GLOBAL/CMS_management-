@@ -21,6 +21,10 @@ import {
   blogPostResponseSchema,
 } from "../src/features/blog/blog.schemas";
 import {
+  jobResponseSchema,
+  jobsResponseSchema,
+} from "../src/features/careers/careers.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
@@ -34,6 +38,8 @@ import {
   contactLocationsRouteConfig,
   faqsRouteConfig,
   integrationsRouteConfig,
+  jobRouteConfig,
+  jobsListRouteConfig,
   marqueeImagesRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
@@ -85,6 +91,16 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/marquee-images → 200",
     canonical: marqueeImagesResponseSchema,
     registered: marqueeImagesRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/jobs → 200",
+    canonical: jobsResponseSchema,
+    registered: jobsListRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/jobs/{slug} → 200",
+    canonical: jobResponseSchema,
+    registered: jobRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 
