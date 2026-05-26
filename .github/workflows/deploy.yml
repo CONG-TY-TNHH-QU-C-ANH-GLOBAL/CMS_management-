@@ -52,12 +52,14 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dryrun != 'true'
         run: |
           set -euo pipefail
-          # Wait briefly for Cloudflare edge propagation, then hit a known endpoint.
+          # Wait briefly for Cloudflare edge propagation before assertions.
           sleep 5
+
+          # ── 1) /translations: long-lived endpoint, returns the i18n dict ───
           STATUS=$(curl -s -o /tmp/body.json -w "%{http_code}" "https://cms.thgfulfill.com/api/v1/translations?lang=vi" || echo 000)
-          echo "Status: $STATUS"
+          echo "translations status: $STATUS"
           if [ "$STATUS" != "200" ]; then
-            echo "::error::Smoke test failed (HTTP $STATUS). Response body:"
+            echo "::error::Smoke test failed on /translations (HTTP $STATUS). Response body:"
             cat /tmp/body.json || true
             exit 1
           fi
@@ -65,4 +67,25 @@ jobs:
           echo "Translation keys returned: $KEYS"
           if [ "$KEYS" -lt 100 ]; then
             echo "::warning::Translation count suspiciously low ($KEYS)"
+          fi
+
+          # ── 2) /openapi: registration integrity check ─────────────────────
+          # Catches the failure mode where Vite tree-shakes the side-effect
+          # `import "./paths"` and the worker ships without any registered
+          # routes. We cache-bust because the response has
+          # `Cache-Control: s-maxage=300` and edge may still hold the
+          # pre-deploy version for a few minutes.
+          OPENAPI_STATUS=$(curl -s -o /tmp/openapi.json -w "%{http_code}" "https://cms.thgfulfill.com/api/v1/openapi?_t=$(date +%s)" || echo 000)
+          echo "openapi status: $OPENAPI_STATUS"
+          if [ "$OPENAPI_STATUS" != "200" ]; then
+            echo "::error::Smoke test failed on /openapi (HTTP $OPENAPI_STATUS). Response body:"
+            cat /tmp/openapi.json || true
+            exit 1
+          fi
+          PATH_COUNT=$(jq '.paths | length' /tmp/openapi.json 2>/dev/null || echo 0)
+          echo "OpenAPI paths registered: $PATH_COUNT"
+          if [ "$PATH_COUNT" -lt 1 ]; then
+            echo "::error::/api/v1/openapi has zero registered paths. The bundler likely tree-shook src/openapi/paths.ts. Verify package.json sideEffects includes '**/openapi/paths.ts'."
+            jq '.' /tmp/openapi.json || cat /tmp/openapi.json
+            exit 1
           fi
