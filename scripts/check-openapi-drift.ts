@@ -29,18 +29,22 @@ import {
   faqsResponseSchema,
   integrationsResponseSchema,
   marqueeImagesResponseSchema,
+  servicesResponseSchema,
   testimonialsResponseSchema,
 } from "../src/features/content/content.schemas";
+import { homepageResponseSchema } from "../src/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
 import {
   blogListRouteConfig,
   blogPostRouteConfig,
   contactLocationsRouteConfig,
   faqsRouteConfig,
+  homepageRouteConfig,
   integrationsRouteConfig,
   jobRouteConfig,
   jobsListRouteConfig,
   marqueeImagesRouteConfig,
+  servicesRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
 } from "../src/openapi/paths";
@@ -101,6 +105,16 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/jobs/{slug} → 200",
     canonical: jobResponseSchema,
     registered: jobRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/services → 200",
+    canonical: servicesResponseSchema,
+    registered: servicesRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/homepage → 200",
+    canonical: homepageResponseSchema,
+    registered: homepageRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 
