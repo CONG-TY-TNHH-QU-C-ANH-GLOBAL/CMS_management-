@@ -26,6 +26,10 @@ import {
   blogPostResponseSchema,
 } from "@/features/blog/blog.schemas";
 import {
+  jobResponseSchema,
+  jobsResponseSchema,
+} from "@/features/careers/careers.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
@@ -305,3 +309,83 @@ export const marqueeImagesRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(marqueeImagesRouteConfig);
+
+// Mirrors jobs list route at src/routes/api/v1/(public)/jobs/index.ts.
+// status=open only (server-side filter). Optional `category` query.
+export const jobsListRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/jobs",
+  summary: "List open job postings for a locale",
+  description:
+    "Status=`open` only (drafts/closed/archived filtered server-side). " +
+    "Optional `category` query narrows the list. `hot` is coerced from " +
+    "the DB integer column to boolean (handler line: `j.hot === 1`).",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+      category: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Job summary list (open jobs only)",
+      content: {
+        "application/json": { schema: jobsResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(jobsListRouteConfig);
+
+// Mirrors job detail route at src/routes/api/v1/(public)/jobs/$slug.ts.
+// Adds body_md + lead + 4 parsed-JSON fields (responsibilities /
+// requirements / benefits / bonuses). The 4 JSON fields are ALWAYS
+// present in the wire shape: the handler's `parseJson(...) ?? {}` /
+// `?? []` fallback guarantees an empty container even when the
+// underlying DB column is null or contains malformed JSON.
+export const jobRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/jobs/{slug}",
+  summary: "Get one job posting by slug for a locale",
+  description:
+    "Returns the full job detail with parsed JSON-string columns " +
+    "materialized into structured fields (responsibilities, requirements, " +
+    "benefits, bonuses). 404 if slug+locale not found, or if status≠open.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Job detail with parsed JSON fields",
+      content: {
+        "application/json": { schema: jobResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Job not found or not open",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(jobRouteConfig);
