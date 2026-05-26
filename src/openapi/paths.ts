@@ -39,6 +39,15 @@ import {
 } from "@/features/content/content.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
+import {
+  policiesResponseSchema,
+  policyResponseSchema,
+} from "@/features/policies/policies.schemas";
+import {
+  pricingResponseSchema,
+  pricingTableResponseSchema,
+} from "@/features/pricing/pricing.schemas";
+import { siteSettingsResponseSchema } from "@/features/settings/settings.schemas";
 import { openApiRegistry } from "./registry";
 
 // Reused fragments. Inlined here (not extracted to a shared module) until a
@@ -466,3 +475,166 @@ export const homepageRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(homepageRouteConfig);
+
+// ──────────────────────────────────────────────────────────────────────────
+// D2.6 — Site settings + pricing + policies
+// ──────────────────────────────────────────────────────────────────────────
+
+// Mirrors site-settings route at src/routes/api/v1/(public)/site-settings/index.ts.
+// Singleton document. Returns `{ settings: null }` if the singleton row
+// is missing. NOT localized — settings are global.
+export const siteSettingsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/site-settings",
+  summary: "Get global site settings (singleton)",
+  description:
+    "Returns the singleton site-settings document with brand info, " +
+    "tracking IDs, contact details, and parsed remote_area_links / " +
+    "terminology arrays. `settings` is null when the row is missing.",
+  responses: {
+    200: {
+      description: "Site settings document or null",
+      content: {
+        "application/json": { schema: siteSettingsResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(siteSettingsRouteConfig);
+
+// Mirrors pricing list route at src/routes/api/v1/(public)/pricing/index.ts.
+// Returns categories with their tables. NOT localized — pricing tables
+// are language-agnostic; the table data may include locale-sensitive
+// labels inside `data_json`/`schema_json` but the wire envelope is not.
+export const pricingListRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/pricing",
+  summary: "List pricing tables grouped by category",
+  description:
+    "Returns all pricing tables grouped into categories inferred from " +
+    "slug. Each entry is a summary (no schema/data blobs) — fetch the " +
+    "detail endpoint for full table content.",
+  responses: {
+    200: {
+      description: "Pricing categories + table summaries",
+      content: {
+        "application/json": { schema: pricingResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(pricingListRouteConfig);
+
+// Mirrors pricing detail route at src/routes/api/v1/(public)/pricing/$slug.ts.
+// Parses schema_json and data_json server-side (independently — malformed
+// one doesn't poison the other). Final shape `unknown` for both since it
+// varies per kind (weight_grid vs meta_kv); consumers narrow downstream.
+export const pricingTableRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/pricing/{slug}",
+  summary: "Get one pricing table by slug",
+  description:
+    "Returns the full pricing table including parsed schema + data " +
+    "blobs. 404 if slug not found. Parse failures on schema_json or " +
+    "data_json produce `null` for the affected field rather than the " +
+    "whole table — consumers should defend against partial payloads.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Pricing table detail",
+      content: {
+        "application/json": { schema: pricingTableResponseSchema },
+      },
+    },
+    404: {
+      description: "No pricing table with given slug",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(pricingTableRouteConfig);
+
+// Mirrors policies list route at src/routes/api/v1/(public)/policies/index.ts.
+export const policiesListRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/policies",
+  summary: "List policies for a locale",
+  description:
+    "Returns the ordered list of policy summaries for the given locale. " +
+    "Each entry has slug, title, icon, mode (image|text), summary, " +
+    "position — no body_md or full content. Fetch the detail endpoint " +
+    "for full policy text.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Policy summary list",
+      content: {
+        "application/json": { schema: policiesResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(policiesListRouteConfig);
+
+// Mirrors policies detail route at src/routes/api/v1/(public)/policies/$slug.ts.
+// body_md is NON-NULL (matches PolicyRow.body_md type). image_list and
+// text_blocks are parsed-JSON with fallback to [] — always present on
+// the wire.
+export const policyRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/policies/{slug}",
+  summary: "Get one policy by slug for a locale",
+  description:
+    "Returns the full policy including body_md (markdown) and parsed " +
+    "image_list + text_blocks arrays. 404 if slug+locale not found.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Policy detail",
+      content: {
+        "application/json": { schema: policyResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Policy not found in locale",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(policyRouteConfig);
