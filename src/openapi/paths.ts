@@ -22,9 +22,14 @@
 import { z } from "zod";
 
 import {
+  blogListResponseSchema,
+  blogPostResponseSchema,
+} from "@/features/blog/blog.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
+  marqueeImagesResponseSchema,
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
@@ -195,3 +200,108 @@ export const translationsRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(translationsRouteConfig);
+
+// ──── HEIGHTENED-WATCH BATCH (D2.3) ────
+// Blog list / detail and marquee images carry the `alt_text` field that
+// regressed in incident 11e9230. The Zod schema imports above must be the
+// canonical exports from feature/<f>.schemas — the drift check script
+// asserts strict object identity to catch copy-paste redefinition here.
+
+// Mirrors blog list route at src/routes/api/v1/(public)/blog/index.ts.
+// Returns summary projection — no slides, no seo_* fields.
+export const blogListRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/blog",
+  summary: "List blog posts for a locale",
+  description:
+    "Status=`live` only (drafts and archived are filtered server-side). " +
+    "VI reads from `blog_posts`; EN/ZH JOINs locale-specific rows. " +
+    "Optional `category` filter is applied client-side after fetch.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+      category: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Blog post summary list (live posts only)",
+      content: {
+        "application/json": { schema: blogListResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(blogListRouteConfig);
+
+// Mirrors blog detail route at src/routes/api/v1/(public)/blog/$slug.ts.
+// Includes seo_* fields and embedded slides[] from getBlogSlides().
+// alt_text in slides[] is heightened-watch — see blog.schemas.ts header.
+export const blogPostRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/blog/{slug}",
+  summary: "Get one blog post by slug for a locale",
+  description:
+    "Returns post + slides[]. 404 if slug+locale combination not found, " +
+    "or if the post status is not `live`. Slide order is preserved from " +
+    "the database `position` column.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Blog post detail with slides",
+      content: {
+        "application/json": { schema: blogPostResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Post not found or not published",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(blogPostRouteConfig);
+
+// Mirrors marquee-images route at src/routes/api/v1/(public)/marquee-images/index.ts.
+// Not localized; no query params. alt_text is heightened-watch — see
+// content.schemas.ts header for `marqueeImageItemSchema`.
+export const marqueeImagesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/marquee-images",
+  summary: "List marquee images shown in the landing logo strip",
+  description:
+    "Returns the sorted marquee image list. Not localized. `src` is " +
+    "resolved server-side via INNER JOIN against the media table.",
+  responses: {
+    200: {
+      description: "Marquee image list",
+      content: {
+        "application/json": { schema: marqueeImagesResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(marqueeImagesRouteConfig);

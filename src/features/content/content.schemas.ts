@@ -129,3 +129,29 @@ export const integrationsResponseSchema = z.object({
 });
 
 export type IntegrationsResponse = z.infer<typeof integrationsResponseSchema>;
+
+// ──── HEIGHTENED-WATCH FIELD ────
+// `alt_text: z.string()` (non-null). Same regression class as
+// blog_slides[].alt_text (incident 11e9230 lineage). Sources:
+//   - DB constraint:  marquee_images.alt_text TEXT NOT NULL
+//                     (db/migrations/0001_init.sql, line 232)
+//   - Service type:   MarqueeImageRow.alt_text: string
+//                     (content.service.ts, line 1194)
+//   - Landing Zod:    cmsMarqueeImageSchema.alt_text: z.string()
+//                     (THG_landingpage/src/lib/cmsSchemas.ts, line 156)
+// Do NOT change to .nullable().
+const marqueeImageItemSchema = z.object({
+  id: z.number().int(),
+  position: z.number().int(),
+  src: z.string(),
+  alt_text: z.string(),
+});
+
+// /api/v1/marquee-images response body.
+// Built in marquee-images/index.ts:20 as `{ images: sorted }`.
+// Note: NO `locale` field — marquee images are not localized.
+export const marqueeImagesResponseSchema = z.object({
+  images: z.array(marqueeImageItemSchema),
+});
+
+export type MarqueeImagesResponse = z.infer<typeof marqueeImagesResponseSchema>;
