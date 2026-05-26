@@ -34,8 +34,10 @@ import {
   faqsResponseSchema,
   integrationsResponseSchema,
   marqueeImagesResponseSchema,
+  servicesResponseSchema,
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
+import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { openApiRegistry } from "./registry";
 
@@ -389,3 +391,78 @@ export const jobRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(jobRouteConfig);
+
+// ──────────────────────────────────────────────────────────────────────────
+// D2.5 — Services + homepage
+// ──────────────────────────────────────────────────────────────────────────
+
+// Mirrors services route at src/routes/api/v1/(public)/services/index.ts.
+// Handler filters "archived" status server-side but the response status
+// enum keeps all 3 values to match landing's existing consumer contract.
+// gallery/products are hydrated via media JOIN so the wire shape may
+// include resolved URLs that aren't present in the underlying *_json columns.
+export const servicesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/services",
+  summary: "List services for a locale (flat per-locale projection)",
+  description:
+    "Returns each service flattened with i18n applied for the requested " +
+    "locale. gallery[] and products[] media_id references are hydrated to " +
+    "resolved URLs server-side. Archived services are filtered out.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Service list (draft + live)",
+      content: {
+        "application/json": { schema: servicesResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(servicesRouteConfig);
+
+// Mirrors homepage route at src/routes/api/v1/(public)/homepage/index.ts.
+// VI reads from homepage_blocks; EN/ZH JOINs homepage_block_translations
+// filtered by status='reviewed'. payload is always { string: string } —
+// safeParse coerces non-string values to "" before sending on the wire.
+export const homepageRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/homepage",
+  summary: "Get homepage blocks for a locale",
+  description:
+    "Returns the ordered list of homepage blocks (hero, trust, " +
+    "services_grid, etc.) with their string-keyed payload maps. EN/ZH " +
+    "JOIN homepage_block_translations filtered to status='reviewed'.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Homepage block list",
+      content: {
+        "application/json": { schema: homepageResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(homepageRouteConfig);

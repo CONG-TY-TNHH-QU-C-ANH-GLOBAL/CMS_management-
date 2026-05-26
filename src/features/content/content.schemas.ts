@@ -155,3 +155,67 @@ export const marqueeImagesResponseSchema = z.object({
 });
 
 export type MarqueeImagesResponse = z.infer<typeof marqueeImagesResponseSchema>;
+
+// ──────────────────────────────────────────────────────────────────────────
+// /api/v1/services (D2.5)
+// ──────────────────────────────────────────────────────────────────────────
+// Wire shape mirrors the route handler's projection at
+// services/index.ts:47-65 — flat per-locale view that hydrates media_id
+// references in gallery/products into resolved URLs.
+//
+// Sub-shapes (gallery / videos / products) mirror the service-layer
+// interfaces (content.service.ts:23-43). Optional fields stay optional —
+// admin can leave the secondary URL / caption / image fields blank.
+//
+// Status enum keeps all 3 values even though the handler filters
+// "archived" server-side; this matches landing's existing
+// cmsServiceSchema (THG_landingpage/src/lib/cmsSchemas.ts:57) which is
+// the established consumer contract.
+
+const serviceGalleryItemSchema = z.object({
+  url: z.string().optional(),
+  media_id: z.number().int().optional(),
+  alt: z.string().optional(),
+});
+
+const serviceVideoSchema = z.object({
+  youtube_id: z.string(),
+  caption_key: z.string().optional(),
+  caption: z.string().optional(),
+  thumb: z.string().optional(),
+});
+
+const serviceProductSchema = z.object({
+  name: z.string(),
+  price: z.string().optional(),
+  time: z.string().optional(),
+  origin: z.string().optional(),
+  image: z.string().optional(),
+  media_id: z.number().int().optional(),
+});
+
+const serviceItemSchema = z.object({
+  id: z.string(),
+  position: z.number().int(),
+  icon: z.string().nullable(),
+  status: z.enum(["draft", "live", "archived"]),
+  name: z.string(),
+  tagline: z.string().nullable(),
+  hero_eyebrow: z.string().nullable(),
+  hero_title: z.string().nullable(),
+  hero_sub: z.string().nullable(),
+  cta_text: z.string().nullable(),
+  cta_url: z.string().nullable(),
+  body_md: z.string().nullable(),
+  bullets: z.array(z.string()),
+  gallery: z.array(serviceGalleryItemSchema),
+  videos: z.array(serviceVideoSchema),
+  products: z.array(serviceProductSchema),
+});
+
+export const servicesResponseSchema = z.object({
+  locale: localeSchema,
+  services: z.array(serviceItemSchema),
+});
+
+export type ServicesResponse = z.infer<typeof servicesResponseSchema>;
