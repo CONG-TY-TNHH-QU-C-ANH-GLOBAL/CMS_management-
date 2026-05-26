@@ -60,6 +60,7 @@ import { Route as ApiV1publicServicesIndexRouteImport } from './routes/api/v1/(p
 import { Route as ApiV1publicServiceBlocksIndexRouteImport } from './routes/api/v1/(public)/service-blocks/index'
 import { Route as ApiV1publicPricingIndexRouteImport } from './routes/api/v1/(public)/pricing/index'
 import { Route as ApiV1publicPoliciesIndexRouteImport } from './routes/api/v1/(public)/policies/index'
+import { Route as ApiV1publicOpenapiIndexRouteImport } from './routes/api/v1/(public)/openapi/index'
 import { Route as ApiV1publicMarqueeImagesIndexRouteImport } from './routes/api/v1/(public)/marquee-images/index'
 import { Route as ApiV1publicLeadsIndexRouteImport } from './routes/api/v1/(public)/leads/index'
 import { Route as ApiV1publicJobsIndexRouteImport } from './routes/api/v1/(public)/jobs/index'
@@ -363,6 +364,11 @@ const ApiV1publicPoliciesIndexRoute =
     path: '/api/v1/policies/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicOpenapiIndexRoute = ApiV1publicOpenapiIndexRouteImport.update({
+  id: '/api/v1/(public)/openapi/',
+  path: '/api/v1/openapi/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1publicMarqueeImagesIndexRoute =
   ApiV1publicMarqueeImagesIndexRouteImport.update({
     id: '/api/v1/(public)/marquee-images/',
@@ -516,6 +522,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/jobs/': typeof ApiV1publicJobsIndexRoute
   '/api/v1/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/openapi/': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/policies/': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/pricing/': typeof ApiV1publicPricingIndexRoute
   '/api/v1/service-blocks/': typeof ApiV1publicServiceBlocksIndexRoute
@@ -583,6 +590,7 @@ export interface FileRoutesByTo {
   '/api/v1/jobs': typeof ApiV1publicJobsIndexRoute
   '/api/v1/leads': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/openapi': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/policies': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/pricing': typeof ApiV1publicPricingIndexRoute
   '/api/v1/service-blocks': typeof ApiV1publicServiceBlocksIndexRoute
@@ -654,6 +662,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/jobs/': typeof ApiV1publicJobsIndexRoute
   '/api/v1/(public)/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/(public)/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/(public)/openapi/': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/(public)/policies/': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/(public)/pricing/': typeof ApiV1publicPricingIndexRoute
   '/api/v1/(public)/service-blocks/': typeof ApiV1publicServiceBlocksIndexRoute
@@ -726,6 +735,7 @@ export interface FileRouteTypes {
     | '/api/v1/jobs/'
     | '/api/v1/leads/'
     | '/api/v1/marquee-images/'
+    | '/api/v1/openapi/'
     | '/api/v1/policies/'
     | '/api/v1/pricing/'
     | '/api/v1/service-blocks/'
@@ -793,6 +803,7 @@ export interface FileRouteTypes {
     | '/api/v1/jobs'
     | '/api/v1/leads'
     | '/api/v1/marquee-images'
+    | '/api/v1/openapi'
     | '/api/v1/policies'
     | '/api/v1/pricing'
     | '/api/v1/service-blocks'
@@ -863,6 +874,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/jobs/'
     | '/api/v1/(public)/leads/'
     | '/api/v1/(public)/marquee-images/'
+    | '/api/v1/(public)/openapi/'
     | '/api/v1/(public)/policies/'
     | '/api/v1/(public)/pricing/'
     | '/api/v1/(public)/service-blocks/'
@@ -927,6 +939,7 @@ export interface RootRouteChildren {
   ApiV1publicJobsIndexRoute: typeof ApiV1publicJobsIndexRoute
   ApiV1publicLeadsIndexRoute: typeof ApiV1publicLeadsIndexRoute
   ApiV1publicMarqueeImagesIndexRoute: typeof ApiV1publicMarqueeImagesIndexRoute
+  ApiV1publicOpenapiIndexRoute: typeof ApiV1publicOpenapiIndexRoute
   ApiV1publicPoliciesIndexRoute: typeof ApiV1publicPoliciesIndexRoute
   ApiV1publicPricingIndexRoute: typeof ApiV1publicPricingIndexRoute
   ApiV1publicServiceBlocksIndexRoute: typeof ApiV1publicServiceBlocksIndexRoute
@@ -1297,6 +1310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicPoliciesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/openapi/': {
+      id: '/api/v1/(public)/openapi/'
+      path: '/api/v1/openapi'
+      fullPath: '/api/v1/openapi/'
+      preLoaderRoute: typeof ApiV1publicOpenapiIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/marquee-images/': {
       id: '/api/v1/(public)/marquee-images/'
       path: '/api/v1/marquee-images'
@@ -1522,6 +1542,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicJobsIndexRoute: ApiV1publicJobsIndexRoute,
   ApiV1publicLeadsIndexRoute: ApiV1publicLeadsIndexRoute,
   ApiV1publicMarqueeImagesIndexRoute: ApiV1publicMarqueeImagesIndexRoute,
+  ApiV1publicOpenapiIndexRoute: ApiV1publicOpenapiIndexRoute,
   ApiV1publicPoliciesIndexRoute: ApiV1publicPoliciesIndexRoute,
   ApiV1publicPricingIndexRoute: ApiV1publicPricingIndexRoute,
   ApiV1publicServiceBlocksIndexRoute: ApiV1publicServiceBlocksIndexRoute,

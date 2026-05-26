@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "check:openapi-drift": "bun run scripts/check-openapi-drift.ts",
     "db:migrate:local": "wrangler d1 migrations apply thg-cms --local",
     "db:migrate:prod": "wrangler d1 migrations apply thg-cms --remote",
     "db:console:local": "wrangler d1 execute thg-cms --local --command",
@@ -19,6 +20,7 @@
     "deploy:dryrun": "vite build && wrangler deploy --dry-run"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "7.3.4",
     "@cloudflare/vite-plugin": "^1.25.5",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
