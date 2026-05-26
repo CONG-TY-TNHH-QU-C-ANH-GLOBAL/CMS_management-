@@ -35,6 +35,15 @@ import {
 import { homepageResponseSchema } from "../src/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
 import {
+  policiesResponseSchema,
+  policyResponseSchema,
+} from "../src/features/policies/policies.schemas";
+import {
+  pricingResponseSchema,
+  pricingTableResponseSchema,
+} from "../src/features/pricing/pricing.schemas";
+import { siteSettingsResponseSchema } from "../src/features/settings/settings.schemas";
+import {
   blogListRouteConfig,
   blogPostRouteConfig,
   contactLocationsRouteConfig,
@@ -44,7 +53,12 @@ import {
   jobRouteConfig,
   jobsListRouteConfig,
   marqueeImagesRouteConfig,
+  policiesListRouteConfig,
+  policyRouteConfig,
+  pricingListRouteConfig,
+  pricingTableRouteConfig,
   servicesRouteConfig,
+  siteSettingsRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
 } from "../src/openapi/paths";
@@ -115,6 +129,31 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/homepage → 200",
     canonical: homepageResponseSchema,
     registered: homepageRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/site-settings → 200",
+    canonical: siteSettingsResponseSchema,
+    registered: siteSettingsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/pricing → 200",
+    canonical: pricingResponseSchema,
+    registered: pricingListRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/pricing/{slug} → 200",
+    canonical: pricingTableResponseSchema,
+    registered: pricingTableRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/policies → 200",
+    canonical: policiesResponseSchema,
+    registered: policiesListRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/policies/{slug} → 200",
+    canonical: policyResponseSchema,
+    registered: policyRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 

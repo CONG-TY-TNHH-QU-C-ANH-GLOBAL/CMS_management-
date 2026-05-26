@@ -13,16 +13,20 @@ import { openApiRegistry } from "./registry";
 // reads `openApiRegistry.definitions` below.
 import "./paths";
 
-// Adjust `info.version` only via Phase D2.7 (per playbook). 0.1.0-draft is
-// the deliberate signal that this spec is in active migration.
+// Spec locked at v1.0.0 in Phase D2.7. All 15 public CMS endpoints are
+// now annotated. Future changes follow semver: backward-compatible
+// additions bump the minor, breaking changes bump the major.
 const INFO = {
   title: "THG CMS API",
-  version: "0.1.0-draft",
+  version: "1.0.0",
   description:
-    "Public read-only API consumed by THG_landingpage. Spec is in active " +
-    "migration (Phase D2). Endpoint coverage grows per D2.x. Frontend " +
-    "codegen treats missing paths as 'not yet annotated' — Zod runtime " +
-    "validation on landing remains the source of truth until D2.7 locks v1.",
+    "Public read-only API consumed by THG_landingpage. Spec covers 15 " +
+    "annotated endpoints across content (FAQ, testimonials, contact, " +
+    "integrations, marquee, services, homepage, site-settings), blog, " +
+    "careers, pricing, policies, and translations. Frontend codegen at " +
+    "THG_landingpage uses /api/v1/openapi as the source of truth (see " +
+    "scripts/generate-cms-types.ts); landing's Zod runtime validation " +
+    "remains in place as defense-in-depth.",
 } as const;
 
 export function generateOpenApiDocument() {
