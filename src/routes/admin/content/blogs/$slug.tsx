@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { Card, PageContainer } from "@/components/cms/ui";
@@ -11,6 +11,21 @@ import {
   type BlogPostRow,
   type BlogSlideRow,
 } from "@/features/blog/blog.actions";
+import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
+import {
+  approveBlogPostTranslationFn,
+  deleteBlogPostTranslationFn,
+  editBlogPostTranslationFn,
+  listBlogPostTranslationsFn,
+} from "@/features/translations/translations.actions";
+
+const BLOG_POST_FIELDS = [
+  { key: "title", label: "Title", rows: 2 },
+  { key: "excerpt", label: "Excerpt", rows: 4 },
+  { key: "category", label: "Category", rows: 1 },
+  { key: "seo_title", label: "SEO title", rows: 2 },
+  { key: "seo_description", label: "SEO description", rows: 3 },
+] as const;
 
 export const Route = createFileRoute("/admin/content/blogs/$slug")({
   loader: async ({ params }) => {
@@ -33,8 +48,10 @@ function BlogDetailPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const [locale, setLocale] = useState<Locale>("vi");
+  const [reviewing, setReviewing] = useState<BlogPostRow | null>(null);
 
   const detail = (data.details as Record<BlogLocale, { post: BlogPostRow | null; slides: BlogSlideRow[] }>)[locale as BlogLocale];
+  const viPost = (data.details as Record<BlogLocale, { post: BlogPostRow | null; slides: BlogSlideRow[] }>).vi.post;
 
   return (
     <PageContainer>
@@ -64,6 +81,15 @@ function BlogDetailPage() {
             </a>
           </div>
         </div>
+        {locale === "vi" && viPost ? (
+          <button
+            onClick={() => setReviewing(viPost)}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100"
+            title="Mở dialog dịch + duyệt EN + ZH cho bài viết này"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Bản dịch EN + ZH
+          </button>
+        ) : null}
       </div>
 
       <Card className="overflow-hidden mb-4 p-0">
@@ -78,6 +104,32 @@ function BlogDetailPage() {
         slides={detail.slides}
         onSaved={() => router.invalidate()}
       />
+
+      {reviewing ? (
+        <TranslationReviewDialog
+          open={reviewing !== null}
+          onOpenChange={(o) => !o && setReviewing(null)}
+          onChanged={() => router.invalidate()}
+          entityType="blog_post"
+          entityId={reviewing.id}
+          entityLabel="Blog post"
+          source={{
+            title: reviewing.title,
+            excerpt: reviewing.excerpt ?? "",
+            category: reviewing.category ?? "",
+            seo_title: reviewing.seo_title ?? "",
+            seo_description: reviewing.seo_description ?? "",
+          }}
+          fields={BLOG_POST_FIELDS}
+          rpcs={{
+            list: listBlogPostTranslationsFn,
+            approve: approveBlogPostTranslationFn,
+            edit: editBlogPostTranslationFn,
+            delete: deleteBlogPostTranslationFn,
+          }}
+          listIdKey="blog_post_id"
+        />
+      ) : null}
     </PageContainer>
   );
 }

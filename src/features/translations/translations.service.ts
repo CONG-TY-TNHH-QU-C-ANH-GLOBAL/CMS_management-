@@ -23,7 +23,8 @@ export type TranslateEntityType =
   | "service_block"
   | "testimonial"
   | "homepage_block"
-  | "careers_job";
+  | "careers_job"
+  | "blog_post";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -107,6 +108,12 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
       benefits_json: "[]",
       bonuses_json: "[]",
     },
+  },
+  blog_post: {
+    translationsTable: "blog_post_translations",
+    sourceFkColumn: "blog_post_id",
+    sourceTable: "blog_posts",
+    fieldColumns: ["title", "excerpt", "category", "seo_title", "seo_description"],
   },
 };
 

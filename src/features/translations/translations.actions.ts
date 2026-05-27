@@ -9,6 +9,7 @@ export type { ServiceBlockTranslationRow } from "./service-block.translation.ser
 export type { TestimonialTranslationRow } from "./testimonial.translation.service";
 export type { HomepageBlockTranslationRow } from "./homepage-block.translation.service";
 export type { CareersJobTranslationRow } from "./careers-job.translation.service";
+export type { BlogPostTranslationRow } from "./blog-post.translation.service";
 export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
@@ -19,6 +20,7 @@ const ENTITY_TYPE = z.enum([
   "testimonial",
   "homepage_block",
   "careers_job",
+  "blog_post",
 ]);
 
 const translateSchema = z.object({
@@ -516,6 +518,87 @@ export const markCareersJobTranslationStaleFn = createServerFn({ method: "POST" 
     );
     const me = await requireSession("editor");
     const result = await markCareersJobTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 8: blog_post lifecycle RPC ───────────────
+
+export const listBlogPostTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ blog_post_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listBlogPostTranslationsForId } = await import(
+      "./blog-post.translation.service"
+    );
+    await requireSession("viewer");
+    return await listBlogPostTranslationsForId(data.blog_post_id);
+  });
+
+export const listAllBlogPostTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllBlogPostTranslations } = await import("./blog-post.translation.service");
+    await requireSession("viewer");
+    return await listAllBlogPostTranslations();
+  },
+);
+
+export const approveBlogPostTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveBlogPostTranslation } = await import("./blog-post.translation.service");
+    const me = await requireSession("editor");
+    const result = await approveBlogPostTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editBlogPostTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().trim().min(1).max(2000),
+        excerpt: z.string().max(5000).nullable(),
+        category: z.string().max(200).nullable(),
+        seo_title: z.string().max(2000).nullable(),
+        seo_description: z.string().max(5000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editBlogPostTranslation } = await import("./blog-post.translation.service");
+    const me = await requireSession("editor");
+    const result = await editBlogPostTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteBlogPostTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteBlogPostTranslation } = await import("./blog-post.translation.service");
+    const me = await requireSession("editor");
+    await deleteBlogPostTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markBlogPostTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markBlogPostTranslationStale } = await import("./blog-post.translation.service");
+    const me = await requireSession("editor");
+    const result = await markBlogPostTranslationStale(me.id, data.id);
     await bumpCmsRev();
     return result;
   });
