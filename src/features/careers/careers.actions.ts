@@ -26,12 +26,18 @@ export const getCareersJobDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { getCareersJob } = await import("@/features/careers");
+    const { getCareersJob, getCareersJobForPublic } = await import("@/features/careers");
     await requireSession("viewer");
+    // VI: read source (canonical). EN/ZH: read from careers_job_translations
+    // via the ForPublic JOIN so admin sees the same content the public website
+    // serves — the legacy careers_jobs.locale='en'/'zh' rows have been
+    // superseded by the translations table since migration 0023. When the
+    // translation is draft/stale/failed (not reviewed), the admin EN/ZH tab
+    // shows null and the operator uses the Sparkles dialog to manage it.
     const [en, vi, zh] = await Promise.all([
-      getCareersJob(data.slug, "en"),
+      getCareersJobForPublic(data.slug, "en"),
       getCareersJob(data.slug, "vi"),
-      getCareersJob(data.slug, "zh"),
+      getCareersJobForPublic(data.slug, "zh"),
     ]);
     return { slug: data.slug, variants: { en, vi, zh } };
   });

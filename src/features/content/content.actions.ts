@@ -54,9 +54,17 @@ export const listTestimonialsFn = createServerFn({ method: "GET" }).handler(asyn
 
 export const listContactLocationsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { requireSession } = await import("@/features/auth");
-  const { listContactLocations } = await import("@/features/content");
+  const { listContactLocationsForPublic } = await import("@/features/content");
   await requireSession("viewer");
-  return { locations: await listContactLocations() };
+  // VI rows + EN/ZH projected through contact_location_translations (status='reviewed').
+  // Admin EN/ZH tabs see the same content the public website serves; the legacy
+  // contact_locations.locale='en'/'zh' rows are no longer surfaced.
+  const [vi, en, zh] = await Promise.all([
+    listContactLocationsForPublic("vi"),
+    listContactLocationsForPublic("en"),
+    listContactLocationsForPublic("zh"),
+  ]);
+  return { locations: [...vi, ...en, ...zh] };
 });
 
 export const listIntegrationsFn = createServerFn({ method: "GET" }).handler(async () => {
