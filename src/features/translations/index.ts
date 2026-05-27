@@ -73,6 +73,16 @@ export {
   onHomepageBlockSourceChanged,
   type HomepageBlockTranslationRow,
 } from "./homepage-block.translation.service";
+export {
+  approveCareersJobTranslation,
+  deleteCareersJobTranslation,
+  editCareersJobTranslation,
+  listAllCareersJobTranslations,
+  listCareersJobTranslationsForId,
+  markCareersJobTranslationStale,
+  onCareersJobSourceChanged,
+  type CareersJobTranslationRow,
+} from "./careers-job.translation.service";
 export { autoTranslateMissingLocales } from "./translations.auto";
 export {
   insertAiTranslationLog,

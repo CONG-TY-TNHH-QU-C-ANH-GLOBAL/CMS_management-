@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import {
   translateFn,
+  type CareersJobTranslationRow,
   type FaqTranslationRow,
   type HomepageBlockTranslationRow,
   type ServiceBlockTranslationRow,
@@ -57,7 +58,8 @@ type AnyTranslationRow =
   | FaqTranslationRow
   | ServiceBlockTranslationRow
   | TestimonialTranslationRow
-  | HomepageBlockTranslationRow;
+  | HomepageBlockTranslationRow
+  | CareersJobTranslationRow;
 
 interface Props {
   open: boolean;
@@ -65,7 +67,7 @@ interface Props {
   /** Triggers parent loader invalidate so the source list refreshes status pills. */
   onChanged: () => void;
   /** What entity is being translated. Drives header label + translateFn payload. */
-  entityType: "faq" | "service_block" | "testimonial" | "homepage_block";
+  entityType: "faq" | "service_block" | "testimonial" | "homepage_block" | "careers_job";
   /** Source row ID (locale=vi row in the source table). */
   entityId: number;
   /** Friendly singular label for header copy ("FAQ", "Service block", …). */
