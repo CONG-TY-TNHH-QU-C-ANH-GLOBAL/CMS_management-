@@ -16,12 +16,13 @@ export const getPolicyDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { getPolicy } = await import("@/features/policies");
+    const { getPolicy, getPolicyForPublic } = await import("@/features/policies");
     await requireSession("viewer");
+    // EN/ZH read from policy_translations via ForPublic; VI stays canonical.
     const [en, vi, zh] = await Promise.all([
-      getPolicy(data.slug, "en"),
+      getPolicyForPublic(data.slug, "en"),
       getPolicy(data.slug, "vi"),
-      getPolicy(data.slug, "zh"),
+      getPolicyForPublic(data.slug, "zh"),
     ]);
     return { slug: data.slug, variants: { en, vi, zh } };
   });

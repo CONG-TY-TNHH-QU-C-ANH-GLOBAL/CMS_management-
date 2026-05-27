@@ -19,9 +19,17 @@ export const getBlogPostDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: z.string().min(1), locale: LOCALE }).parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { getBlogPost, getBlogSlides } = await import("@/features/blog");
+    const { getBlogPost, getBlogPostForPublic, getBlogSlides } = await import(
+      "@/features/blog"
+    );
     await requireSession("viewer");
-    const post = await getBlogPost(data.slug, data.locale);
+    // VI: read source. EN/ZH: read from blog_post_translations via ForPublic
+    // (migration 0024 + spec §7.1). Legacy blog_posts.locale='en'/'zh' rows
+    // are superseded once the translation row is reviewed.
+    const post =
+      data.locale === "vi"
+        ? await getBlogPost(data.slug, "vi")
+        : await getBlogPostForPublic(data.slug, data.locale);
     if (!post) return { post: null, slides: [] };
     const slides = await getBlogSlides(post.id);
     return { post, slides };

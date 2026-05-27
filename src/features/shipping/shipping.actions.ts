@@ -22,19 +22,28 @@ export const getShippingRouteDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { getShippingRoute, getShippingTables } = await import("@/features/shipping");
+    const { getShippingRoute, getShippingRouteForPublic, getShippingTables } = await import(
+      "@/features/shipping"
+    );
     const type = await import("@/features/shipping/shipping.service");
     type Row = Awaited<ReturnType<typeof type.getShippingTables>>;
     await requireSession("viewer");
+    // EN/ZH read from shipping_route_translations via ForPublic; VI stays
+    // canonical. Tables (nested shipping_route_tables) only have a single
+    // copy keyed to the VI source row — per-locale table translation is the
+    // deferred follow-up flagged in migration 0027.
     const [en, vi, zh] = await Promise.all([
-      getShippingRoute(data.slug, "en"),
+      getShippingRouteForPublic(data.slug, "en"),
       getShippingRoute(data.slug, "vi"),
-      getShippingRoute(data.slug, "zh"),
+      getShippingRouteForPublic(data.slug, "zh"),
     ]);
     const tables: { en: Row; vi: Row; zh: Row } = { en: [], vi: [], zh: [] };
-    if (en) tables.en = await getShippingTables(en.id);
-    if (vi) tables.vi = await getShippingTables(vi.id);
-    if (zh) tables.zh = await getShippingTables(zh.id);
+    if (vi) {
+      const viTables = await getShippingTables(vi.id);
+      tables.vi = viTables;
+      tables.en = viTables;
+      tables.zh = viTables;
+    }
     return { slug: data.slug, variants: { en, vi, zh }, tables };
   });
 
