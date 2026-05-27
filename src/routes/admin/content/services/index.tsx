@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin/content/services/")({
 function ServicesIndex() {
   const data = Route.useLoaderData();
   const services = data.services as ServiceWithI18n[];
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("vi");
 
   return (
     <PageContainer>

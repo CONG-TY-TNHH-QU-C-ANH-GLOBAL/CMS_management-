@@ -37,7 +37,7 @@ export const Route = createFileRoute("/admin/content/testimonials/")({
 function TestimonialsPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("vi");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<TestimonialRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<TestimonialRow | null>(null);

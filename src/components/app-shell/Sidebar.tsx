@@ -4,6 +4,7 @@ import {
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
   Plug, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
+  Layers,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -17,6 +18,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: "/admin/content/landing", icon: Home, label: "Trang chủ" },
       { to: "/admin/content/services", icon: Boxes, label: "Dịch vụ", matchPrefix: true },
+      { to: "/admin/content/service-blocks", icon: Layers, label: "Khối dịch vụ" },
       { to: "/admin/content/faqs", icon: HelpCircle, label: "Câu hỏi thường gặp" },
       { to: "/admin/content/testimonials", icon: MessageSquareQuote, label: "Đánh giá khách hàng" },
       { to: "/admin/content/marketplaces", icon: Plug, label: "Sàn thương mại" },
