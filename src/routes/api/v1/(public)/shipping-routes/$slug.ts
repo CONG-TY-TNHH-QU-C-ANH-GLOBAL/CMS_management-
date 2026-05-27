@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { isLocale } from "@/features/i18n";
-import { getShippingRoute, getShippingTables } from "@/features/shipping";
+import { getShippingRouteForPublic, getShippingTables } from "@/features/shipping";
 
 function parseJson<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/v1/(public)/shipping-routes/$slug")({
         const lang = url.searchParams.get("lang") ?? "en";
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const route = await getShippingRoute(params.slug, lang);
+        const route = await getShippingRouteForPublic(params.slug, lang);
         if (!route || route.status !== "live") {
           return corsError(request, 404, `No live shipping route "${params.slug}" in locale "${lang}"`);
         }

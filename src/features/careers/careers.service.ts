@@ -74,6 +74,83 @@ export async function getCareersJob(slug: string, locale: CareerLocale): Promise
   return result ?? null;
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Public-facing reads (spec §7.1 — JOIN careers_job_translations)
+// ────────────────────────────────────────────────────────────────────────
+// `listCareersJobsForPublic` / `getCareersJobForPublic` are the public API's
+// canonical readers. For VI they read straight from careers_jobs; for EN/ZH
+// they INNER JOIN careers_job_translations filtered by status='reviewed'.
+// Per spec §7.2 there is no cross-locale fallback — jobs without a reviewed
+// translation are omitted (landing's i18n.tsx static dictionary covers gaps).
+//
+// Admin reads keep using listCareersJobs / getCareersJob (which still hit the
+// legacy careers_jobs.locale rows) — operators edit translations through the
+// /admin/content/careers/$jobId Sparkles dialog, not the EN/ZH tabs.
+//
+// Translated columns (overridden from translation row):
+//   title, body_md, tagline, salary_note, experience, lead,
+//   responsibilities_json, requirements_json, benefits_json, bonuses_json
+// Non-translated columns (always from VI source):
+//   slug, position, category, hot, badge, location, employment_type,
+//   salary, salary_unit, deadline, status, posted_at
+
+export async function listCareersJobsForPublic(filter?: {
+  locale: CareerLocale;
+  status?: CareerStatus;
+  category?: string;
+}): Promise<CareersJobRow[]> {
+  if (!filter?.locale || filter.locale === "vi") {
+    return listCareersJobs({
+      locale: "vi",
+      status: filter?.status,
+      category: filter?.category,
+    });
+  }
+
+  const where: string[] = ["v.locale = 'vi'"];
+  const binds: unknown[] = [filter.locale, filter.locale];
+  if (filter.status) { where.push("v.status = ?"); binds.push(filter.status); }
+  if (filter.category) { where.push("v.category = ?"); binds.push(filter.category); }
+
+  const sql = `
+    SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
+           v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
+           v.status, v.posted_at,
+           t.title, t.body_md, t.tagline, t.salary_note, t.experience, t.lead,
+           t.responsibilities_json, t.requirements_json, t.benefits_json, t.bonuses_json
+      FROM careers_jobs v
+      JOIN careers_job_translations t
+        ON t.careers_job_id = v.id AND t.locale = ? AND t.status = 'reviewed'
+     WHERE ${where.join(" AND ")}
+     ORDER BY v.position, v.posted_at DESC
+  `;
+  const result = await getDb().prepare(sql).bind(...binds).all<CareersJobRow>();
+  return result.results ?? [];
+}
+
+export async function getCareersJobForPublic(
+  slug: string,
+  locale: CareerLocale,
+): Promise<CareersJobRow | null> {
+  if (locale === "vi") return getCareersJob(slug, "vi");
+
+  const result = await getDb()
+    .prepare(
+      `SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
+              v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
+              v.status, v.posted_at,
+              t.title, t.body_md, t.tagline, t.salary_note, t.experience, t.lead,
+              t.responsibilities_json, t.requirements_json, t.benefits_json, t.bonuses_json
+         FROM careers_jobs v
+         JOIN careers_job_translations t
+           ON t.careers_job_id = v.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE v.slug = ? AND v.locale = 'vi' LIMIT 1`,
+    )
+    .bind(locale, locale, slug)
+    .first<CareersJobRow>();
+  return result ?? null;
+}
+
 // Group jobs by slug — admin list view uses this to show all locale variants in one row.
 export async function listCareersJobsGrouped(): Promise<
   Array<{ slug: string; category: string | null; position: number; hot: number; updated_at: number; variants: CareersJobRow[] }>

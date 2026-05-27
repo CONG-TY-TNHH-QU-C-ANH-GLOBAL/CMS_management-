@@ -46,6 +46,46 @@ export async function getPolicy(slug: string, locale: PolicyLocale): Promise<Pol
   return result ?? null;
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Public-facing reads (spec §7.1 — JOIN policy_translations)
+// ────────────────────────────────────────────────────────────────────────
+// Translated columns: title, body_md, summary, text_blocks_json.
+// Non-translated: slug, version, icon, mode, position, image_list_json,
+// updated_at.
+
+export async function listPoliciesForPublic(filter?: { locale: PolicyLocale }): Promise<PolicyRow[]> {
+  if (!filter?.locale || filter.locale === "vi") return listPolicies({ locale: "vi" });
+
+  const sql = `
+    SELECT p.id, p.slug, ? AS locale, t.title, t.body_md, p.version, p.updated_at,
+           p.icon, p.mode, p.image_list_json, t.text_blocks_json, t.summary, p.position
+      FROM policies p
+      JOIN policy_translations t
+        ON t.policy_id = p.id AND t.locale = ? AND t.status = 'reviewed'
+     WHERE p.locale = 'vi'
+     ORDER BY p.position, p.slug
+  `;
+  const result = await getDb().prepare(sql).bind(filter.locale, filter.locale).all<PolicyRow>();
+  return result.results ?? [];
+}
+
+export async function getPolicyForPublic(slug: string, locale: PolicyLocale): Promise<PolicyRow | null> {
+  if (locale === "vi") return getPolicy(slug, "vi");
+
+  const result = await getDb()
+    .prepare(
+      `SELECT p.id, p.slug, ? AS locale, t.title, t.body_md, p.version, p.updated_at,
+              p.icon, p.mode, p.image_list_json, t.text_blocks_json, t.summary, p.position
+         FROM policies p
+         JOIN policy_translations t
+           ON t.policy_id = p.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE p.slug = ? AND p.locale = 'vi' LIMIT 1`,
+    )
+    .bind(locale, locale, slug)
+    .first<PolicyRow>();
+  return result ?? null;
+}
+
 // Group by slug → variants per locale (admin list view)
 export async function listPoliciesGrouped(): Promise<
   Array<{ slug: string; icon: string | null; position: number; updated_at: number; variants: PolicyRow[] }>

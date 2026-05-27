@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { getBlogPost, getBlogSlides } from "@/features/blog";
+import { getBlogPostForPublic, getBlogSlides } from "@/features/blog";
 import { isLocale } from "@/features/i18n";
 
 export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
         const lang = url.searchParams.get("lang") ?? "en";
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const post = await getBlogPost(params.slug, lang);
+        const post = await getBlogPostForPublic(params.slug, lang);
         if (!post) return corsError(request, 404, `No blog post with slug "${params.slug}" in locale "${lang}"`);
         if (post.status !== "live") {
           return corsError(request, 404, `Blog post "${params.slug}" not published`);
