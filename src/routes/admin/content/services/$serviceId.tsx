@@ -29,7 +29,7 @@ function ServiceDetail() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const service = data.service as ServiceWithI18n;
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("vi");
   const updateBase = useServerFn(updateServiceBaseFn);
 
   const i18n = service.i18n[locale];

@@ -32,7 +32,7 @@ const KIND_META = {
 function ContactPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("vi");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ContactLocationRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContactLocationRow | null>(null);
