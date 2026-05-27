@@ -79,9 +79,9 @@ export async function getBlogPost(slug: string, locale: BlogLocale): Promise<Blo
 // ────────────────────────────────────────────────────────────────────────
 // Public-facing reads (spec §7.1 — JOIN blog_post_translations)
 // ────────────────────────────────────────────────────────────────────────
-// For VI: read straight from blog_posts. For EN/ZH: JOIN blog_post_translations
-// filtered by status='reviewed'. Posts without reviewed translation are
-// omitted from the result (spec §7.2 — landing's i18n.tsx fills gaps).
+// Two-step resolver: VI-canonical (VI source + reviewed translation), then
+// legacy fallback for slugs without VI source or whose translation is
+// draft/stale/failed. Preserves data authored before the AI pipeline.
 //
 // Translated columns: title, excerpt, category, seo_title, seo_description
 // Non-translated: slug, thumbnail_*, published_date, status, og_image_id, etc.
@@ -94,11 +94,11 @@ export async function listBlogPostsForPublic(filter?: {
     return listBlogPosts({ locale: "vi", status: filter?.status });
   }
 
+  // Step 1 — VI-canonical
   const where: string[] = ["p.locale = 'vi'"];
   const binds: unknown[] = [filter.locale, filter.locale];
   if (filter.status) { where.push("p.status = ?"); binds.push(filter.status); }
-
-  const sql = `
+  const viBackedSql = `
     SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, p.thumbnail_media_id,
            m.r2_key AS thumbnail_url, t.category, p.published_date, p.status,
            t.seo_title, t.seo_description, p.og_image_id, p.author_id, p.updated_at,
@@ -110,8 +110,20 @@ export async function listBlogPostsForPublic(filter?: {
      WHERE ${where.join(" AND ")}
      ORDER BY p.published_date DESC NULLS LAST, p.updated_at DESC
   `;
-  const result = await getDb().prepare(sql).bind(...binds).all<BlogPostRow>();
-  return result.results ?? [];
+  const viBacked = await getDb().prepare(viBackedSql).bind(...binds).all<BlogPostRow>();
+  const viBackedRows = viBacked.results ?? [];
+  const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
+
+  // Step 2 — Legacy fallback
+  const legacyRows = await listBlogPosts({ locale: filter.locale, status: filter.status });
+  const fallback = legacyRows.filter((r) => !viBackedSlugs.has(r.slug));
+
+  return [...viBackedRows, ...fallback].sort((a, b) => {
+    const ad = a.published_date ?? "";
+    const bd = b.published_date ?? "";
+    if (ad !== bd) return bd.localeCompare(ad);
+    return b.updated_at - a.updated_at;
+  });
 }
 
 export async function getBlogPostForPublic(
@@ -120,7 +132,7 @@ export async function getBlogPostForPublic(
 ): Promise<BlogPostRow | null> {
   if (locale === "vi") return getBlogPost(slug, "vi");
 
-  const result = await getDb()
+  const viBacked = await getDb()
     .prepare(
       `SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, p.thumbnail_media_id,
               m.r2_key AS thumbnail_url, t.category, p.published_date, p.status,
@@ -134,7 +146,8 @@ export async function getBlogPostForPublic(
     )
     .bind(locale, locale, slug)
     .first<BlogPostRow>();
-  return result ?? null;
+  if (viBacked) return viBacked;
+  return getBlogPost(slug, locale);
 }
 
 export async function getBlogSlides(postId: number): Promise<BlogSlideRow[]> {

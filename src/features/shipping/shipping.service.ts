@@ -62,6 +62,20 @@ export async function getShippingRoute(slug: string, locale: ShippingLocale): Pr
 // Non-translated: slug, position, origin, destination, kind, status,
 // updated_at. Nested shipping_route_tables NOT yet translatable — those
 // are served from the per-locale route's tables until follow-up PR.
+//
+// LEGACY FALLBACK
+// ───────────────
+// Reads use a two-step resolver, returning the first non-empty path:
+//   1. VI-canonical: JOIN VI source row + shipping_route_translations
+//      filtered by status='reviewed'.
+//   2. Legacy fallback: read shipping_routes.locale=<requested> directly.
+// This preserves data for slugs that pre-date the AI-localization pipeline:
+//   - slugs whose VI source row never existed (EN-canonical historical data)
+//   - slugs whose VI status differs from the legacy locale row status
+//   - slugs whose translation is draft/stale (not yet reviewed) — operator
+//     sees old approved content until they re-approve through Sparkles
+// The fallback is a no-op for fully-migrated data (VI exists + translation
+// is reviewed), which is the steady-state goal. See spec §7.2.
 
 export async function listShippingRoutesForPublic(filter?: {
   locale: ShippingLocale;
@@ -71,11 +85,11 @@ export async function listShippingRoutesForPublic(filter?: {
     return listShippingRoutes({ locale: "vi", status: filter?.status });
   }
 
+  // Step 1 — VI-canonical: JOIN VI source + reviewed translation
   const where: string[] = ["v.locale = 'vi'"];
   const binds: unknown[] = [filter.locale, filter.locale];
   if (filter.status) { where.push("v.status = ?"); binds.push(filter.status); }
-
-  const sql = `
+  const viBackedSql = `
     SELECT v.id, v.slug, ? AS locale, v.position, t.title, v.origin, v.destination,
            v.kind, t.body_md, t.notes_json, v.status, v.updated_at
       FROM shipping_routes v
@@ -84,8 +98,25 @@ export async function listShippingRoutesForPublic(filter?: {
      WHERE ${where.join(" AND ")}
      ORDER BY v.position, v.slug
   `;
-  const result = await getDb().prepare(sql).bind(...binds).all<ShippingRouteRow>();
-  return result.results ?? [];
+  const viBacked = await getDb().prepare(viBackedSql).bind(...binds).all<ShippingRouteRow>();
+  const viBackedRows = viBacked.results ?? [];
+  const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
+
+  // Step 2 — Legacy fallback for slugs not produced by Step 1
+  const legacyWhere: string[] = ["sr.locale = ?"];
+  const legacyBinds: unknown[] = [filter.locale];
+  if (filter.status) { legacyWhere.push("sr.status = ?"); legacyBinds.push(filter.status); }
+  const legacySql = `
+    SELECT * FROM shipping_routes sr
+     WHERE ${legacyWhere.join(" AND ")}
+     ORDER BY sr.position, sr.slug
+  `;
+  const legacy = await getDb().prepare(legacySql).bind(...legacyBinds).all<ShippingRouteRow>();
+  const fallback = (legacy.results ?? []).filter((r) => !viBackedSlugs.has(r.slug));
+
+  return [...viBackedRows, ...fallback].sort(
+    (a, b) => a.position - b.position || a.slug.localeCompare(b.slug),
+  );
 }
 
 export async function getShippingRouteForPublic(
@@ -94,7 +125,7 @@ export async function getShippingRouteForPublic(
 ): Promise<ShippingRouteRow | null> {
   if (locale === "vi") return getShippingRoute(slug, "vi");
 
-  const result = await getDb()
+  const viBacked = await getDb()
     .prepare(
       `SELECT v.id, v.slug, ? AS locale, v.position, t.title, v.origin, v.destination,
               v.kind, t.body_md, t.notes_json, v.status, v.updated_at
@@ -105,7 +136,8 @@ export async function getShippingRouteForPublic(
     )
     .bind(locale, locale, slug)
     .first<ShippingRouteRow>();
-  return result ?? null;
+  if (viBacked) return viBacked;
+  return getShippingRoute(slug, locale);
 }
 
 export async function getShippingTables(routeId: number): Promise<ShippingTableRow[]> {

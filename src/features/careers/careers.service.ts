@@ -77,20 +77,16 @@ export async function getCareersJob(slug: string, locale: CareerLocale): Promise
 // ────────────────────────────────────────────────────────────────────────
 // Public-facing reads (spec §7.1 — JOIN careers_job_translations)
 // ────────────────────────────────────────────────────────────────────────
-// `listCareersJobsForPublic` / `getCareersJobForPublic` are the public API's
-// canonical readers. For VI they read straight from careers_jobs; for EN/ZH
-// they INNER JOIN careers_job_translations filtered by status='reviewed'.
-// Per spec §7.2 there is no cross-locale fallback — jobs without a reviewed
-// translation are omitted (landing's i18n.tsx static dictionary covers gaps).
-//
-// Admin reads keep using listCareersJobs / getCareersJob (which still hit the
-// legacy careers_jobs.locale rows) — operators edit translations through the
-// /admin/content/careers/$jobId Sparkles dialog, not the EN/ZH tabs.
-//
-// Translated columns (overridden from translation row):
+// Two-step resolver: prefer VI-canonical (VI source + reviewed translation),
+// fall back to legacy locale row when:
+//   - slug has no VI source row (legacy-only data from before migration 0023)
+//   - VI source exists but translation is draft/stale/failed (operator hasn't
+//     re-approved yet) — keep showing prior content instead of disappearing
+//   - VI source has different status than the published legacy locale row
+// Translated columns from translation row:
 //   title, body_md, tagline, salary_note, experience, lead,
 //   responsibilities_json, requirements_json, benefits_json, bonuses_json
-// Non-translated columns (always from VI source):
+// Non-translated columns from VI source (or legacy fallback):
 //   slug, position, category, hot, badge, location, employment_type,
 //   salary, salary_unit, deadline, status, posted_at
 
@@ -107,12 +103,12 @@ export async function listCareersJobsForPublic(filter?: {
     });
   }
 
+  // Step 1 — VI-canonical
   const where: string[] = ["v.locale = 'vi'"];
   const binds: unknown[] = [filter.locale, filter.locale];
   if (filter.status) { where.push("v.status = ?"); binds.push(filter.status); }
   if (filter.category) { where.push("v.category = ?"); binds.push(filter.category); }
-
-  const sql = `
+  const viBackedSql = `
     SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
            v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
            v.status, v.posted_at,
@@ -124,8 +120,24 @@ export async function listCareersJobsForPublic(filter?: {
      WHERE ${where.join(" AND ")}
      ORDER BY v.position, v.posted_at DESC
   `;
-  const result = await getDb().prepare(sql).bind(...binds).all<CareersJobRow>();
-  return result.results ?? [];
+  const viBacked = await getDb().prepare(viBackedSql).bind(...binds).all<CareersJobRow>();
+  const viBackedRows = viBacked.results ?? [];
+  const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
+
+  // Step 2 — Legacy fallback
+  const legacyWhere: string[] = ["sr.locale = ?"];
+  const legacyBinds: unknown[] = [filter.locale];
+  if (filter.status) { legacyWhere.push("sr.status = ?"); legacyBinds.push(filter.status); }
+  if (filter.category) { legacyWhere.push("sr.category = ?"); legacyBinds.push(filter.category); }
+  const legacy = await getDb()
+    .prepare(`SELECT * FROM careers_jobs sr WHERE ${legacyWhere.join(" AND ")} ORDER BY sr.position, sr.posted_at DESC`)
+    .bind(...legacyBinds)
+    .all<CareersJobRow>();
+  const fallback = (legacy.results ?? []).filter((r) => !viBackedSlugs.has(r.slug));
+
+  return [...viBackedRows, ...fallback].sort(
+    (a, b) => a.position - b.position || b.posted_at - a.posted_at,
+  );
 }
 
 export async function getCareersJobForPublic(
@@ -134,7 +146,7 @@ export async function getCareersJobForPublic(
 ): Promise<CareersJobRow | null> {
   if (locale === "vi") return getCareersJob(slug, "vi");
 
-  const result = await getDb()
+  const viBacked = await getDb()
     .prepare(
       `SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
               v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
@@ -148,7 +160,8 @@ export async function getCareersJobForPublic(
     )
     .bind(locale, locale, slug)
     .first<CareersJobRow>();
-  return result ?? null;
+  if (viBacked) return viBacked;
+  return getCareersJob(slug, locale);
 }
 
 // Group jobs by slug — admin list view uses this to show all locale variants in one row.
