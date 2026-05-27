@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { isLocale } from "@/features/i18n";
-import { getShippingRouteForPublic, getShippingTables } from "@/features/shipping";
+import { getShippingRouteForPublic, getShippingTablesForSlug } from "@/features/shipping";
 
 function parseJson<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -22,7 +22,9 @@ export const Route = createFileRoute("/api/v1/(public)/shipping-routes/$slug")({
         if (!route || route.status !== "live") {
           return corsError(request, 404, `No live shipping route "${params.slug}" in locale "${lang}"`);
         }
-        const tables = await getShippingTables(route.id);
+        // Resolve tables via (slug, locale) — route.id may be the VI source
+        // row's id (Step 1 path) which historically has no tables attached.
+        const tables = await getShippingTablesForSlug(params.slug, lang);
 
         return corsJson(request, {
           locale: lang,

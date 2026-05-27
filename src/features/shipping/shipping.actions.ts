@@ -22,28 +22,29 @@ export const getShippingRouteDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { getShippingRoute, getShippingRouteForPublic, getShippingTables } = await import(
-      "@/features/shipping"
-    );
+    const { getShippingRoute, getShippingRouteForPublic, getShippingTablesForSlug } =
+      await import("@/features/shipping");
     const type = await import("@/features/shipping/shipping.service");
     type Row = Awaited<ReturnType<typeof type.getShippingTables>>;
     await requireSession("viewer");
-    // EN/ZH read from shipping_route_translations via ForPublic; VI stays
-    // canonical. Tables (nested shipping_route_tables) only have a single
-    // copy keyed to the VI source row — per-locale table translation is the
-    // deferred follow-up flagged in migration 0027.
-    const [en, vi, zh] = await Promise.all([
+    // EN/ZH content reads from shipping_route_translations via ForPublic (with
+    // legacy fallback). VI content stays canonical. Tables (nested
+    // shipping_route_tables) are resolved via (slug, locale) directly because
+    // route.id from ForPublic may point at the VI source row id which has no
+    // tables hung off it — see getShippingTablesForSlug comment for details.
+    const [en, vi, zh, enTables, viTables, zhTables] = await Promise.all([
       getShippingRouteForPublic(data.slug, "en"),
       getShippingRoute(data.slug, "vi"),
       getShippingRouteForPublic(data.slug, "zh"),
+      getShippingTablesForSlug(data.slug, "en"),
+      getShippingTablesForSlug(data.slug, "vi"),
+      getShippingTablesForSlug(data.slug, "zh"),
     ]);
-    const tables: { en: Row; vi: Row; zh: Row } = { en: [], vi: [], zh: [] };
-    if (vi) {
-      const viTables = await getShippingTables(vi.id);
-      tables.vi = viTables;
-      tables.en = viTables;
-      tables.zh = viTables;
-    }
+    const tables: { en: Row; vi: Row; zh: Row } = {
+      en: enTables,
+      vi: viTables,
+      zh: zhTables,
+    };
     return { slug: data.slug, variants: { en, vi, zh }, tables };
   });
 
