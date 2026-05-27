@@ -1011,6 +1011,28 @@ export async function updateContactLocation(
     .bind(input.id)
     .first<ContactLocationRow>();
   await auditLog(actorId, "update", "contact_locations", input.id, before, after);
+
+  // AI-localization hook (Phase 8): on VI save with label/address touched,
+  // mark dependent translations stale + auto-create missing-locale drafts.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.label !== undefined || input.address !== undefined)
+  ) {
+    try {
+      const { onContactLocationSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
+      await onContactLocationSourceChanged(after.id, {
+        label: after.label,
+        address: after.address,
+      });
+      await autoTranslateMissingLocales(actorId, "contact_location", after.id);
+    } catch (err) {
+      console.error("[contact_locations] onContactLocationSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 

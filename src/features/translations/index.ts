@@ -93,6 +93,36 @@ export {
   onBlogPostSourceChanged,
   type BlogPostTranslationRow,
 } from "./blog-post.translation.service";
+export {
+  approvePolicyTranslation,
+  deletePolicyTranslation,
+  editPolicyTranslation,
+  listAllPolicyTranslations,
+  listPolicyTranslationsForId,
+  markPolicyTranslationStale,
+  onPolicySourceChanged,
+  type PolicyTranslationRow,
+} from "./policy.translation.service";
+export {
+  approveContactLocationTranslation,
+  deleteContactLocationTranslation,
+  editContactLocationTranslation,
+  listAllContactLocationTranslations,
+  listContactLocationTranslationsForId,
+  markContactLocationTranslationStale,
+  onContactLocationSourceChanged,
+  type ContactLocationTranslationRow,
+} from "./contact-location.translation.service";
+export {
+  approveShippingRouteTranslation,
+  deleteShippingRouteTranslation,
+  editShippingRouteTranslation,
+  listAllShippingRouteTranslations,
+  listShippingRouteTranslationsForId,
+  markShippingRouteTranslationStale,
+  onShippingRouteSourceChanged,
+  type ShippingRouteTranslationRow,
+} from "./shipping-route.translation.service";
 export { autoTranslateMissingLocales } from "./translations.auto";
 export {
   insertAiTranslationLog,

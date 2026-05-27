@@ -142,6 +142,31 @@ export async function upsertShippingRoute(
   }
   const after = await getShippingRoute(input.slug, input.locale);
   await auditLog(actorId, before ? "update" : "create", "shipping_routes", `${input.slug}:${input.locale}`, before, after);
+
+  // AI-localization hook (Phase 8): on VI save with title/body/notes touched,
+  // mark dependent translations stale + auto-create missing-locale drafts.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.title !== undefined ||
+      input.body_md !== undefined ||
+      input.notes !== undefined)
+  ) {
+    try {
+      const { onShippingRouteSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
+      await onShippingRouteSourceChanged(after.id, {
+        title: after.title,
+        body_md: after.body_md,
+        notes_json: after.notes_json,
+      });
+      await autoTranslateMissingLocales(actorId, "shipping_route", after.id);
+    } catch (err) {
+      console.error("[shipping_routes] onShippingRouteSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 

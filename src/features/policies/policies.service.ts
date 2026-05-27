@@ -128,6 +128,35 @@ export async function upsertPolicy(
   }
   const after = await getPolicy(input.slug, input.locale);
   await auditLog(actorId, before ? "update" : "create", "policies", `${input.slug}:${input.locale}`, before, after);
+
+  // AI-localization hook (Phase 8): on VI save with any translatable field
+  // touched, mark dependent translations stale + auto-create drafts for
+  // missing en/zh locales. Best-effort — translation infra failures do not
+  // block policy saves.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.title !== undefined ||
+      input.body_md !== undefined ||
+      input.summary !== undefined ||
+      input.text_blocks !== undefined)
+  ) {
+    try {
+      const { onPolicySourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
+      await onPolicySourceChanged(after.id, {
+        title: after.title,
+        body_md: after.body_md,
+        summary: after.summary,
+        text_blocks_json: after.text_blocks_json,
+      });
+      await autoTranslateMissingLocales(actorId, "policy", after.id);
+    } catch (err) {
+      console.error("[policies] onPolicySourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 
