@@ -10,6 +10,9 @@ export type { TestimonialTranslationRow } from "./testimonial.translation.servic
 export type { HomepageBlockTranslationRow } from "./homepage-block.translation.service";
 export type { CareersJobTranslationRow } from "./careers-job.translation.service";
 export type { BlogPostTranslationRow } from "./blog-post.translation.service";
+export type { PolicyTranslationRow } from "./policy.translation.service";
+export type { ContactLocationTranslationRow } from "./contact-location.translation.service";
+export type { ShippingRouteTranslationRow } from "./shipping-route.translation.service";
 export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
@@ -21,6 +24,9 @@ const ENTITY_TYPE = z.enum([
   "homepage_block",
   "careers_job",
   "blog_post",
+  "policy",
+  "contact_location",
+  "shipping_route",
 ]);
 
 const translateSchema = z.object({
@@ -599,6 +605,261 @@ export const markBlogPostTranslationStaleFn = createServerFn({ method: "POST" })
     const { markBlogPostTranslationStale } = await import("./blog-post.translation.service");
     const me = await requireSession("editor");
     const result = await markBlogPostTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 8: policy lifecycle RPC ───────────────
+
+export const listPolicyTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ policy_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listPolicyTranslationsForId } = await import("./policy.translation.service");
+    await requireSession("viewer");
+    return await listPolicyTranslationsForId(data.policy_id);
+  });
+
+export const listAllPolicyTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllPolicyTranslations } = await import("./policy.translation.service");
+    await requireSession("viewer");
+    return await listAllPolicyTranslations();
+  },
+);
+
+export const approvePolicyTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approvePolicyTranslation } = await import("./policy.translation.service");
+    const me = await requireSession("editor");
+    const result = await approvePolicyTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editPolicyTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().trim().min(1).max(2000),
+        body_md: z.string().max(50000),
+        summary: z.string().max(5000).nullable(),
+        text_blocks_json: z.string().max(50000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editPolicyTranslation } = await import("./policy.translation.service");
+    const me = await requireSession("editor");
+    const result = await editPolicyTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deletePolicyTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deletePolicyTranslation } = await import("./policy.translation.service");
+    const me = await requireSession("editor");
+    await deletePolicyTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markPolicyTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markPolicyTranslationStale } = await import("./policy.translation.service");
+    const me = await requireSession("editor");
+    const result = await markPolicyTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 8: contact_location lifecycle RPC ───────────────
+
+export const listContactLocationTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ contact_location_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listContactLocationTranslationsForId } = await import(
+      "./contact-location.translation.service"
+    );
+    await requireSession("viewer");
+    return await listContactLocationTranslationsForId(data.contact_location_id);
+  });
+
+export const listAllContactLocationTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllContactLocationTranslations } = await import(
+      "./contact-location.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllContactLocationTranslations();
+  },
+);
+
+export const approveContactLocationTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveContactLocationTranslation } = await import(
+      "./contact-location.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveContactLocationTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editContactLocationTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        label: z.string().trim().min(1).max(500),
+        address: z.string().max(2000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editContactLocationTranslation } = await import(
+      "./contact-location.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await editContactLocationTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteContactLocationTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteContactLocationTranslation } = await import(
+      "./contact-location.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteContactLocationTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markContactLocationTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markContactLocationTranslationStale } = await import(
+      "./contact-location.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markContactLocationTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 8: shipping_route lifecycle RPC ───────────────
+
+export const listShippingRouteTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ shipping_route_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listShippingRouteTranslationsForId } = await import(
+      "./shipping-route.translation.service"
+    );
+    await requireSession("viewer");
+    return await listShippingRouteTranslationsForId(data.shipping_route_id);
+  });
+
+export const listAllShippingRouteTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllShippingRouteTranslations } = await import(
+      "./shipping-route.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllShippingRouteTranslations();
+  },
+);
+
+export const approveShippingRouteTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveShippingRouteTranslation } = await import(
+      "./shipping-route.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveShippingRouteTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editShippingRouteTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().trim().min(1).max(2000),
+        body_md: z.string().max(50000).nullable(),
+        notes_json: z.string().max(20000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editShippingRouteTranslation } = await import(
+      "./shipping-route.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await editShippingRouteTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteShippingRouteTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteShippingRouteTranslation } = await import(
+      "./shipping-route.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteShippingRouteTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markShippingRouteTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markShippingRouteTranslationStale } = await import(
+      "./shipping-route.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markShippingRouteTranslationStale(me.id, data.id);
     await bumpCmsRev();
     return result;
   });

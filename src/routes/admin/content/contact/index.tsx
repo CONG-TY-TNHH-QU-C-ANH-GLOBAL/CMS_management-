@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Building2, Edit3, Globe, Mail, MapPin, Phone, Plus, Trash2, Warehouse } from "lucide-react";
+import { Building2, Edit3, Globe, Mail, MapPin, Phone, Plus, Sparkles, Trash2, Warehouse } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +14,18 @@ import {
   listContactLocationsFn,
   type ContactLocationRow,
 } from "@/features/content/content.actions";
+import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
+import {
+  approveContactLocationTranslationFn,
+  deleteContactLocationTranslationFn,
+  editContactLocationTranslationFn,
+  listContactLocationTranslationsFn,
+} from "@/features/translations/translations.actions";
+
+const CONTACT_LOCATION_FIELDS = [
+  { key: "label", label: "Label", rows: 2 },
+  { key: "address", label: "Address", rows: 3 },
+] as const;
 
 export const Route = createFileRoute("/admin/content/contact/")({
   head: () => ({ meta: [{ title: "Liên hệ — THG Content OS" }] }),
@@ -36,6 +48,7 @@ function ContactPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ContactLocationRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContactLocationRow | null>(null);
+  const [reviewing, setReviewing] = useState<ContactLocationRow | null>(null);
   const del = useServerFn(deleteContactLocationFn);
 
   const filtered = useMemo(
@@ -102,6 +115,15 @@ function ContactPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                      {locale === "vi" ? (
+                        <button
+                          onClick={() => setReviewing(c)}
+                          className="grid place-items-center w-7 h-7 rounded-md border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          title="AI Translate (EN + ZH)"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => {
                           setEditingRow(c);
@@ -165,6 +187,29 @@ function ContactPage() {
         confirmLabel="Xóa"
         destructive
       />
+
+      {reviewing ? (
+        <TranslationReviewDialog
+          open={reviewing !== null}
+          onOpenChange={(o) => !o && setReviewing(null)}
+          onChanged={() => router.invalidate()}
+          entityType="contact_location"
+          entityId={reviewing.id}
+          entityLabel="Contact location"
+          source={{
+            label: reviewing.label,
+            address: reviewing.address ?? "",
+          }}
+          fields={CONTACT_LOCATION_FIELDS}
+          rpcs={{
+            list: listContactLocationTranslationsFn,
+            approve: approveContactLocationTranslationFn,
+            edit: editContactLocationTranslationFn,
+            delete: deleteContactLocationTranslationFn,
+          }}
+          listIdKey="contact_location_id"
+        />
+      ) : null}
     </>
   );
 }

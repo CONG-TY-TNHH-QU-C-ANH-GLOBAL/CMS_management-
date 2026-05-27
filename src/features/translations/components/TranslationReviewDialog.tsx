@@ -20,9 +20,12 @@ import {
   translateFn,
   type BlogPostTranslationRow,
   type CareersJobTranslationRow,
+  type ContactLocationTranslationRow,
   type FaqTranslationRow,
   type HomepageBlockTranslationRow,
+  type PolicyTranslationRow,
   type ServiceBlockTranslationRow,
+  type ShippingRouteTranslationRow,
   type TestimonialTranslationRow,
 } from "@/features/translations/translations.actions";
 
@@ -61,7 +64,10 @@ type AnyTranslationRow =
   | TestimonialTranslationRow
   | HomepageBlockTranslationRow
   | CareersJobTranslationRow
-  | BlogPostTranslationRow;
+  | BlogPostTranslationRow
+  | PolicyTranslationRow
+  | ContactLocationTranslationRow
+  | ShippingRouteTranslationRow;
 
 interface Props {
   open: boolean;
@@ -75,7 +81,10 @@ interface Props {
     | "testimonial"
     | "homepage_block"
     | "careers_job"
-    | "blog_post";
+    | "blog_post"
+    | "policy"
+    | "contact_location"
+    | "shipping_route";
   /** Source row ID (locale=vi row in the source table). */
   entityId: number;
   /** Friendly singular label for header copy ("FAQ", "Service block", …). */

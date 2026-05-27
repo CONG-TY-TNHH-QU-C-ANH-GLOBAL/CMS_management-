@@ -34,6 +34,9 @@ const FK_BY_ENTITY: Record<TranslateEntityType, { table: string; fk: string }> =
   homepage_block: { table: "homepage_block_translations", fk: "homepage_block_id" },
   careers_job: { table: "careers_job_translations", fk: "careers_job_id" },
   blog_post: { table: "blog_post_translations", fk: "blog_post_id" },
+  policy: { table: "policy_translations", fk: "policy_id" },
+  contact_location: { table: "contact_location_translations", fk: "contact_location_id" },
+  shipping_route: { table: "shipping_route_translations", fk: "shipping_route_id" },
 };
 
 /** For locales that have no translation row yet, fire translate() to

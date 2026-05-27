@@ -24,7 +24,10 @@ export type TranslateEntityType =
   | "testimonial"
   | "homepage_block"
   | "careers_job"
-  | "blog_post";
+  | "blog_post"
+  | "policy"
+  | "contact_location"
+  | "shipping_route";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -114,6 +117,24 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     sourceFkColumn: "blog_post_id",
     sourceTable: "blog_posts",
     fieldColumns: ["title", "excerpt", "category", "seo_title", "seo_description"],
+  },
+  policy: {
+    translationsTable: "policy_translations",
+    sourceFkColumn: "policy_id",
+    sourceTable: "policies",
+    fieldColumns: ["title", "body_md", "summary", "text_blocks_json"],
+  },
+  contact_location: {
+    translationsTable: "contact_location_translations",
+    sourceFkColumn: "contact_location_id",
+    sourceTable: "contact_locations",
+    fieldColumns: ["label", "address"],
+  },
+  shipping_route: {
+    translationsTable: "shipping_route_translations",
+    sourceFkColumn: "shipping_route_id",
+    sourceTable: "shipping_routes",
+    fieldColumns: ["title", "body_md", "notes_json"],
   },
 };
 
