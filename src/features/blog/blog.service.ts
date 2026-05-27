@@ -175,6 +175,36 @@ export async function upsertBlogPost(
   }
   const after = await getBlogPost(input.slug, input.locale);
   await auditLog(actorId, before ? "update" : "create", "blog_posts", `${input.slug}:${input.locale}`, before, after);
+
+  // AI-localization hook (Phase 8): on VI save with any translatable field
+  // touched, recompute source hash → mark dependent translations stale; then
+  // auto-create drafts for any en/zh locale missing a row. Best-effort.
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.title !== undefined ||
+      input.excerpt !== undefined ||
+      input.category !== undefined ||
+      input.seo_title !== undefined ||
+      input.seo_description !== undefined)
+  ) {
+    try {
+      const { onBlogPostSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
+      await onBlogPostSourceChanged(after.id, {
+        title: after.title,
+        excerpt: after.excerpt,
+        category: after.category,
+        seo_title: after.seo_title,
+        seo_description: after.seo_description,
+      });
+      await autoTranslateMissingLocales(actorId, "blog_post", after.id);
+    } catch (err) {
+      console.error("[blog_posts] onBlogPostSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 

@@ -14,7 +14,8 @@ export type TranslationTable =
   | "service_block_translations"
   | "testimonial_translations"
   | "homepage_block_translations"
-  | "careers_job_translations";
+  | "careers_job_translations"
+  | "blog_post_translations";
 
 export type TransitionEvent =
   | { kind: "ai_completed" }

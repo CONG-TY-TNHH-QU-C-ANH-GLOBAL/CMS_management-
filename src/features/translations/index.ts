@@ -83,6 +83,16 @@ export {
   onCareersJobSourceChanged,
   type CareersJobTranslationRow,
 } from "./careers-job.translation.service";
+export {
+  approveBlogPostTranslation,
+  deleteBlogPostTranslation,
+  editBlogPostTranslation,
+  listAllBlogPostTranslations,
+  listBlogPostTranslationsForId,
+  markBlogPostTranslationStale,
+  onBlogPostSourceChanged,
+  type BlogPostTranslationRow,
+} from "./blog-post.translation.service";
 export { autoTranslateMissingLocales } from "./translations.auto";
 export {
   insertAiTranslationLog,
