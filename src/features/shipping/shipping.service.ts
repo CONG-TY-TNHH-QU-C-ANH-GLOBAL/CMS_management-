@@ -148,6 +148,48 @@ export async function getShippingTables(routeId: number): Promise<ShippingTableR
   return result.results ?? [];
 }
 
+/** Load tables by (slug, locale) directly. shipping_route_tables is keyed
+ *  by route_id, which historically points at the per-locale legacy row
+ *  (not the VI source). After we shifted the public reader to a VI-backed
+ *  JOIN, route.id became vi.id for matched rows — getShippingTables(vi.id)
+ *  then returned [] because no tables were ever hung off the VI row. This
+ *  helper sidesteps that mismatch by resolving through (slug, locale).
+ *  Falls back to VI source's tables when the requested locale row doesn't
+ *  exist (e.g., VI-only data, or after operator deletes a legacy row). */
+export async function getShippingTablesForSlug(
+  slug: string,
+  locale: ShippingLocale,
+): Promise<ShippingTableRow[]> {
+  const result = await getDb()
+    .prepare(
+      `SELECT srt.* FROM shipping_route_tables srt
+         JOIN shipping_routes sr ON sr.id = srt.route_id
+        WHERE sr.slug = ? AND sr.locale = ?
+        ORDER BY srt.position`,
+    )
+    .bind(slug, locale)
+    .all<ShippingTableRow>();
+  if ((result.results ?? []).length > 0) return result.results ?? [];
+
+  // No tables found for the requested locale — fall back to whichever
+  // locale has tables (preference: vi, then en, then zh). Preserves the
+  // pre-migration behavior where any one locale's tables would render.
+  for (const fallbackLocale of ["vi", "en", "zh"] as const) {
+    if (fallbackLocale === locale) continue;
+    const fb = await getDb()
+      .prepare(
+        `SELECT srt.* FROM shipping_route_tables srt
+           JOIN shipping_routes sr ON sr.id = srt.route_id
+          WHERE sr.slug = ? AND sr.locale = ?
+          ORDER BY srt.position`,
+      )
+      .bind(slug, fallbackLocale)
+      .all<ShippingTableRow>();
+    if ((fb.results ?? []).length > 0) return fb.results ?? [];
+  }
+  return [];
+}
+
 export async function listShippingRoutesGrouped(): Promise<
   Array<{ slug: string; position: number; kind: string | null; updated_at: number; variants: ShippingRouteRow[] }>
 > {
