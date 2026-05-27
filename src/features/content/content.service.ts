@@ -914,6 +914,8 @@ export async function listContactLocations(): Promise<ContactLocationRow[]> {
 // ────────────────────────────────────────────────────────────────────────
 // Public-facing read for contact locations (spec §7.1 — JOIN translations)
 // ────────────────────────────────────────────────────────────────────────
+// Two-step resolver: VI-canonical, then legacy fallback. Locations are keyed
+// by (position, kind) so the de-dup is composite, not slug-based.
 // Translated columns: label, address.
 // Non-translated: position, kind, phone, url, lang_class (all global).
 
@@ -928,7 +930,8 @@ export async function listContactLocationsForPublic(locale: Locale): Promise<Con
     return result.results ?? [];
   }
 
-  const result = await getDb()
+  // Step 1 — VI-canonical
+  const viBacked = await getDb()
     .prepare(
       `SELECT v.id, v.position, v.kind, ? AS locale, t.label, t.address,
               v.phone, v.url, v.lang_class
@@ -940,7 +943,23 @@ export async function listContactLocationsForPublic(locale: Locale): Promise<Con
     )
     .bind(locale, locale)
     .all<ContactLocationRow>();
-  return result.results ?? [];
+  const viBackedRows = viBacked.results ?? [];
+  const viBackedKeys = new Set(viBackedRows.map((r) => `${r.position}|${r.kind}`));
+
+  // Step 2 — Legacy fallback: rows in requested locale whose (position, kind)
+  // pair is not already covered by Step 1.
+  const legacy = await getDb()
+    .prepare(
+      `SELECT id, position, kind, locale, label, address, phone, url, lang_class
+         FROM contact_locations WHERE locale = ? ORDER BY position`,
+    )
+    .bind(locale)
+    .all<ContactLocationRow>();
+  const fallback = (legacy.results ?? []).filter(
+    (r) => !viBackedKeys.has(`${r.position}|${r.kind}`),
+  );
+
+  return [...viBackedRows, ...fallback].sort((a, b) => a.position - b.position);
 }
 
 export async function createContactLocation(

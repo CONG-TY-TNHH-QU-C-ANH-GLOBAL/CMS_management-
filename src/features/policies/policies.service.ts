@@ -49,6 +49,8 @@ export async function getPolicy(slug: string, locale: PolicyLocale): Promise<Pol
 // ────────────────────────────────────────────────────────────────────────
 // Public-facing reads (spec §7.1 — JOIN policy_translations)
 // ────────────────────────────────────────────────────────────────────────
+// Two-step resolver: VI-canonical, then legacy fallback. Preserves data
+// for slugs predating the AI pipeline.
 // Translated columns: title, body_md, summary, text_blocks_json.
 // Non-translated: slug, version, icon, mode, position, image_list_json,
 // updated_at.
@@ -56,7 +58,7 @@ export async function getPolicy(slug: string, locale: PolicyLocale): Promise<Pol
 export async function listPoliciesForPublic(filter?: { locale: PolicyLocale }): Promise<PolicyRow[]> {
   if (!filter?.locale || filter.locale === "vi") return listPolicies({ locale: "vi" });
 
-  const sql = `
+  const viBackedSql = `
     SELECT p.id, p.slug, ? AS locale, t.title, t.body_md, p.version, p.updated_at,
            p.icon, p.mode, p.image_list_json, t.text_blocks_json, t.summary, p.position
       FROM policies p
@@ -65,14 +67,22 @@ export async function listPoliciesForPublic(filter?: { locale: PolicyLocale }): 
      WHERE p.locale = 'vi'
      ORDER BY p.position, p.slug
   `;
-  const result = await getDb().prepare(sql).bind(filter.locale, filter.locale).all<PolicyRow>();
-  return result.results ?? [];
+  const viBacked = await getDb().prepare(viBackedSql).bind(filter.locale, filter.locale).all<PolicyRow>();
+  const viBackedRows = viBacked.results ?? [];
+  const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
+
+  const legacyRows = await listPolicies({ locale: filter.locale });
+  const fallback = legacyRows.filter((r) => !viBackedSlugs.has(r.slug));
+
+  return [...viBackedRows, ...fallback].sort(
+    (a, b) => a.position - b.position || a.slug.localeCompare(b.slug),
+  );
 }
 
 export async function getPolicyForPublic(slug: string, locale: PolicyLocale): Promise<PolicyRow | null> {
   if (locale === "vi") return getPolicy(slug, "vi");
 
-  const result = await getDb()
+  const viBacked = await getDb()
     .prepare(
       `SELECT p.id, p.slug, ? AS locale, t.title, t.body_md, p.version, p.updated_at,
               p.icon, p.mode, p.image_list_json, t.text_blocks_json, t.summary, p.position
@@ -83,7 +93,8 @@ export async function getPolicyForPublic(slug: string, locale: PolicyLocale): Pr
     )
     .bind(locale, locale, slug)
     .first<PolicyRow>();
-  return result ?? null;
+  if (viBacked) return viBacked;
+  return getPolicy(slug, locale);
 }
 
 // Group by slug → variants per locale (admin list view)
