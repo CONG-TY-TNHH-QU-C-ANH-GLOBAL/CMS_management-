@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { getClientIp, rateLimit } from "@/core/middlewares/rate-limit";
 import {
   OAUTH_REDIRECT_COOKIE,
   OAUTH_STATE_COOKIE,
@@ -9,6 +10,11 @@ import {
   issueSession,
   upsertGoogleUser,
 } from "@/features/auth";
+
+// H3 — per-IP rate limit on OAuth callback. Same envelope as the start
+// endpoint: 10 req/60s/IP. This bounds replay attempts and code-exchange
+// brute force; legitimate users only hit this endpoint once per login.
+const OAUTH_CALLBACK_RATE_LIMIT = { max: 10, windowSeconds: 60 };
 
 function getCookie(cookieHeader: string | null, name: string): string {
   if (!cookieHeader) return "";
@@ -38,6 +44,18 @@ export const Route = createFileRoute("/api/auth/google/callback")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const ip = getClientIp(request);
+        const limit = await rateLimit("oauth-callback", ip, OAUTH_CALLBACK_RATE_LIMIT);
+        if (!limit.allowed) {
+          return new Response("Too many callback attempts. Try again shortly.", {
+            status: 429,
+            headers: {
+              "content-type": "text/plain; charset=utf-8",
+              "retry-after": String(Math.max(1, limit.resetAt - Math.floor(Date.now() / 1000))),
+            },
+          });
+        }
+
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
         const state = url.searchParams.get("state");

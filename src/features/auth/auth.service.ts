@@ -1,6 +1,7 @@
 import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 
 import { getDb, nowSeconds } from "@/core/db/client";
+import { requireSafeOrigin } from "@/core/middlewares/csrf";
 import { type GoogleUserInfo } from "./auth.google";
 import {
   type ActiveSession,
@@ -8,6 +9,7 @@ import {
   type SessionUser,
   buildSessionCookie,
   createSession,
+  destroySession,
   getSession,
   hasRole,
   parseSessionCookie,
@@ -39,6 +41,25 @@ export async function readCurrentSession(): Promise<ActiveSession | null> {
   const session = await getSession(sid);
   if (!session) return null;
 
+  // H2 — User-Agent binding. Sessions table records the User-Agent at
+  // creation time; we destroy the session if the cookie is reused from a
+  // different browser (the canonical XSS-exfiltration signature).
+  //
+  // Hard binding ONLY on UA — we deliberately do NOT bind on IP because
+  // mobile/4G admins legitimately change IP within a single session. The
+  // UA check catches the most common cookie-theft vector (attacker on a
+  // different browser/headless tool) with minimal UX disruption.
+  //
+  // Legacy sessions created before H2 have userAgent=null in DB — we skip
+  // the check for those (the column was nullable from day one). New
+  // sessions issued post-H2 will always have userAgent populated.
+  const currentUA = getRequest().headers.get("user-agent");
+  if (session.userAgent && currentUA && session.userAgent !== currentUA) {
+    // Mismatch → destroy session defensively, force re-login.
+    await destroySession(sid);
+    return null;
+  }
+
   const refresh = await refreshSessionIfNeeded(session);
   if (refresh.refreshed) {
     setResponseHeader(
@@ -50,6 +71,13 @@ export async function readCurrentSession(): Promise<ActiveSession | null> {
 }
 
 export async function requireSession(minRole: Role = "viewer"): Promise<SessionUser> {
+  // H4 — CSRF: validate Origin/Referer host == BASE_URL host on state-
+  // changing methods. requireSafeOrigin() is a no-op for GET/HEAD/OPTIONS,
+  // so listing endpoints that call requireSession see no behavior change.
+  // Mutations (POST/PUT/DELETE) that call requireSession get CSRF defense
+  // for free — no per-handler wiring required.
+  requireSafeOrigin();
+
   const session = await readCurrentSession();
   if (!session) {
     throw Object.assign(new Error("Unauthorized"), { statusCode: 401, code: "UNAUTHORIZED" });

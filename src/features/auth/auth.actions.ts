@@ -5,6 +5,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
 
+import { requireSafeOrigin } from "@/core/middlewares/csrf";
+
 export const meFn = createServerFn({ method: "GET" }).handler(async () => {
   const { readCurrentSession } = await import("@/features/auth");
   const session = await readCurrentSession();
@@ -12,6 +14,7 @@ export const meFn = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
+  requireSafeOrigin(); // H4 — CSRF: reject if Origin/Referer ≠ BASE_URL host
   const {
     isProduction,
     getCookieHeader,

@@ -1,8 +1,14 @@
 import { getDb, nowSeconds } from "@/core/db/client";
 
 export const SESSION_COOKIE = "thg_sid";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
-const SESSION_REFRESH_THRESHOLD = 60 * 60 * 24 * 7; // refresh if <7d remaining
+// Session lifetime + sliding refresh.
+//   - TTL: 24h. Active users refresh on activity (see SESSION_REFRESH_THRESHOLD)
+//     so they never see expiry mid-task. Inactive users get pushed to login
+//     after 24h.
+//   - Threshold must be < TTL — otherwise refresh fires on every request and
+//     writes to D1 unnecessarily. 25% of TTL = 6h remaining triggers refresh.
+const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h (was 30d — reduced per H1)
+const SESSION_REFRESH_THRESHOLD = Math.floor(SESSION_TTL_SECONDS / 4); // refresh when <25% TTL remaining
 
 export type Role = "admin" | "editor" | "viewer";
 
@@ -18,6 +24,10 @@ export interface ActiveSession {
   sessionId: string;
   user: SessionUser;
   expiresAt: number;
+  /** User-Agent recorded at session creation. Used by readCurrentSession to
+   *  detect cookie-exfiltration (attacker reusing stolen cookie from a
+   *  different browser). Nullable for legacy sessions issued before H2. */
+  userAgent: string | null;
 }
 
 function generateSessionId(): string {
@@ -54,7 +64,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
 
   const row = await getDb()
     .prepare(
-      `SELECT s.id AS session_id, s.expires_at,
+      `SELECT s.id AS session_id, s.expires_at, s.user_agent,
               u.id AS user_id, u.email, u.name, u.role, u.status, u.picture_url
          FROM sessions s
          JOIN users u ON u.id = s.user_id
@@ -65,6 +75,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
     .first<{
       session_id: string;
       expires_at: number;
+      user_agent: string | null;
       user_id: number;
       email: string;
       name: string;
@@ -78,6 +89,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
   return {
     sessionId: row.session_id,
     expiresAt: row.expires_at,
+    userAgent: row.user_agent,
     user: {
       id: row.user_id,
       email: row.email,
