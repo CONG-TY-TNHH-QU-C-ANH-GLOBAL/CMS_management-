@@ -18,7 +18,12 @@ import { buildPrompt, PROMPT_VERSION_V1 } from "./translations.prompt";
 import { computeCostUsd, defaultModelForEntity, type SupportedModel } from "./translations.pricing";
 import { hasAllExpectedFields, passesStructuralChecks } from "./translations.structural";
 
-export type TranslateEntityType = "faq" | "service_block" | "testimonial" | "homepage_block";
+export type TranslateEntityType =
+  | "faq"
+  | "service_block"
+  | "testimonial"
+  | "homepage_block"
+  | "careers_job";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -40,6 +45,12 @@ interface EntityConfig {
    *  drives the SQL field list in INSERT/UPDATE/SELECT and the JSON
    *  payload shape sent to OpenAI. */
   fieldColumns: readonly string[];
+  /** Per-column placeholder used when inserting failed-stub rows OR when a
+   *  successful translate response is missing this column. Defaults to ""
+   *  for any column not listed. Must match the column's NOT NULL DEFAULT in
+   *  the migration so failed-stub inserts don't violate constraints (e.g.
+   *  `requirements_json` defaults to '[]' on careers_job_translations). */
+  placeholders?: Readonly<Record<string, string>>;
 }
 
 const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
@@ -54,6 +65,7 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     sourceFkColumn: "service_block_id",
     sourceTable: "service_blocks",
     fieldColumns: ["title", "description", "payload_json"],
+    placeholders: { payload_json: "{}" },
   },
   testimonial: {
     translationsTable: "testimonial_translations",
@@ -66,6 +78,35 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     sourceFkColumn: "homepage_block_id",
     sourceTable: "homepage_blocks",
     fieldColumns: ["payload_json"],
+    placeholders: { payload_json: "{}" },
+  },
+  careers_job: {
+    translationsTable: "careers_job_translations",
+    sourceFkColumn: "careers_job_id",
+    sourceTable: "careers_jobs",
+    // Order chosen so structural validation runs cheap text checks first
+    // before parsing the heavier JSON columns. Matches the column order
+    // in the migration 0023 backfill.
+    fieldColumns: [
+      "title",
+      "body_md",
+      "tagline",
+      "salary_note",
+      "experience",
+      "lead",
+      "responsibilities_json",
+      "requirements_json",
+      "benefits_json",
+      "bonuses_json",
+    ],
+    placeholders: {
+      // Must match the NOT NULL DEFAULTs in migration 0023, or failed-stub
+      // INSERTs (acquireDraftLocks pre-create) would violate the constraint.
+      responsibilities_json: "{}",
+      requirements_json: "[]",
+      benefits_json: "[]",
+      bonuses_json: "[]",
+    },
   },
 };
 
@@ -124,10 +165,10 @@ async function acquireDraftLocks(
   const result: LockResult = { reusable: [], inFlight: [], toTranslate: [] };
 
   // Placeholder columns for the failed-stub INSERT. Most field columns are
-  // TEXT and accept '' as a safe placeholder; payload_json columns expect
-  // valid JSON so we hand them '{}'.
-  const placeholderValues = cfg.fieldColumns.map((col) =>
-    col === "payload_json" ? "{}" : "",
+  // TEXT and accept '' as a safe placeholder; JSON columns need a valid JSON
+  // literal (e.g. '{}' for objects, '[]' for arrays). See cfg.placeholders.
+  const placeholderValues = cfg.fieldColumns.map(
+    (col) => cfg.placeholders?.[col] ?? "",
   );
   const fieldList = cfg.fieldColumns.join(", ");
   const fieldPlaceholders = cfg.fieldColumns.map(() => "?").join(", ");
@@ -221,10 +262,11 @@ async function upsertTranslation(input: UpsertInput): Promise<number> {
   const cfg = ENTITY_CONFIG[input.entityType];
   const now = Math.floor(Date.now() / 1000);
 
-  // Pull translated field values in cfg.fieldColumns order. Empty strings on
-  // failed (when fields is null) — keeps the placeholder row intact.
-  const fieldValues = cfg.fieldColumns.map((col) =>
-    input.fields?.[col] ?? (col === "payload_json" ? "{}" : ""),
+  // Pull translated field values in cfg.fieldColumns order. Falls back to
+  // the per-column placeholder (matches NOT NULL DEFAULTs in the migration)
+  // when a field is missing — keeps the placeholder row intact on failure.
+  const fieldValues = cfg.fieldColumns.map(
+    (col) => input.fields?.[col] ?? cfg.placeholders?.[col] ?? "",
   );
 
   const existing = await getDb()

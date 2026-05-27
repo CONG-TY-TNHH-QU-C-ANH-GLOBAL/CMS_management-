@@ -198,6 +198,49 @@ export async function upsertCareersJob(
   }
   const after = await getCareersJob(input.slug, input.locale);
   await auditLog(actorId, before ? "update" : "create", "careers_jobs", `${input.slug}:${input.locale}`, before, after);
+
+  // AI-localization hook (Phase 8): when the VI source row is saved with any
+  // translatable field touched, recompute the source hash, mark stale any
+  // dependent translations whose hash drifted, and auto-create drafts for
+  // any en/zh locale that has no row yet. Best-effort — translation infra
+  // failures do not block careers saves. See spec §3.3 + Rule 35 (no auto-
+  // re-translate of existing translations; operator decides via 🤖 modal).
+  if (
+    after &&
+    after.locale === "vi" &&
+    (input.title !== undefined ||
+      input.body_md !== undefined ||
+      input.tagline !== undefined ||
+      input.salary_note !== undefined ||
+      input.experience !== undefined ||
+      input.lead !== undefined ||
+      input.responsibilities !== undefined ||
+      input.requirements !== undefined ||
+      input.benefits !== undefined ||
+      input.bonuses !== undefined)
+  ) {
+    try {
+      const { onCareersJobSourceChanged, autoTranslateMissingLocales } = await import(
+        "@/features/translations"
+      );
+      await onCareersJobSourceChanged(after.id, {
+        title: after.title,
+        body_md: after.body_md,
+        tagline: after.tagline,
+        salary_note: after.salary_note,
+        experience: after.experience,
+        lead: after.lead,
+        responsibilities_json: after.responsibilities_json ?? "{}",
+        requirements_json: after.requirements_json ?? "[]",
+        benefits_json: after.benefits_json ?? "[]",
+        bonuses_json: after.bonuses_json ?? "[]",
+      });
+      await autoTranslateMissingLocales(actorId, "careers_job", after.id);
+    } catch (err) {
+      console.error("[careers_jobs] onCareersJobSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 

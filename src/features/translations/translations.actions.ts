@@ -8,11 +8,18 @@ export type { FaqTranslationRow } from "./faq.translation.service";
 export type { ServiceBlockTranslationRow } from "./service-block.translation.service";
 export type { TestimonialTranslationRow } from "./testimonial.translation.service";
 export type { HomepageBlockTranslationRow } from "./homepage-block.translation.service";
+export type { CareersJobTranslationRow } from "./careers-job.translation.service";
 export type { AiTranslationLogRow } from "./translations.log.service";
 
 const ID = z.number().int().positive();
 const TARGET_LOCALE = z.enum(["en", "zh"]);
-const ENTITY_TYPE = z.enum(["faq", "service_block", "testimonial", "homepage_block"]);
+const ENTITY_TYPE = z.enum([
+  "faq",
+  "service_block",
+  "testimonial",
+  "homepage_block",
+  "careers_job",
+]);
 
 const translateSchema = z.object({
   entity_type: ENTITY_TYPE,
@@ -415,6 +422,100 @@ export const markHomepageBlockTranslationStaleFn = createServerFn({ method: "POS
     );
     const me = await requireSession("editor");
     const result = await markHomepageBlockTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+// ─────────────── Phase 8: careers_job lifecycle RPC ───────────────
+
+export const listCareersJobTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ careers_job_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listCareersJobTranslationsForId } = await import(
+      "./careers-job.translation.service"
+    );
+    await requireSession("viewer");
+    return await listCareersJobTranslationsForId(data.careers_job_id);
+  });
+
+export const listAllCareersJobTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllCareersJobTranslations } = await import(
+      "./careers-job.translation.service"
+    );
+    await requireSession("viewer");
+    return await listAllCareersJobTranslations();
+  },
+);
+
+export const approveCareersJobTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveCareersJobTranslation } = await import(
+      "./careers-job.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await approveCareersJobTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editCareersJobTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().max(2000).nullable(),
+        body_md: z.string().max(50000).nullable(),
+        tagline: z.string().max(2000).nullable(),
+        salary_note: z.string().max(2000).nullable(),
+        experience: z.string().max(2000).nullable(),
+        lead: z.string().max(5000).nullable(),
+        responsibilities_json: z.string().max(50000),
+        requirements_json: z.string().max(20000),
+        benefits_json: z.string().max(20000),
+        bonuses_json: z.string().max(20000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editCareersJobTranslation } = await import("./careers-job.translation.service");
+    const me = await requireSession("editor");
+    const result = await editCareersJobTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteCareersJobTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteCareersJobTranslation } = await import(
+      "./careers-job.translation.service"
+    );
+    const me = await requireSession("editor");
+    await deleteCareersJobTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markCareersJobTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markCareersJobTranslationStale } = await import(
+      "./careers-job.translation.service"
+    );
+    const me = await requireSession("editor");
+    const result = await markCareersJobTranslationStale(me.id, data.id);
     await bumpCmsRev();
     return result;
   });

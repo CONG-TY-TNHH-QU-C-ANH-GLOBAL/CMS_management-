@@ -13,7 +13,8 @@ export type TranslationTable =
   | "faq_translations"
   | "service_block_translations"
   | "testimonial_translations"
-  | "homepage_block_translations";
+  | "homepage_block_translations"
+  | "careers_job_translations";
 
 export type TransitionEvent =
   | { kind: "ai_completed" }
