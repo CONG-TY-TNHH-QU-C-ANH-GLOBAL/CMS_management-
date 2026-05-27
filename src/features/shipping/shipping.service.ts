@@ -55,6 +55,59 @@ export async function getShippingRoute(slug: string, locale: ShippingLocale): Pr
   return result ?? null;
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Public-facing reads (spec §7.1 — JOIN shipping_route_translations)
+// ────────────────────────────────────────────────────────────────────────
+// Translated columns (top-level only): title, body_md, notes_json.
+// Non-translated: slug, position, origin, destination, kind, status,
+// updated_at. Nested shipping_route_tables NOT yet translatable — those
+// are served from the per-locale route's tables until follow-up PR.
+
+export async function listShippingRoutesForPublic(filter?: {
+  locale: ShippingLocale;
+  status?: ShippingStatus;
+}): Promise<ShippingRouteRow[]> {
+  if (!filter?.locale || filter.locale === "vi") {
+    return listShippingRoutes({ locale: "vi", status: filter?.status });
+  }
+
+  const where: string[] = ["v.locale = 'vi'"];
+  const binds: unknown[] = [filter.locale, filter.locale];
+  if (filter.status) { where.push("v.status = ?"); binds.push(filter.status); }
+
+  const sql = `
+    SELECT v.id, v.slug, ? AS locale, v.position, t.title, v.origin, v.destination,
+           v.kind, t.body_md, t.notes_json, v.status, v.updated_at
+      FROM shipping_routes v
+      JOIN shipping_route_translations t
+        ON t.shipping_route_id = v.id AND t.locale = ? AND t.status = 'reviewed'
+     WHERE ${where.join(" AND ")}
+     ORDER BY v.position, v.slug
+  `;
+  const result = await getDb().prepare(sql).bind(...binds).all<ShippingRouteRow>();
+  return result.results ?? [];
+}
+
+export async function getShippingRouteForPublic(
+  slug: string,
+  locale: ShippingLocale,
+): Promise<ShippingRouteRow | null> {
+  if (locale === "vi") return getShippingRoute(slug, "vi");
+
+  const result = await getDb()
+    .prepare(
+      `SELECT v.id, v.slug, ? AS locale, v.position, t.title, v.origin, v.destination,
+              v.kind, t.body_md, t.notes_json, v.status, v.updated_at
+         FROM shipping_routes v
+         JOIN shipping_route_translations t
+           ON t.shipping_route_id = v.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE v.slug = ? AND v.locale = 'vi' LIMIT 1`,
+    )
+    .bind(locale, locale, slug)
+    .first<ShippingRouteRow>();
+  return result ?? null;
+}
+
 export async function getShippingTables(routeId: number): Promise<ShippingTableRow[]> {
   const result = await getDb()
     .prepare(`SELECT * FROM shipping_route_tables WHERE route_id = ? ORDER BY position`)

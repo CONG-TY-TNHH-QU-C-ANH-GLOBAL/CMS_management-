@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { isLocale } from "@/features/i18n";
-import { getPolicy, type PolicyTextBlock } from "@/features/policies";
+import { getPolicyForPublic, type PolicyTextBlock } from "@/features/policies";
 
 function parseJson<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/v1/(public)/policies/$slug")({
         const lang = url.searchParams.get("lang") ?? "en";
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const policy = await getPolicy(params.slug, lang);
+        const policy = await getPolicyForPublic(params.slug, lang);
         if (!policy) return corsError(request, 404, `No policy with slug "${params.slug}" in locale "${lang}"`);
 
         return corsJson(request, {

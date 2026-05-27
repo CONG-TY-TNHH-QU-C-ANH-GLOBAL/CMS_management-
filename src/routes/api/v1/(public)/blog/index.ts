@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { listBlogPosts } from "@/features/blog";
+import { listBlogPostsForPublic } from "@/features/blog";
 import { isLocale } from "@/features/i18n";
 
 export const Route = createFileRoute("/api/v1/(public)/blog/")({
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/v1/(public)/blog/")({
         const category = url.searchParams.get("category") ?? undefined;
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const all = await listBlogPosts({ locale: lang, status: "live" });
+        const all = await listBlogPostsForPublic({ locale: lang, status: "live" });
         const filtered = category ? all.filter((p) => p.category === category) : all;
 
         return corsJson(request, {

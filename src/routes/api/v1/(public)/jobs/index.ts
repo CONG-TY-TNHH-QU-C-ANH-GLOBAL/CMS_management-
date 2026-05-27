@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { listCareersJobs } from "@/features/careers";
+import { listCareersJobsForPublic } from "@/features/careers";
 import { isLocale } from "@/features/i18n";
 
 function parseJson<T>(raw: string | null): T | null {
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/api/v1/(public)/jobs/")({
         const category = url.searchParams.get("category") ?? undefined;
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const jobs = await listCareersJobs({ locale: lang, status: "open", category });
+        const jobs = await listCareersJobsForPublic({ locale: lang, status: "open", category });
         return corsJson(request, {
           locale: lang,
           jobs: jobs.map((j) => ({

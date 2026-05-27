@@ -911,6 +911,38 @@ export async function listContactLocations(): Promise<ContactLocationRow[]> {
   return result.results ?? [];
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Public-facing read for contact locations (spec §7.1 — JOIN translations)
+// ────────────────────────────────────────────────────────────────────────
+// Translated columns: label, address.
+// Non-translated: position, kind, phone, url, lang_class (all global).
+
+export async function listContactLocationsForPublic(locale: Locale): Promise<ContactLocationRow[]> {
+  if (locale === "vi") {
+    const result = await getDb()
+      .prepare(
+        `SELECT id, position, kind, locale, label, address, phone, url, lang_class
+           FROM contact_locations WHERE locale = 'vi' ORDER BY position`,
+      )
+      .all<ContactLocationRow>();
+    return result.results ?? [];
+  }
+
+  const result = await getDb()
+    .prepare(
+      `SELECT v.id, v.position, v.kind, ? AS locale, t.label, t.address,
+              v.phone, v.url, v.lang_class
+         FROM contact_locations v
+         JOIN contact_location_translations t
+           ON t.contact_location_id = v.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE v.locale = 'vi'
+        ORDER BY v.position`,
+    )
+    .bind(locale, locale)
+    .all<ContactLocationRow>();
+  return result.results ?? [];
+}
+
 export async function createContactLocation(
   actorId: number,
   input: {
