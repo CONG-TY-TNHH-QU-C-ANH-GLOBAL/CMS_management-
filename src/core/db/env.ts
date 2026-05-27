@@ -12,6 +12,7 @@ declare global {
       SUPPORTED_LOCALES: string;
       OAUTH_REDIRECT_BASE: string;
       CORS_ORIGIN: string; // comma-separated allowed origins for /api/v1/*
+      CSRF_ALLOWED_ORIGINS?: string; // comma-separated extra origins accepted by requireSafeOrigin() in addition to BASE_URL (preview deploys, custom admin domain). Dev auto-allows localhost/127.0.0.1.
       // Secrets (set via `wrangler secret put` for prod, .dev.vars for local)
       GOOGLE_CLIENT_ID: string;
       GOOGLE_CLIENT_SECRET: string;

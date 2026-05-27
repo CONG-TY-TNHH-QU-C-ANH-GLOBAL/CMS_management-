@@ -1,6 +1,7 @@
 import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 
 import { getDb, nowSeconds } from "@/core/db/client";
+import { requireSafeOrigin } from "@/core/middlewares/csrf";
 import { type GoogleUserInfo } from "./auth.google";
 import {
   type ActiveSession,
@@ -8,6 +9,8 @@ import {
   type SessionUser,
   buildSessionCookie,
   createSession,
+  deleteOtherSessions,
+  destroySession,
   getSession,
   hasRole,
   parseSessionCookie,
@@ -39,6 +42,25 @@ export async function readCurrentSession(): Promise<ActiveSession | null> {
   const session = await getSession(sid);
   if (!session) return null;
 
+  // H2 — User-Agent binding. Sessions table records the User-Agent at
+  // creation time; we destroy the session if the cookie is reused from a
+  // different browser (the canonical XSS-exfiltration signature).
+  //
+  // Hard binding ONLY on UA — we deliberately do NOT bind on IP because
+  // mobile/4G admins legitimately change IP within a single session. The
+  // UA check catches the most common cookie-theft vector (attacker on a
+  // different browser/headless tool) with minimal UX disruption.
+  //
+  // Legacy sessions created before H2 have userAgent=null in DB — we skip
+  // the check for those (the column was nullable from day one). New
+  // sessions issued post-H2 will always have userAgent populated.
+  const currentUA = getRequest().headers.get("user-agent");
+  if (session.userAgent && currentUA && session.userAgent !== currentUA) {
+    // Mismatch → destroy session defensively, force re-login.
+    await destroySession(sid);
+    return null;
+  }
+
   const refresh = await refreshSessionIfNeeded(session);
   if (refresh.refreshed) {
     setResponseHeader(
@@ -50,6 +72,13 @@ export async function readCurrentSession(): Promise<ActiveSession | null> {
 }
 
 export async function requireSession(minRole: Role = "viewer"): Promise<SessionUser> {
+  // H4 — CSRF: validate Origin/Referer host == BASE_URL host on state-
+  // changing methods. requireSafeOrigin() is a no-op for GET/HEAD/OPTIONS,
+  // so listing endpoints that call requireSession see no behavior change.
+  // Mutations (POST/PUT/DELETE) that call requireSession get CSRF defense
+  // for free — no per-handler wiring required.
+  requireSafeOrigin();
+
   const session = await readCurrentSession();
   if (!session) {
     throw Object.assign(new Error("Unauthorized"), { statusCode: 401, code: "UNAUTHORIZED" });
@@ -131,10 +160,46 @@ export async function upsertGoogleUser(info: GoogleUserInfo): Promise<SessionUse
 
 /**
  * Issue a session cookie for a user. Used after Google OAuth verifies them.
+ *
+ * Single-active-session policy
+ * ────────────────────────────
+ * After creating the new session row, we delete every other session row
+ * belonging to this user. This defends against stolen-cookie replay: if an
+ * attacker exfiltrates a session cookie, the user can reset access by simply
+ * logging in again — the attacker's cookie no longer maps to a live row.
+ *
+ * The order is CREATE → DELETE OTHERS (not the reverse). Under concurrent
+ * logins this converges to a single active session because each cleanup
+ * deletes any rows it didn't itself insert. Reversing the order races toward
+ * keeping multiple active sessions, silently undoing the defense.
+ *
+ * The cleanup is BLOCKING: if the DELETE throws, we roll back the freshly-
+ * created session and surface a 500. Letting the cleanup fail silently would
+ * issue a valid cookie while leaving compromised sessions alive — admin auth
+ * is not the place for best-effort cleanup.
  */
 export async function issueSession(user: SessionUser): Promise<string> {
   const meta = getRequestMeta();
   const session = await createSession(user.id, meta);
+
+  try {
+    await deleteOtherSessions(user.id, session.id);
+  } catch (err) {
+    // Roll back the new session so we don't return a cookie for an
+    // unprotected login. Best-effort — if rollback itself fails, the orphan
+    // row gets reaped by purgeExpiredSessions() / 24h TTL.
+    try {
+      await destroySession(session.id);
+    } catch {
+      // swallow — surfacing the original error matters more
+    }
+    throw Object.assign(new Error("Failed to invalidate prior sessions on login."), {
+      statusCode: 500,
+      code: "SESSION_CLEANUP_FAILED",
+      cause: err,
+    });
+  }
+
   return buildSessionCookie(session.id, session.expiresAt, isProduction());
 }
 

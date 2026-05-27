@@ -1,8 +1,14 @@
 import { getDb, nowSeconds } from "@/core/db/client";
 
 export const SESSION_COOKIE = "thg_sid";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
-const SESSION_REFRESH_THRESHOLD = 60 * 60 * 24 * 7; // refresh if <7d remaining
+// Session lifetime + sliding refresh.
+//   - TTL: 24h. Active users refresh on activity (see SESSION_REFRESH_THRESHOLD)
+//     so they never see expiry mid-task. Inactive users get pushed to login
+//     after 24h.
+//   - Threshold must be < TTL — otherwise refresh fires on every request and
+//     writes to D1 unnecessarily. 25% of TTL = 6h remaining triggers refresh.
+const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h (was 30d — reduced per H1)
+const SESSION_REFRESH_THRESHOLD = Math.floor(SESSION_TTL_SECONDS / 4); // refresh when <25% TTL remaining
 
 export type Role = "admin" | "editor" | "viewer";
 
@@ -18,6 +24,10 @@ export interface ActiveSession {
   sessionId: string;
   user: SessionUser;
   expiresAt: number;
+  /** User-Agent recorded at session creation. Used by readCurrentSession to
+   *  detect cookie-exfiltration (attacker reusing stolen cookie from a
+   *  different browser). Nullable for legacy sessions issued before H2. */
+  userAgent: string | null;
 }
 
 function generateSessionId(): string {
@@ -54,7 +64,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
 
   const row = await getDb()
     .prepare(
-      `SELECT s.id AS session_id, s.expires_at,
+      `SELECT s.id AS session_id, s.expires_at, s.user_agent,
               u.id AS user_id, u.email, u.name, u.role, u.status, u.picture_url
          FROM sessions s
          JOIN users u ON u.id = s.user_id
@@ -65,6 +75,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
     .first<{
       session_id: string;
       expires_at: number;
+      user_agent: string | null;
       user_id: number;
       email: string;
       name: string;
@@ -78,6 +89,7 @@ export async function getSession(sessionId: string): Promise<ActiveSession | nul
   return {
     sessionId: row.session_id,
     expiresAt: row.expires_at,
+    userAgent: row.user_agent,
     user: {
       id: row.user_id,
       email: row.email,
@@ -105,6 +117,30 @@ export async function refreshSessionIfNeeded(
 
 export async function destroySession(sessionId: string): Promise<void> {
   await getDb().prepare(`DELETE FROM sessions WHERE id = ?`).bind(sessionId).run();
+}
+
+/**
+ * Delete every session row for `userId` except the one whose id equals
+ * `keepSessionId`. Used by `issueSession()` to enforce single-active-session
+ * on login — defends against stolen-cookie replay if a user re-authenticates
+ * after a suspected compromise.
+ *
+ * The exclusion clause (`id != ?`) makes this safe to call AFTER the new
+ * session row is inserted: two concurrent logins each delete the other's
+ * row, converging to at most one survivor (the later-committed write wins).
+ * If they fully interleave both rows can be deleted — both clients then
+ * fail their next request and re-login cleanly. We prefer fail-closed over
+ * the alternative (delete-then-create), which races toward keeping BOTH
+ * sessions and silently defeats replay protection.
+ */
+export async function deleteOtherSessions(
+  userId: number,
+  keepSessionId: string,
+): Promise<void> {
+  await getDb()
+    .prepare(`DELETE FROM sessions WHERE user_id = ? AND id != ?`)
+    .bind(userId, keepSessionId)
+    .run();
 }
 
 export async function purgeExpiredSessions(): Promise<void> {
