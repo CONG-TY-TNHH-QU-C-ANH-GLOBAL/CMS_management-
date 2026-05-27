@@ -93,7 +93,19 @@ export const Route = createFileRoute("/api/auth/google/callback")({
           if (code === "USER_DISABLED") return errorRedirect("user_disabled");
           throw err;
         }
-        const sessionCookie = await issueSession(user);
+        let sessionCookie: string;
+        try {
+          sessionCookie = await issueSession(user);
+        } catch (err) {
+          // issueSession() throws SESSION_CLEANUP_FAILED if it cannot purge
+          // prior sessions — fail-closed for admin auth (see comment in
+          // issueSession). Surface as a friendly redirect instead of a 500.
+          if ((err as { code?: string }).code === "SESSION_CLEANUP_FAILED") {
+            console.error("issueSession cleanup failed:", err);
+            return errorRedirect("session_init_failed");
+          }
+          throw err;
+        }
 
         const prod = isProduction();
         const headers = new Headers();

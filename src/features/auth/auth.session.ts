@@ -119,6 +119,30 @@ export async function destroySession(sessionId: string): Promise<void> {
   await getDb().prepare(`DELETE FROM sessions WHERE id = ?`).bind(sessionId).run();
 }
 
+/**
+ * Delete every session row for `userId` except the one whose id equals
+ * `keepSessionId`. Used by `issueSession()` to enforce single-active-session
+ * on login — defends against stolen-cookie replay if a user re-authenticates
+ * after a suspected compromise.
+ *
+ * The exclusion clause (`id != ?`) makes this safe to call AFTER the new
+ * session row is inserted: two concurrent logins each delete the other's
+ * row, converging to at most one survivor (the later-committed write wins).
+ * If they fully interleave both rows can be deleted — both clients then
+ * fail their next request and re-login cleanly. We prefer fail-closed over
+ * the alternative (delete-then-create), which races toward keeping BOTH
+ * sessions and silently defeats replay protection.
+ */
+export async function deleteOtherSessions(
+  userId: number,
+  keepSessionId: string,
+): Promise<void> {
+  await getDb()
+    .prepare(`DELETE FROM sessions WHERE user_id = ? AND id != ?`)
+    .bind(userId, keepSessionId)
+    .run();
+}
+
 export async function purgeExpiredSessions(): Promise<void> {
   await getDb()
     .prepare(`DELETE FROM sessions WHERE expires_at <= ?`)
