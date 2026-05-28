@@ -863,3 +863,36 @@ export const markShippingRouteTranslationStaleFn = createServerFn({ method: "POS
     await bumpCmsRev();
     return result;
   });
+
+// ─────────────── Phase 2: async translation job queue ───────────────
+// Generic, entity-agnostic job driver. The browser drives passes by polling
+// pumpTranslationJobFn (each call does one engine pass + persists chunks), and
+// reads progress via getTranslationJobFn. The 1-minute Cron Trigger is the
+// resume backstop if the tab closes mid-job. See translation-jobs.engine.ts.
+
+export const getTranslationJobFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ jobId: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { getJob } = await import("./translation-jobs.service");
+    await requireSession("viewer");
+    return { job: await getJob(data.jobId) };
+  });
+
+/** Run ONE engine pass (claims a batch of pending/expired chunks across the
+ *  queue, translates + persists them), then return the requested job's fresh
+ *  status. The client loops this until the job is terminal. */
+export const pumpTranslationJobFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ jobId: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { env } = await import("cloudflare:workers");
+    const { runOnePass } = await import("./translation-jobs.engine");
+    const { getJob } = await import("./translation-jobs.service");
+    await requireSession("editor");
+    if (!env.OPENAI_API_KEY) {
+      throw Object.assign(new Error("OPENAI_API_KEY chưa được set trên Worker."), { statusCode: 503 });
+    }
+    await runOnePass(env);
+    return { job: await getJob(data.jobId) };
+  });

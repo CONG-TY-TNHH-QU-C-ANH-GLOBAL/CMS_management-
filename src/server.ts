@@ -77,4 +77,25 @@ export default {
       return brandedErrorResponse();
     }
   },
+
+  // Cron Trigger (every minute — see wrangler.jsonc `triggers.crons`). Resume
+  // safety net for the async translation queue: claims any pending / lease-
+  // expired chunks and drives them to completion. Jobs created via the admin
+  // also kick an inline pass, so this is purely the durability backstop for
+  // crashed/timed-out passes. waitUntil keeps the worker alive for the async
+  // work after the scheduled callback returns.
+  async scheduled(
+    _controller: unknown,
+    env: { OPENAI_API_KEY?: string; OPENAI_BASE_URL?: string },
+    ctx: { waitUntil(promise: Promise<unknown>): void },
+  ) {
+    const { runTranslationJobs } = await import(
+      "./features/translations/translation-jobs.engine"
+    );
+    ctx.waitUntil(
+      runTranslationJobs(env, 60_000).catch((err) =>
+        console.error("[scheduled] translation jobs pass failed", err),
+      ),
+    );
+  },
 };

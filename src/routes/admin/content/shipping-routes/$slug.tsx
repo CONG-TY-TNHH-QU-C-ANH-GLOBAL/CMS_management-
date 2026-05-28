@@ -8,12 +8,16 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { LocaleTabs, type Locale } from "@/components/cms/LocaleTabs";
 import { ShippingRouteEditor } from "@/features/shipping/components/ShippingRouteEditor";
 import {
+  enqueueShippingTranslateFn,
   getShippingRouteDetailFn,
-  translateShippingRouteFn,
   type ShippingLocale,
   type ShippingRouteRow,
   type ShippingTableRow,
 } from "@/features/shipping/shipping.actions";
+import {
+  getTranslationJobFn,
+  pumpTranslationJobFn,
+} from "@/features/translations/translations.actions";
 
 const LOCALE_LABEL: Record<ShippingLocale, string> = {
   en: "English",
@@ -34,7 +38,10 @@ function ShippingRouteDetailPage() {
   const router = useRouter();
   const [locale, setLocale] = useState<Locale>("vi");
   const [translating, setTranslating] = useState(false);
-  const translate = useServerFn(translateShippingRouteFn);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const enqueueTranslate = useServerFn(enqueueShippingTranslateFn);
+  const pumpJob = useServerFn(pumpTranslationJobFn);
+  const getJob = useServerFn(getTranslationJobFn);
 
   const variants = data.variants as Record<ShippingLocale, ShippingRouteRow | null>;
   const tablesByLocale = data.tables as Record<ShippingLocale, ShippingTableRow[]>;
@@ -50,26 +57,53 @@ function ShippingRouteDetailPage() {
       return;
     }
     setTranslating(true);
+    setProgress(null);
     const src = locale as ShippingLocale;
-    // One request per target locale — each translates its sections in parallel
-    // server-side, so each call stays short and we avoid one long request that
-    // could hit the gateway/browser timeout on big routes.
     try {
-      const okTargets: ShippingLocale[] = [];
-      for (const target of otherLocales) {
+      // Enqueue an async job (chunks persisted to D1), then drive it pass-by-pass
+      // from the browser. Each pump translates a batch and saves immediately, so
+      // closing the tab never loses progress — the 1-min Cron resumes the rest.
+      const { jobId, totalChunks, skipped } = await enqueueTranslate({
+        data: { slug, source_locale: src, target_locales: otherLocales },
+      });
+      if (skipped || !jobId) {
+        toast.error("Không có nội dung để dịch.");
+        return;
+      }
+      setProgress({ done: 0, total: totalChunks });
+      toast.message(`Đã tạo job dịch ${LOCALE_LABEL[src]} → ${otherLocales.map((l) => LOCALE_LABEL[l]).join(" + ")} (${totalChunks} phần).`);
+
+      let safety = 400;
+      while (safety-- > 0) {
+        let job;
         try {
-          await translate({ data: { slug, source_locale: src, target_locales: [target] } });
-          okTargets.push(target);
-          toast.success(`Đã dịch ${LOCALE_LABEL[src]} → ${LOCALE_LABEL[target]}`);
-        } catch (err) {
-          toast.error(
-            `Dịch ${LOCALE_LABEL[target]} thất bại: ${err instanceof Error ? err.message : "lỗi"}`,
-          );
+          ({ job } = await pumpJob({ data: { jobId } }));
+        } catch {
+          // A pump request can time out at the gateway on a slow batch — the
+          // chunks it completed are already persisted. Fall back to a status
+          // read and let the Cron pass keep advancing the job.
+          ({ job } = await getJob({ data: { jobId } }));
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+        if (!job) break;
+        setProgress({ done: job.done_chunks, total: job.total_chunks });
+        if (job.status === "completed" || job.status === "partial" || job.status === "failed") {
+          if (job.status === "completed") {
+            toast.success(`Đã dịch xong (${job.done_chunks}/${job.total_chunks} phần).`);
+          } else if (job.status === "partial") {
+            toast.warning(`Dịch xong một phần: ${job.done_chunks}/${job.total_chunks}, ${job.failed_chunks} phần lỗi (Cron sẽ thử lại).`);
+          } else {
+            toast.error("Dịch thất bại — Cron sẽ tự thử lại sau.");
+          }
+          await router.invalidate();
+          break;
         }
       }
-      if (okTargets.length > 0) await router.invalidate();
+    } catch (err) {
+      toast.error(`Không tạo được job dịch: ${err instanceof Error ? err.message : "lỗi"}`);
     } finally {
       setTranslating(false);
+      setProgress(null);
     }
   }
 
@@ -103,7 +137,9 @@ function ShippingRouteDetailPage() {
         >
           <Languages className="w-3.5 h-3.5" />
           {translating
-            ? "Đang dịch…"
+            ? progress
+              ? `Đang dịch… ${progress.done}/${progress.total}`
+              : "Đang tạo job…"
             : `Dịch ${LOCALE_LABEL[locale as ShippingLocale]} → ${otherLocales.map((l) => LOCALE_LABEL[l]).join(" + ")}`}
         </button>
       </div>
