@@ -14,6 +14,12 @@ import { listGlossaryForPrompt } from "./glossary.service";
 import { computeSourceHash } from "./translations.hash";
 import { insertAiTranslationLog } from "./translations.log.service";
 import { callOpenAiWithJsonRecovery } from "./translations.openai";
+import { emitTranslationEvent } from "./translation-events.service";
+import {
+  isProviderPaused,
+  recordProviderFailure,
+  recordProviderSuccess,
+} from "./translation-health.service";
 import { buildPrompt, PROMPT_VERSION_V1 } from "./translations.prompt";
 import { computeCostUsd, defaultModelForEntity, type SupportedModel } from "./translations.pricing";
 import { hasAllExpectedFields, passesStructuralChecks } from "./translations.structural";
@@ -494,7 +500,49 @@ export async function translate(
   // try/finally so the in-flight lock ALWAYS clears even if a DB op throws
   // mid-loop — otherwise a crash here left the row locked until the 60s TTL
   // (operators saw "Translation already in progress" and couldn't retry).
+  const entityRef = String(input.entity_id);
+
   try {
+    // A10 circuit breaker: if OpenAI is paused (sustained transient errors),
+    // short-circuit — mark the locales failed with a clear reason instead of
+    // hammering the API. The breaker auto-resumes after its cooldown.
+    const pause = await isProviderPaused();
+    if (pause.paused) {
+      const until = pause.until ? new Date(pause.until * 1000).toLocaleString() : "ít phút nữa";
+      const msg = `Tạm dừng dịch: OpenAI đang lỗi liên tục, hệ thống sẽ tự thử lại sau ${until}.`;
+      for (const locale of locks.toTranslate) {
+        const id = await upsertTranslation({
+          entityType: input.entity_type,
+          entityId: input.entity_id,
+          locale,
+          fields: null,
+          status: "failed",
+          sourceHash,
+          sourceSnapshot,
+          aiModel: model,
+          promptVersion,
+          actorId,
+        });
+        drafts.push({ id, locale, status: "failed", error: msg });
+        await emitTranslationEvent({
+          entityType: input.entity_type,
+          entityRef,
+          locale,
+          event: "translate_failed",
+          detail: { reason: "provider_paused", paused_until: pause.until },
+        });
+      }
+      return {
+        drafts,
+        reused_existing: locks.reusable,
+        tokens_in: 0,
+        tokens_out: 0,
+        latency_ms: 0,
+        estimated_cost_usd: 0,
+        log_id: null,
+      };
+    }
+
     // 5-8. One OpenAI call PER target locale. A big careers JD (10 fields incl.
     // heavy JSON) for en+zh in a single call was overrunning the timeout → the
     // "ZH: failed" symptom. Per-locale keeps each payload small and makes
@@ -507,6 +555,13 @@ export async function translate(
         glossary,
       });
 
+      await emitTranslationEvent({
+        entityType: input.entity_type,
+        entityRef,
+        locale,
+        event: "translate_started",
+        detail: { model },
+      });
       const t0 = Date.now();
       const recovery = await callOpenAiWithJsonRecovery(apiKey, model, messages, baseUrl);
       const latencyMs = Date.now() - t0;
@@ -576,6 +631,23 @@ export async function translate(
         raw_response_json: recovery.rawResponse || null,
         requested_by: actorId,
         source_hash: sourceHash,
+      });
+
+      // A10: update provider health. Only a provider apiError (after the
+      // internal transient retries) counts toward tripping the breaker — a
+      // parse/structural reject is a content problem, not the provider's fault.
+      if (recovery.apiError) {
+        await recordProviderFailure(recovery.apiError.message);
+      } else if (outcome === "draft") {
+        await recordProviderSuccess();
+      }
+      // A9: record the per-locale outcome on the lifecycle timeline.
+      await emitTranslationEvent({
+        entityType: input.entity_type,
+        entityRef,
+        locale,
+        event: outcome === "draft" ? "translate_succeeded" : "translate_failed",
+        detail: { status: logStatus, error: outcome === "failed" ? errorMsg : null, latency_ms: latencyMs },
       });
 
       // Clear the lock immediately after each locale's outcome is persisted.
