@@ -1,0 +1,57 @@
+name: Sync shipping policy from Google Sheet
+
+# Manual-only — pulls the master Google Sheet's "Policy ..." tabs, converts
+# them to markdown, and writes shipping_routes.body_md on remote D1. Re-run
+# whenever the sheet changes. Idempotent (UPDATE + DELETE), so safe to repeat.
+#
+# This intentionally does NOT auto-trigger: it overwrites operator-visible
+# content, so a human should kick it off and then spot-check landing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "SYNC SHIPPING" to confirm'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Verify confirmation
+        if: ${{ github.event.inputs.confirm != 'SYNC SHIPPING' }}
+        run: |
+          echo "::error::Confirmation phrase mismatch. Expected 'SYNC SHIPPING'."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Fetch sheet + generate SQL
+        run: node scripts/sync-shipping-policy.mjs
+
+      - name: Preview generated SQL (first 60 lines)
+        run: head -60 scripts/.tmp-sync-shipping-policy.sql || true
+
+      - name: Apply to remote D1
+        run: bunx wrangler d1 execute thg-cms --remote --file=scripts/.tmp-sync-shipping-policy.sql
+
+      - name: Bump CMS cache revision
+        # bumpCmsRev() writes env.CMS_REV.put("rev", <ts>). Mirror that here so
+        # landing picks up new content without waiting out the 5-min s-maxage.
+        # Best-effort — content still refreshes within 5 minutes regardless.
+        run: |
+          bunx wrangler kv key put rev "$(date +%s)000" --binding=CMS_REV --remote || true
