@@ -50,18 +50,24 @@ function ShippingRouteDetailPage() {
       return;
     }
     setTranslating(true);
+    const src = locale as ShippingLocale;
+    // One request per target locale — each translates its sections in parallel
+    // server-side, so each call stays short and we avoid one long request that
+    // could hit the gateway/browser timeout on big routes.
     try {
-      const res = await translate({
-        data: { slug, source_locale: locale as ShippingLocale, target_locales: otherLocales },
-      });
-      toast.success(
-        `Đã dịch từ ${LOCALE_LABEL[locale as ShippingLocale]} sang: ${res.translated
-          .map((l) => LOCALE_LABEL[l])
-          .join(", ")}`,
-      );
-      await router.invalidate();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Dịch thất bại");
+      const okTargets: ShippingLocale[] = [];
+      for (const target of otherLocales) {
+        try {
+          await translate({ data: { slug, source_locale: src, target_locales: [target] } });
+          okTargets.push(target);
+          toast.success(`Đã dịch ${LOCALE_LABEL[src]} → ${LOCALE_LABEL[target]}`);
+        } catch (err) {
+          toast.error(
+            `Dịch ${LOCALE_LABEL[target]} thất bại: ${err instanceof Error ? err.message : "lỗi"}`,
+          );
+        }
+      }
+      if (okTargets.length > 0) await router.invalidate();
     } finally {
       setTranslating(false);
     }

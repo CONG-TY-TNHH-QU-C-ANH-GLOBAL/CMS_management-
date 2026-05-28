@@ -407,6 +407,44 @@ async function translateMarkdownPlain(
   }
 }
 
+// Split markdown at `## ` section boundaries (intro before the first heading is
+// its own chunk). A single 50k-char route would need minutes for one OpenAI
+// call (gpt-4o-mini ≈ 100 tok/s) and trip the 60s per-call timeout — so we
+// translate sections separately and in parallel (total wall-clock ≈ slowest
+// section, not the sum).
+function splitMarkdownSections(md: string): string[] {
+  const chunks: string[] = [];
+  let cur: string[] = [];
+  for (const line of md.split("\n")) {
+    if (/^##\s+/.test(line) && cur.length > 0) {
+      chunks.push(cur.join("\n"));
+      cur = [line];
+    } else {
+      cur.push(line);
+    }
+  }
+  if (cur.length > 0) chunks.push(cur.join("\n"));
+  return chunks.filter((c) => c.trim().length > 0);
+}
+
+/** Translate a (potentially large) markdown body by section, in parallel. */
+async function translateLargeMarkdown(
+  apiKey: string,
+  md: string,
+  targetLangName: string,
+  baseUrl: string,
+): Promise<string> {
+  const sections = splitMarkdownSections(md);
+  // One section → just translate it directly (avoids needless join overhead).
+  if (sections.length <= 1) {
+    return translateMarkdownPlain(apiKey, md, targetLangName, baseUrl);
+  }
+  const translated = await Promise.all(
+    sections.map((s) => translateMarkdownPlain(apiKey, s, targetLangName, baseUrl)),
+  );
+  return translated.join("\n\n");
+}
+
 /** Translate a route's body_md from one locale into the target locales,
  *  writing the result into each target's locale row. Any source locale is
  *  allowed (en/vi/zh). Targets default to the other two locales. */
@@ -434,7 +472,7 @@ export async function translateShippingRouteContent(
 
   const done: ShippingLocale[] = [];
   for (const target of targets) {
-    const translated = await translateMarkdownPlain(apiKey, sourceBody, LOCALE_NAMES[target], baseUrl);
+    const translated = await translateLargeMarkdown(apiKey, sourceBody, LOCALE_NAMES[target], baseUrl);
     await getDb()
       .prepare(`UPDATE shipping_routes SET body_md = ?, updated_at = unixepoch() WHERE slug = ? AND locale = ?`)
       .bind(translated, input.slug, target)
