@@ -171,6 +171,90 @@ function rowsToMarkdown(rows) {
   return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// ── Section detection ──────────────────────────────────────────────────────
+// Some policy tabs (notably the CN routes) cram several sections into one giant
+// merged cell, so the roman-numeral section headers (I. Chargeable Weight,
+// II. Serviceable Countries, …) end up MID-LINE after whitespace collapsing and
+// the line-start ROMAN check above never sees them. The landing renderer splits
+// the body into collapsible accordions on `## ` headings, so without these the
+// whole route renders as one wall of text. promoteSectionHeaders finds those
+// mid-line markers and lifts each into its own `## ` heading.
+const SECTION_RE =
+  /(^|[\s.)\]、,，])((?:XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)[.．])\s*([A-Z][^\n]{0,80})/g;
+
+// Title = up to 2 Title-Case words, extended across one "&"/"and" joiner so
+// "Returns & Re-Delivery" / "Declared Value & Notes" stay whole. Capping at 2
+// stops a run-on body (e.g. "Cargo Attributes EU CE Marking…") bleeding into
+// the heading.
+function extractSectionTitle(rest) {
+  const tokens = rest.split(/\s+/);
+  const out = [];
+  let real = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const tk = tokens[i];
+    if (tk === "&" || tk === "and") {
+      if (tokens[i + 1] && /^[A-Z]/.test(tokens[i + 1])) { out.push(tk, tokens[i + 1]); i++; real++; continue; }
+      break;
+    }
+    if (real >= 2) break;
+    if (/^[A-Z][\w-]*$/.test(tk)) { out.push(tk); real++; continue; }
+    break;
+  }
+  return out.join(" ").replace(/[\s,.;:—-]+$/, "");
+}
+
+function promoteSectionHeaders(md) {
+  const seen = new Set();
+  return md
+    .replace(SECTION_RE, (full, lead, marker, rest, offset, str) => {
+      // already a heading (marker directly preceded by "## ")? leave it.
+      if (str.slice(Math.max(0, offset + lead.length - 3), offset + lead.length) === "## ") return full;
+      const num = marker.replace(/[.．]/, "");
+      if (seen.has(num)) return full; // only the first occurrence becomes a heading
+      const title = extractSectionTitle(rest);
+      if (!title) return full;
+      seen.add(num);
+      const body = rest.slice(rest.indexOf(title) + title.length).replace(/^[\s,.;:—-]+/, "");
+      const roman = marker.replace("．", ".");
+      return `${lead}\n\n## ${roman} ${title}\n${body}`;
+    })
+    // normalise "## X.Tracking" → "## X. Tracking" (missing space after period)
+    .replace(/^(##\s+(?:XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\.)(?=\S)/gm, "$1 ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// Break run-on enumerators within a section body onto their own bullet lines so
+// the accordion shows a readable list instead of one dense paragraph. Conservative
+// — only splits at digit-dot / paren-num / circled-num / lettered enumerators
+// and callout glyphs; decimals, prices, dates and ratios (e.g. $1.5, 0.5kg,
+// 1/1/2021, "2%", "≥ 2×", "÷ 6000") are left intact.
+function breakEnumerators(md) {
+  return md
+    .split("\n")
+    .map((line) => {
+      if (/^#{2,3}\s/.test(line)) return line; // never touch headings
+      let s = line;
+      s = s.replace(/\s+(?=[🚨⚠📌])/g, "\n");
+      s = s.replace(/\s+(?=[①②③④⑤⑥⑦⑧⑨⑩])/g, "\n- ");
+      s = s.replace(/\s+(?=\(\d{1,2}\)\s)/g, "\n- ");
+      s = s.replace(/\s+(?=\d{1,2}\.\s+[A-Z])/g, "\n- ");
+      s = s.replace(/\s+(?=[A-D]\)\s)/g, "\n- ");
+      // first enumerator at the start of a body line → bullet too
+      s = s.replace(/^(\d{1,2}\.\s+[A-Z])/, "- $1");
+      s = s.replace(/^(\(\d{1,2}\)\s)/, "- $1");
+      s = s.replace(/^([①②③④⑤⑥⑦⑧⑨⑩])/, "- $1");
+      return s;
+    })
+    .join("\n");
+}
+
+// Full prose → markdown pipeline: convert rows, lift mid-line section headers,
+// then break run-on enumerators into list items.
+function toPolicyMarkdown(rows) {
+  return breakEnumerators(promoteSectionHeaders(rowsToMarkdown(rows)));
+}
+
 function sqlEscape(s) {
   return s.replace(/'/g, "''");
 }
@@ -421,7 +505,7 @@ async function main() {
     try {
       const csv = await fetchTab(tab.gid);
       const rows = parseCSV(csv);
-      const enMd = rowsToMarkdown(rows);
+      const enMd = toPolicyMarkdown(rows);
       if (enMd.length < 20) {
         process.stderr.write(`[sync]   WARNING: ${tab.slug} produced only ${enMd.length} chars — skipping\n`);
         failed.push({ slug: tab.slug, reason: `only ${enMd.length} chars` });
