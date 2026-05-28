@@ -13,6 +13,10 @@ on:
       confirm:
         description: 'Type "SYNC SHIPPING" to confirm'
         required: true
+      routes:
+        description: 'Optional: comma-separated slug allowlist (e.g. "cn-us-regular,cn-us-batteries"). Empty = all routes.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -20,7 +24,10 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60 min — translation work is ~40-90s/route × 7 routes ≈ 5-10min in the
+    # happy path, but a single slow OpenAI chunk + retries can push one route
+    # over 5 min, so leave generous headroom.
+    timeout-minutes: 60
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -28,6 +35,10 @@ jobs:
       # Without it, only the EN row is populated and VI/ZH are cleared.
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      # Forwarded to the script as a slug allowlist. Lets operator re-run only
+      # the routes that failed last time (script's SQL is incremental, so
+      # successful routes don't need redoing).
+      SYNC_ROUTES: ${{ github.event.inputs.routes }}
     steps:
       - name: Verify confirmation
         if: ${{ github.event.inputs.confirm != 'SYNC SHIPPING' }}
@@ -45,17 +56,47 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Fetch sheet + generate SQL
+        id: generate
+        # `continue-on-error` so a partial failure (e.g. one of 7 routes timed
+        # out) still hands control to the next steps. The script flushes SQL
+        # incrementally to disk per route, so the apply step gets every route
+        # that DID complete; the run fails overall (exit 2 from the script) so
+        # CI surfaces the regression, and the operator re-runs with
+        # `routes=<failed slugs>` to finish the rest.
+        continue-on-error: true
         run: node scripts/sync-shipping-policy.mjs
 
       - name: Preview generated SQL (first 60 lines)
+        if: always()
         run: head -60 scripts/.tmp-sync-shipping-policy.sql || true
 
       - name: Apply to remote D1
-        run: bunx wrangler d1 execute thg-cms --remote --file=scripts/.tmp-sync-shipping-policy.sql
+        # `if: always()` so partial progress isn't lost on a script-step
+        # failure. Combined with `continue-on-error` above, the workflow runs
+        # this even when the script exits non-zero from a route timeout.
+        # `test -s` skips wrangler if the file is empty (would error otherwise).
+        if: always()
+        run: |
+          if [ -s scripts/.tmp-sync-shipping-policy.sql ]; then
+            bunx wrangler d1 execute thg-cms --remote --file=scripts/.tmp-sync-shipping-policy.sql
+          else
+            echo "::warning::No SQL to apply (script produced empty file)."
+          fi
 
       - name: Bump CMS cache revision
         # bumpCmsRev() writes env.CMS_REV.put("rev", <ts>). Mirror that here so
         # landing picks up new content without waiting out the 5-min s-maxage.
         # Best-effort — content still refreshes within 5 minutes regardless.
+        # Runs even on partial-failure so the routes that DID sync go live.
+        if: always()
         run: |
           bunx wrangler kv key put rev "$(date +%s)000" --binding=CMS_REV --remote || true
+
+      - name: Fail job if generate step failed
+        # Re-surface the generate-step failure so CI is red on partial runs.
+        # Operator re-runs with `routes=<failed slugs>` to finish the rest;
+        # successful routes from this run are already live.
+        if: steps.generate.outcome == 'failure'
+        run: |
+          echo "::error::sync script reported failures — see 'Fetch sheet + generate SQL' step logs. Re-run this workflow with the 'routes' input set to the failed slugs."
+          exit 1
