@@ -102,7 +102,23 @@ export async function listShippingRoutesForPublic(filter?: {
   const viBackedRows = viBacked.results ?? [];
   const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
 
-  // Step 2 — Legacy fallback for slugs not produced by Step 1
+  // A slug drops out of viBackedSlugs either because it has no VI source row
+  // (pure legacy) or because its VI source was filtered out (e.g.
+  // status='draft'/'archived'). status is a non-translated, route-level
+  // attribute owned by the VI source, so a slug whose VI source FAILS the
+  // status filter is authoritatively hidden — the legacy fallback must NOT
+  // resurrect it through a stale 'live' en/zh row (mirrors the careers
+  // "closed VI job still shows in ZH" fix).
+  const viAll = await getDb()
+    .prepare(`SELECT slug, status FROM shipping_routes WHERE locale = 'vi'`)
+    .all<{ slug: string; status: ShippingStatus }>();
+  const viHiddenSlugs = new Set(
+    (viAll.results ?? [])
+      .filter((r) => !!filter.status && r.status !== filter.status)
+      .map((r) => r.slug),
+  );
+
+  // Step 2 — Legacy fallback for slugs not produced by Step 1 (content-only)
   const legacyWhere: string[] = ["sr.locale = ?"];
   const legacyBinds: unknown[] = [filter.locale];
   if (filter.status) { legacyWhere.push("sr.status = ?"); legacyBinds.push(filter.status); }
@@ -112,7 +128,9 @@ export async function listShippingRoutesForPublic(filter?: {
      ORDER BY sr.position, sr.slug
   `;
   const legacy = await getDb().prepare(legacySql).bind(...legacyBinds).all<ShippingRouteRow>();
-  const fallback = (legacy.results ?? []).filter((r) => !viBackedSlugs.has(r.slug));
+  const fallback = (legacy.results ?? []).filter(
+    (r) => !viBackedSlugs.has(r.slug) && !viHiddenSlugs.has(r.slug),
+  );
 
   return [...viBackedRows, ...fallback].sort(
     (a, b) => a.position - b.position || a.slug.localeCompare(b.slug),
@@ -137,7 +155,16 @@ export async function getShippingRouteForPublic(
     .bind(locale, locale, slug)
     .first<ShippingRouteRow>();
   if (viBacked) return viBacked;
-  return getShippingRoute(slug, locale);
+
+  // Legacy content fallback — visibility (status) is owned by the VI source
+  // when one exists, so a non-live VI route can't serve through a stale 'live'
+  // en/zh legacy row (the public detail endpoint gates on status === 'live').
+  const legacy = await getShippingRoute(slug, locale);
+  if (legacy) {
+    const viSrc = await getShippingRoute(slug, "vi");
+    if (viSrc) return { ...legacy, status: viSrc.status };
+  }
+  return legacy;
 }
 
 export async function getShippingTables(routeId: number): Promise<ShippingTableRow[]> {

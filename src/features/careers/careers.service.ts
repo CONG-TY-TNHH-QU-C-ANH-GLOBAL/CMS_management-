@@ -124,7 +124,29 @@ export async function listCareersJobsForPublic(filter?: {
   const viBackedRows = viBacked.results ?? [];
   const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
 
-  // Step 2 — Legacy fallback
+  // A slug drops out of viBackedSlugs for two different reasons: (a) it has no
+  // VI source row at all (pure legacy data from before migration 0023), or
+  // (b) it HAS a VI source that was filtered out — e.g. status='closed', or no
+  // reviewed translation yet. The legacy fallback below must only resurrect
+  // case (a). status/category are job-level (non-translated) attributes owned
+  // by the VI source, so a slug whose VI source FAILS the filter is
+  // authoritatively hidden — we must NOT let its stale 'open' en/zh legacy row
+  // leak it back onto the public site (the "closed VI job still shows in ZH"
+  // bug). Collect those slugs and exclude them from the fallback.
+  const viAll = await getDb()
+    .prepare(`SELECT slug, status, category FROM careers_jobs WHERE locale = 'vi'`)
+    .all<{ slug: string; status: CareerStatus; category: string | null }>();
+  const viHiddenSlugs = new Set(
+    (viAll.results ?? [])
+      .filter(
+        (r) =>
+          (!!filter.status && r.status !== filter.status) ||
+          (!!filter.category && r.category !== filter.category),
+      )
+      .map((r) => r.slug),
+  );
+
+  // Step 2 — Legacy fallback (content-only; VI source owns visibility)
   const legacyWhere: string[] = ["sr.locale = ?"];
   const legacyBinds: unknown[] = [filter.locale];
   if (filter.status) { legacyWhere.push("sr.status = ?"); legacyBinds.push(filter.status); }
@@ -133,7 +155,9 @@ export async function listCareersJobsForPublic(filter?: {
     .prepare(`SELECT * FROM careers_jobs sr WHERE ${legacyWhere.join(" AND ")} ORDER BY sr.position, sr.posted_at DESC`)
     .bind(...legacyBinds)
     .all<CareersJobRow>();
-  const fallback = (legacy.results ?? []).filter((r) => !viBackedSlugs.has(r.slug));
+  const fallback = (legacy.results ?? []).filter(
+    (r) => !viBackedSlugs.has(r.slug) && !viHiddenSlugs.has(r.slug),
+  );
 
   return [...viBackedRows, ...fallback].sort(
     (a, b) => a.position - b.position || b.posted_at - a.posted_at,
@@ -161,7 +185,18 @@ export async function getCareersJobForPublic(
     .bind(locale, locale, slug)
     .first<CareersJobRow>();
   if (viBacked) return viBacked;
-  return getCareersJob(slug, locale);
+
+  // Legacy content fallback. The legacy en/zh row is content-only — visibility
+  // (status) and other job-level attributes are owned by the VI source when one
+  // exists. Override status/category from VI so a closed VI job whose ZH
+  // translation isn't reviewed can't still serve through its stale 'open' ZH
+  // row (the public detail endpoint gates on status === 'open').
+  const legacy = await getCareersJob(slug, locale);
+  if (legacy) {
+    const viSrc = await getCareersJob(slug, "vi");
+    if (viSrc) return { ...legacy, status: viSrc.status, category: viSrc.category };
+  }
+  return legacy;
 }
 
 // Group jobs by slug — admin list view uses this to show all locale variants in one row.
