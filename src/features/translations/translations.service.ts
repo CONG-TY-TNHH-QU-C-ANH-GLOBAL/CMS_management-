@@ -13,7 +13,13 @@ import { auditLog } from "@/core/db/mutations";
 import { listGlossaryForPrompt } from "./glossary.service";
 import { computeSourceHash } from "./translations.hash";
 import { insertAiTranslationLog } from "./translations.log.service";
-import { callOpenAiWithJsonRecovery, type RecoveryResult } from "./translations.openai";
+import { callOpenAiWithJsonRecovery } from "./translations.openai";
+import { emitTranslationEvent } from "./translation-events.service";
+import {
+  isProviderPaused,
+  recordProviderFailure,
+  recordProviderSuccess,
+} from "./translation-health.service";
 import { buildPrompt, PROMPT_VERSION_V1 } from "./translations.prompt";
 import { computeCostUsd, defaultModelForEntity, type SupportedModel } from "./translations.pricing";
 import { hasAllExpectedFields, passesStructuralChecks } from "./translations.structural";
@@ -391,8 +397,10 @@ export interface TranslateInput {
 }
 
 export interface TranslateOutput {
-  /** Translation row IDs (one per target locale, including reused drafts). */
-  drafts: { id: number; locale: TargetLocale; status: "draft" | "failed" }[];
+  /** Translation row IDs (one per target locale, including reused drafts).
+   *  `error` carries the human-readable failure reason when status='failed'
+   *  (A8 — so the operator sees WHY, not just that it failed). */
+  drafts: { id: number; locale: TargetLocale; status: "draft" | "failed"; error?: string }[];
   /** Locales that were reused without a new OpenAI call. */
   reused_existing: TargetLocale[];
   tokens_in: number;
@@ -452,7 +460,7 @@ export async function translate(
   }
 
   // Collect reused-existing draft rows for the response (no OpenAI call needed).
-  const drafts: { id: number; locale: TargetLocale; status: "draft" | "failed" }[] = [];
+  const drafts: { id: number; locale: TargetLocale; status: "draft" | "failed"; error?: string }[] = [];
   const reuseCfg = ENTITY_CONFIG[input.entity_type];
   for (const locale of locks.reusable) {
     const row = await getDb()
@@ -478,98 +486,188 @@ export async function translate(
     };
   }
 
-  // 4. Load glossary (longest-first sorted)
+  // 4. Load glossary (longest-first sorted) + resolve model/prompt
   const glossary = await listGlossaryForPrompt();
-
-  // 5. Build prompt
   const promptVersion = input.prompt_version ?? PROMPT_VERSION_V1;
   const model: SupportedModel = input.model ?? defaultModelForEntity(input.entity_type);
-  const messages = buildPrompt({
-    entityType: input.entity_type,
-    sourceFields: source.fields,
-    targetLocales: locks.toTranslate,
-    glossary,
-  });
 
-  // 6. Call OpenAI with JSON recovery (baseUrl defaults to api.openai.com;
-  // caller may override with OPENAI_BASE_URL env to route through a proxy
-  // such as Cloudflare AI Gateway when direct egress IPs hit geo-blocks)
-  const t0 = Date.now();
-  const recovery: RecoveryResult = await callOpenAiWithJsonRecovery(
-    apiKey,
-    model,
-    messages,
-    baseUrl,
-  );
-  const latencyMs = Date.now() - t0;
+  let totalIn = 0;
+  let totalOut = 0;
+  let totalLatency = 0;
+  let totalCost = 0;
+  let lastLogId: number | null = null;
 
-  // 7. Per-locale outcome (spec §4.2 step 7)
-  const createdIds: number[] = [];
-  for (const locale of locks.toTranslate) {
-    let outcome: "draft" | "failed" = "failed";
-    let fields: Record<string, string> | null = null;
+  // try/finally so the in-flight lock ALWAYS clears even if a DB op throws
+  // mid-loop — otherwise a crash here left the row locked until the 60s TTL
+  // (operators saw "Translation already in progress" and couldn't retry).
+  const entityRef = String(input.entity_id);
 
-    if (!recovery.apiError && recovery.parsed) {
-      const localeBlock = recovery.parsed[locale];
-      if (
-        hasAllExpectedFields(localeBlock, source.fields) &&
-        passesStructuralChecks(localeBlock, source.fields)
-      ) {
-        outcome = "draft";
-        fields = localeBlock;
+  try {
+    // A10 circuit breaker: if OpenAI is paused (sustained transient errors),
+    // short-circuit — mark the locales failed with a clear reason instead of
+    // hammering the API. The breaker auto-resumes after its cooldown.
+    const pause = await isProviderPaused();
+    if (pause.paused) {
+      const until = pause.until ? new Date(pause.until * 1000).toLocaleString() : "ít phút nữa";
+      const msg = `Tạm dừng dịch: OpenAI đang lỗi liên tục, hệ thống sẽ tự thử lại sau ${until}.`;
+      for (const locale of locks.toTranslate) {
+        const id = await upsertTranslation({
+          entityType: input.entity_type,
+          entityId: input.entity_id,
+          locale,
+          fields: null,
+          status: "failed",
+          sourceHash,
+          sourceSnapshot,
+          aiModel: model,
+          promptVersion,
+          actorId,
+        });
+        drafts.push({ id, locale, status: "failed", error: msg });
+        await emitTranslationEvent({
+          entityType: input.entity_type,
+          entityRef,
+          locale,
+          event: "translate_failed",
+          detail: { reason: "provider_paused", paused_until: pause.until },
+        });
       }
+      return {
+        drafts,
+        reused_existing: locks.reusable,
+        tokens_in: 0,
+        tokens_out: 0,
+        latency_ms: 0,
+        estimated_cost_usd: 0,
+        log_id: null,
+      };
     }
 
-    const id = await upsertTranslation({
-      entityType: input.entity_type,
-      entityId: input.entity_id,
-      locale,
-      fields,
-      status: outcome,
-      sourceHash,
-      sourceSnapshot,
-      aiModel: model,
-      promptVersion,
-      actorId,
-    });
-    createdIds.push(id);
-    drafts.push({ id, locale, status: outcome });
+    // 5-8. One OpenAI call PER target locale. A big careers JD (10 fields incl.
+    // heavy JSON) for en+zh in a single call was overrunning the timeout → the
+    // "ZH: failed" symptom. Per-locale keeps each payload small and makes
+    // success/failure independent. baseUrl may route through a proxy (AI Gateway).
+    for (const locale of locks.toTranslate) {
+      const messages = buildPrompt({
+        entityType: input.entity_type,
+        sourceFields: source.fields,
+        targetLocales: [locale],
+        glossary,
+      });
 
-    // Always clear the lock at the end, even on failed outcome (the row
-    // status='failed' is itself the "we tried, it didn't work" signal).
-    await clearInFlightLock(input.entity_type, input.entity_id, locale);
+      await emitTranslationEvent({
+        entityType: input.entity_type,
+        entityRef,
+        locale,
+        event: "translate_started",
+        detail: { model },
+      });
+      const t0 = Date.now();
+      const recovery = await callOpenAiWithJsonRecovery(apiKey, model, messages, baseUrl);
+      const latencyMs = Date.now() - t0;
+      totalLatency += latencyMs;
+      totalIn += recovery.tokensIn;
+      totalOut += recovery.tokensOut;
+
+      let outcome: "draft" | "failed" = "failed";
+      let fields: Record<string, string> | null = null;
+      let errorMsg: string | null = null;
+
+      if (recovery.apiError) {
+        errorMsg = recovery.apiError.message;
+      } else if (!recovery.parsed) {
+        errorMsg = "OpenAI trả về JSON không hợp lệ (parse thất bại sau retry).";
+      } else {
+        const localeBlock = recovery.parsed[locale];
+        if (
+          hasAllExpectedFields(localeBlock, source.fields) &&
+          passesStructuralChecks(localeBlock, source.fields)
+        ) {
+          outcome = "draft";
+          fields = localeBlock;
+        } else {
+          errorMsg = "Bản dịch thiếu field hoặc sai cấu trúc (structural check).";
+        }
+      }
+
+      const id = await upsertTranslation({
+        entityType: input.entity_type,
+        entityId: input.entity_id,
+        locale,
+        fields,
+        status: outcome,
+        sourceHash,
+        sourceSnapshot,
+        aiModel: model,
+        promptVersion,
+        actorId,
+      });
+      drafts.push({ id, locale, status: outcome, error: errorMsg ?? undefined });
+
+      const cost = computeCostUsd(model, recovery.tokensIn, recovery.tokensOut);
+      totalCost += cost;
+      const logStatus = recovery.apiError
+        ? /(abort|timed?\s*out|timeout)/i.test(recovery.apiError.message)
+          ? "timeout"
+          : "api_error"
+        : recovery.parsed
+          ? "success"
+          : "parse_error";
+      lastLogId = await insertAiTranslationLog({
+        entity_type: input.entity_type,
+        entity_id: input.entity_id,
+        target_locales: [locale],
+        target_translation_ids: [id],
+        ai_model: model,
+        prompt_version: promptVersion,
+        tokens_in: recovery.tokensIn,
+        tokens_out: recovery.tokensOut,
+        estimated_cost_usd: cost,
+        latency_ms: latencyMs,
+        status: logStatus,
+        // Record the reason on any non-success (api/parse error OR a structural
+        // reject) so the failure is always forensically visible.
+        error_message: outcome === "failed" ? errorMsg : null,
+        raw_response_json: recovery.rawResponse || null,
+        requested_by: actorId,
+        source_hash: sourceHash,
+      });
+
+      // A10: update provider health. Only a provider apiError (after the
+      // internal transient retries) counts toward tripping the breaker — a
+      // parse/structural reject is a content problem, not the provider's fault.
+      if (recovery.apiError) {
+        await recordProviderFailure(recovery.apiError.message);
+      } else if (outcome === "draft") {
+        await recordProviderSuccess();
+      }
+      // A9: record the per-locale outcome on the lifecycle timeline.
+      await emitTranslationEvent({
+        entityType: input.entity_type,
+        entityRef,
+        locale,
+        event: outcome === "draft" ? "translate_succeeded" : "translate_failed",
+        detail: { status: logStatus, error: outcome === "failed" ? errorMsg : null, latency_ms: latencyMs },
+      });
+
+      // Clear the lock immediately after each locale's outcome is persisted.
+      await clearInFlightLock(input.entity_type, input.entity_id, locale);
+    }
+  } finally {
+    // Defensive sweep: clear locks for any locale we didn't reach (e.g. a throw
+    // before its in-loop clear). Idempotent — already-cleared locks are no-ops.
+    for (const locale of locks.toTranslate) {
+      await clearInFlightLock(input.entity_type, input.entity_id, locale).catch(() => {});
+    }
   }
-
-  // 8. Log
-  const tokensIn = recovery.tokensIn;
-  const tokensOut = recovery.tokensOut;
-  const cost = computeCostUsd(model, tokensIn, tokensOut);
-  const logStatus = recovery.apiError ? "api_error" : recovery.parsed ? "success" : "parse_error";
-  const logId = await insertAiTranslationLog({
-    entity_type: input.entity_type,
-    entity_id: input.entity_id,
-    target_locales: locks.toTranslate,
-    target_translation_ids: createdIds,
-    ai_model: model,
-    prompt_version: promptVersion,
-    tokens_in: tokensIn,
-    tokens_out: tokensOut,
-    estimated_cost_usd: cost,
-    latency_ms: latencyMs,
-    status: logStatus,
-    error_message: recovery.apiError?.message ?? null,
-    raw_response_json: recovery.rawResponse || null,
-    requested_by: actorId,
-    source_hash: sourceHash,
-  });
 
   return {
     drafts,
     reused_existing: locks.reusable,
-    tokens_in: tokensIn,
-    tokens_out: tokensOut,
-    latency_ms: latencyMs,
-    estimated_cost_usd: cost,
-    log_id: logId,
+    tokens_in: totalIn,
+    tokens_out: totalOut,
+    latency_ms: totalLatency,
+    estimated_cost_usd: totalCost,
+    log_id: lastLogId,
   };
 }

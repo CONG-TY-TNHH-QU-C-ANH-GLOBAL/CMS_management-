@@ -108,16 +108,24 @@ describe("passesStructuralChecks", () => {
     expect(passesStructuralChecks(dst, src)).toBe(false);
   });
 
-  test("line count within ±20% passes", () => {
+  test("large line-count difference passes — line-count no longer enforced (A5)", () => {
+    // The old ±20% line-count heuristic false-failed good localizations (compact
+    // ZH / wrapped VI). It was removed; only bullet + heading guards remain.
     const src = { a: "line1\nline2\nline3\nline4\nline5" };
-    const dst = { a: "l1\nl2\nl3\nl4\nl5\nl6" }; // 5 → 6 = 20% diff
+    const dst = { a: "one line" }; // 5 → 1, would have failed the old check
     expect(passesStructuralChecks(dst, src)).toBe(true);
   });
 
-  test("line count off by >20% fails", () => {
-    const src = { a: "line1\nline2\nline3\nline4\nline5" };
-    const dst = { a: "one line" }; // 5 → 1 = 80% diff
+  test("_json field that no longer parses fails", () => {
+    const src = { responsibilities_json: '{"Eng":["a","b"]}' };
+    const dst = { responsibilities_json: "{not valid json" };
     expect(passesStructuralChecks(dst, src)).toBe(false);
+  });
+
+  test("_json field with reformatted whitespace still passes", () => {
+    const src = { responsibilities_json: '{"Eng":["a","b"]}' };
+    const dst = { responsibilities_json: '{\n  "Eng": ["甲", "乙"]\n}' };
+    expect(passesStructuralChecks(dst, src)).toBe(true);
   });
 
   test("empty target for non-empty source fails", () => {

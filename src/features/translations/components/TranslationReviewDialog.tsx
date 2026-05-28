@@ -148,6 +148,9 @@ export function TranslationReviewDialog({
   });
   const [confirmDelete, setConfirmDelete] = useState<{ locale: Locale; id: number } | null>(null);
   const [translateError, setTranslateError] = useState<string | null>(null);
+  // A8: per-locale failure reason from the most recent Generate, so the
+  // operator sees WHY a locale failed (not just the red "failed" pill).
+  const [genErrors, setGenErrors] = useState<Partial<Record<Locale, string>>>({});
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -162,6 +165,13 @@ export function TranslationReviewDialog({
       setEdits({
         en: localeEditFromRow(byLocale.en, fields),
         zh: localeEditFromRow(byLocale.zh, fields),
+      });
+      // Drop stale per-locale generate errors for any locale that is no longer
+      // failed (e.g. after a successful re-translate/edit).
+      setGenErrors((prev) => {
+        const next = { ...prev };
+        for (const l of LOCALES) if (byLocale[l] && byLocale[l]!.status !== "failed") delete next[l];
+        return next;
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Không tải được bản dịch");
@@ -200,8 +210,21 @@ export function TranslationReviewDialog({
       const reuseHint = res.reused_existing.length
         ? ` (reused: ${res.reused_existing.join(", ")})`
         : "";
-      toast.success(`Translated ${summary}${reuseHint}`);
+      const failedDrafts = res.drafts.filter((d) => d.status === "failed");
       await reload();
+      // A8: keep per-locale reasons so they render under the failed column.
+      const errs: Partial<Record<Locale, string>> = {};
+      for (const d of failedDrafts) {
+        if (d.locale === "en" || d.locale === "zh") errs[d.locale as Locale] = d.error ?? "Dịch thất bại (không rõ lý do).";
+      }
+      setGenErrors(errs);
+      if (failedDrafts.length > 0) {
+        toast.warning(
+          `Dịch lỗi: ${failedDrafts.map((d) => `${d.locale.toUpperCase()} — ${d.error ?? "lỗi"}`).join(" · ")}`,
+        );
+      } else {
+        toast.success(`Translated ${summary}${reuseHint}`);
+      }
       onChanged();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Translate thất bại";
@@ -368,6 +391,16 @@ export function TranslationReviewDialog({
                     </div>
                   </div>
 
+                  {isFailed ? (
+                    <div className="rounded-md border border-red-300 bg-red-50 px-2 py-1.5 text-[11px] text-red-800">
+                      <span className="font-medium">Dịch thất bại.</span>{" "}
+                      {genErrors[locale] ? <span>{genErrors[locale]}</span> : <span>Xem chi tiết ở AI logs.</span>}
+                      <div className="mt-0.5 text-red-700/80">
+                        Bấm <b>Re-translate</b> để thử lại, hoặc sửa trực tiếp bên dưới rồi <b>Save edits</b> (chuyển về draft).
+                      </div>
+                    </div>
+                  ) : null}
+
                   {isStale && row?.source_snapshot ? (
                     <details className="rounded-md border border-amber-300 bg-amber-50 text-[11px] text-amber-900">
                       <summary className="px-2 py-1.5 cursor-pointer font-medium">
@@ -396,7 +429,7 @@ export function TranslationReviewDialog({
                             rows={f.rows ?? 4}
                             value={e.values[f.key] ?? ""}
                             onChange={(ev) => setEditField(locale, f.key, ev.target.value)}
-                            disabled={translating || isFailed}
+                            disabled={translating}
                             className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y disabled:bg-surface-muted disabled:opacity-60"
                           />
                         </div>
