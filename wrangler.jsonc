@@ -47,5 +47,13 @@
 	// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
 	"routes": [
 		{ "pattern": "cms.thgfulfill.com", "zone_name": "thgfulfill.com", "custom_domain": true }
-	]
+	],
+	// Cron Trigger — resume safety net for the async translation queue
+	// (src/server.ts `scheduled`). Every minute it claims any pending /
+	// lease-expired translation_job_chunks and drives them to completion.
+	// 1 minute is Cloudflare's finest cron granularity; jobs also kick an
+	// inline pass on creation so this is only the durability backstop.
+	"triggers": {
+		"crons": ["* * * * *"]
+	}
 }

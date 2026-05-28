@@ -145,3 +145,47 @@ export const translateShippingRouteFn = createServerFn({ method: "POST" })
     await bumpCmsRev();
     return result;
   });
+
+// Phase 2: enqueue an async, resumable translation job instead of translating
+// synchronously. Creates the job + chunk rows and returns the job id; the
+// client then drives it via pumpTranslationJobFn / getTranslationJobFn, with
+// the Cron Trigger as the resume backstop. Preferred over translateShippingRouteFn
+// for large routes that would otherwise risk a request timeout.
+export const enqueueShippingTranslateFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        slug: z.string().min(1),
+        source_locale: LOCALE,
+        target_locales: z.array(LOCALE).min(1).max(3).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { env } = await import("cloudflare:workers");
+    const { getShippingRoute } = await import("@/features/shipping");
+    const { createTranslationJob } = await import(
+      "@/features/translations/translation-jobs.service"
+    );
+    const me = await requireSession("editor");
+    if (!env.OPENAI_API_KEY) {
+      throw Object.assign(new Error("OPENAI_API_KEY chưa được set trên Worker."), { statusCode: 503 });
+    }
+    const source = await getShippingRoute(data.slug, data.source_locale);
+    const body = (source?.body_md ?? "").trim();
+    if (!body) {
+      throw Object.assign(new Error("Nội dung nguồn đang trống — không có gì để dịch."), { statusCode: 400 });
+    }
+    const targets = (data.target_locales ?? (["en", "vi", "zh"] as const).filter((l) => l !== data.source_locale));
+    const created = await createTranslationJob({
+      entityType: "shipping_route",
+      entityRef: data.slug,
+      sourceLocale: data.source_locale,
+      sourceText: body,
+      targetLocales: targets as ("en" | "vi" | "zh")[],
+      createdBy: me.id,
+    });
+    if (!created) return { jobId: null, totalChunks: 0, skipped: true as const };
+    return { jobId: created.jobId, totalChunks: created.totalChunks, skipped: false as const };
+  });
