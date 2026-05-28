@@ -339,3 +339,109 @@ export async function deleteShippingRouteSlug(actorId: number, slug: string): Pr
   await getDb().prepare(`DELETE FROM shipping_routes WHERE slug = ?`).bind(slug).run();
   await auditLog(actorId, "delete", "shipping_routes", slug, variants, null);
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// Any-source AI translation (spec deviation — shipping is the master-anywhere
+// entity). The standard translate pipeline is hard-wired VI→EN/ZH, but
+// shipping content can originate in any locale (e.g. the English master sheet).
+// This translates one locale row's body_md into the requested target locale
+// rows, in-place. Plain-markdown output (NOT the JSON-field pipeline).
+// ────────────────────────────────────────────────────────────────────────
+
+const LOCALE_NAMES: Record<ShippingLocale, string> = {
+  en: "English",
+  vi: "Vietnamese",
+  zh: "Chinese (Simplified)",
+};
+
+const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
+
+async function translateMarkdownPlain(
+  apiKey: string,
+  md: string,
+  targetLangName: string,
+  baseUrl: string,
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              `You localize cross-border shipping policy for THG Fulfill. Translate the ` +
+              `user's markdown into ${targetLangName}. STRICT RULES:\n` +
+              `- Preserve ALL markdown structure exactly: ## headings, ### subheadings, ` +
+              `- bullets, [text](url) links, blank lines, 🚨/⚠/📌 callout prefixes.\n` +
+              `- Keep verbatim (do NOT translate): numbers, prices, currency codes/symbols, ` +
+              `country codes, dates, URLs, weights/dimensions, and proper nouns/acronyms ` +
+              `(THG, Yunexpress, IOSS, USPS, DHL, Evri, VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
+              `- Translate naturally and professionally for a seller audience.\n` +
+              `- Output ONLY the translated markdown — no preamble, no code fences.`,
+          },
+          { role: "user", content: md },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      let detail = `${res.status} ${res.statusText}`;
+      try {
+        const body = (await res.json()) as { error?: { message?: string } };
+        if (body.error?.message) detail = body.error.message;
+      } catch { /* ignore */ }
+      throw Object.assign(new Error(`OpenAI: ${detail}`), { statusCode: res.status === 429 ? 429 : 502 });
+    }
+    const body = (await res.json()) as { choices: Array<{ message: { content: string | null } }> };
+    const out = body.choices[0]?.message?.content?.trim() ?? "";
+    if (!out) throw Object.assign(new Error("OpenAI returned empty content"), { statusCode: 502 });
+    return out;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Translate a route's body_md from one locale into the target locales,
+ *  writing the result into each target's locale row. Any source locale is
+ *  allowed (en/vi/zh). Targets default to the other two locales. */
+export async function translateShippingRouteContent(
+  actorId: number,
+  apiKey: string,
+  input: {
+    slug: string;
+    sourceLocale: ShippingLocale;
+    targetLocales?: ShippingLocale[];
+  },
+  baseUrl: string = DEFAULT_OPENAI_BASE,
+): Promise<{ translated: ShippingLocale[] }> {
+  const source = await getShippingRoute(input.slug, input.sourceLocale);
+  if (!source) {
+    throw Object.assign(new Error(`Không tìm thấy nội dung ${input.sourceLocale} cho ${input.slug}.`), { statusCode: 404 });
+  }
+  const sourceBody = (source.body_md ?? "").trim();
+  if (!sourceBody) {
+    throw Object.assign(new Error(`Nội dung ${input.sourceLocale} đang trống — không có gì để dịch.`), { statusCode: 400 });
+  }
+
+  const targets = (input.targetLocales ?? (["en", "vi", "zh"] as ShippingLocale[]))
+    .filter((l) => l !== input.sourceLocale);
+
+  const done: ShippingLocale[] = [];
+  for (const target of targets) {
+    const translated = await translateMarkdownPlain(apiKey, sourceBody, LOCALE_NAMES[target], baseUrl);
+    await getDb()
+      .prepare(`UPDATE shipping_routes SET body_md = ?, updated_at = unixepoch() WHERE slug = ? AND locale = ?`)
+      .bind(translated, input.slug, target)
+      .run();
+    done.push(target);
+  }
+
+  await auditLog(actorId, "update", "shipping_routes", `${input.slug}:translate-from-${input.sourceLocale}`, { sourceLocale: input.sourceLocale }, { translated: done });
+  return { translated: done };
+}

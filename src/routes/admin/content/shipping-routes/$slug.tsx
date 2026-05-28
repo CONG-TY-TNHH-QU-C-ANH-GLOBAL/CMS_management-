@@ -1,29 +1,25 @@
 import { createFileRoute, Link, useParams, useRouter } from "@tanstack/react-router";
-import { ChevronLeft, ExternalLink, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronLeft, ExternalLink, Languages } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Card, PageContainer } from "@/components/cms/ui";
 import { LocaleTabs, type Locale } from "@/components/cms/LocaleTabs";
 import { ShippingRouteEditor } from "@/features/shipping/components/ShippingRouteEditor";
 import {
   getShippingRouteDetailFn,
+  translateShippingRouteFn,
   type ShippingLocale,
   type ShippingRouteRow,
   type ShippingTableRow,
 } from "@/features/shipping/shipping.actions";
-import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
-import {
-  approveShippingRouteTranslationFn,
-  deleteShippingRouteTranslationFn,
-  editShippingRouteTranslationFn,
-  listShippingRouteTranslationsFn,
-} from "@/features/translations/translations.actions";
 
-const SHIPPING_ROUTE_FIELDS = [
-  { key: "title", label: "Title", rows: 2 },
-  { key: "body_md", label: "Body (markdown)", rows: 8 },
-  { key: "notes_json", label: "Notes (JSON array)", rows: 4 },
-] as const;
+const LOCALE_LABEL: Record<ShippingLocale, string> = {
+  en: "English",
+  vi: "Tiếng Việt",
+  zh: "中文",
+};
 
 export const Route = createFileRoute("/admin/content/shipping-routes/$slug")({
   loader: async ({ params }) => {
@@ -37,13 +33,39 @@ function ShippingRouteDetailPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const [locale, setLocale] = useState<Locale>("vi");
-  const [reviewing, setReviewing] = useState<ShippingRouteRow | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const translate = useServerFn(translateShippingRouteFn);
 
   const variants = data.variants as Record<ShippingLocale, ShippingRouteRow | null>;
   const tablesByLocale = data.tables as Record<ShippingLocale, ShippingTableRow[]>;
   const route = variants[locale as ShippingLocale];
   const tables = tablesByLocale[locale as ShippingLocale] ?? [];
-  const viRoute = variants.vi;
+
+  const otherLocales = (["en", "vi", "zh"] as ShippingLocale[]).filter((l) => l !== locale);
+  const hasSourceBody = !!route?.body_md?.trim();
+
+  async function onTranslate() {
+    if (!hasSourceBody) {
+      toast.error("Nội dung ở tab hiện tại đang trống — không có gì để dịch.");
+      return;
+    }
+    setTranslating(true);
+    try {
+      const res = await translate({
+        data: { slug, source_locale: locale as ShippingLocale, target_locales: otherLocales },
+      });
+      toast.success(
+        `Đã dịch từ ${LOCALE_LABEL[locale as ShippingLocale]} sang: ${res.translated
+          .map((l) => LOCALE_LABEL[l])
+          .join(", ")}`,
+      );
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Dịch thất bại");
+    } finally {
+      setTranslating(false);
+    }
+  }
 
   return (
     <PageContainer>
@@ -53,7 +75,7 @@ function ShippingRouteDetailPage() {
 
       <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
         <div>
-          <h2 className="text-xl font-semibold">{route?.title ?? `(chưa có bản dịch ${locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"})`}</h2>
+          <h2 className="text-xl font-semibold">{route?.title ?? `(chưa có bản dịch ${LOCALE_LABEL[locale as ShippingLocale]})`}</h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
             <span>Đường dẫn:</span>
             <span className="font-mono">{slug}</span>
@@ -63,15 +85,21 @@ function ShippingRouteDetailPage() {
             </a>
           </div>
         </div>
-        {locale === "vi" && viRoute ? (
-          <button
-            onClick={() => setReviewing(viRoute)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100"
-            title="Mở dialog dịch + duyệt EN + ZH cho tuyến vận chuyển này (chỉ dịch title / body / notes; các bảng đính kèm dịch riêng sau)"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Bản dịch EN + ZH
-          </button>
-        ) : null}
+        <button
+          onClick={onTranslate}
+          disabled={translating || !hasSourceBody}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            hasSourceBody
+              ? `Dùng AI dịch nội dung ${LOCALE_LABEL[locale as ShippingLocale]} hiện tại sang ${otherLocales.map((l) => LOCALE_LABEL[l]).join(" + ")} (ghi đè nội dung 2 tab kia)`
+              : "Tab hiện tại chưa có nội dung để dịch"
+          }
+        >
+          <Languages className="w-3.5 h-3.5" />
+          {translating
+            ? "Đang dịch…"
+            : `Dịch ${LOCALE_LABEL[locale as ShippingLocale]} → ${otherLocales.map((l) => LOCALE_LABEL[l]).join(" + ")}`}
+        </button>
       </div>
 
       <Card className="overflow-hidden mb-4 p-0">
@@ -86,30 +114,6 @@ function ShippingRouteDetailPage() {
         tables={tables}
         onSaved={() => router.invalidate()}
       />
-
-      {reviewing ? (
-        <TranslationReviewDialog
-          open={reviewing !== null}
-          onOpenChange={(o) => !o && setReviewing(null)}
-          onChanged={() => router.invalidate()}
-          entityType="shipping_route"
-          entityId={reviewing.id}
-          entityLabel="Shipping route"
-          source={{
-            title: reviewing.title,
-            body_md: reviewing.body_md ?? "",
-            notes_json: reviewing.notes_json ?? "",
-          }}
-          fields={SHIPPING_ROUTE_FIELDS}
-          rpcs={{
-            list: listShippingRouteTranslationsFn,
-            approve: approveShippingRouteTranslationFn,
-            edit: editShippingRouteTranslationFn,
-            delete: deleteShippingRouteTranslationFn,
-          }}
-          listIdKey="shipping_route_id"
-        />
-      ) : null}
     </PageContainer>
   );
 }
