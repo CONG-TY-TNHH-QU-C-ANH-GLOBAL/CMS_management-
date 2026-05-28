@@ -108,3 +108,40 @@ export const deleteShippingRouteSlugFn = createServerFn({ method: "POST" })
     await bumpCmsRev();
     return { ok: true as const };
   });
+
+// Any-source AI translation: translate the given route's content from
+// `source_locale` into the other locales (or an explicit target list). Unlike
+// the VI-only Sparkles pipeline, source can be any locale — built for shipping
+// where the master content may be English, Vietnamese, or Chinese.
+export const translateShippingRouteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        slug: z.string().min(1),
+        source_locale: LOCALE,
+        target_locales: z.array(LOCALE).min(1).max(3).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { env } = await import("cloudflare:workers");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { translateShippingRouteContent } = await import("@/features/shipping");
+    const me = await requireSession("editor");
+    if (!env.OPENAI_API_KEY) {
+      throw Object.assign(new Error("OPENAI_API_KEY chưa được set trên Worker."), { statusCode: 503 });
+    }
+    const result = await translateShippingRouteContent(
+      me.id,
+      env.OPENAI_API_KEY,
+      {
+        slug: data.slug,
+        sourceLocale: data.source_locale,
+        targetLocales: data.target_locales,
+      },
+      env.OPENAI_BASE_URL,
+    );
+    await bumpCmsRev();
+    return result;
+  });
