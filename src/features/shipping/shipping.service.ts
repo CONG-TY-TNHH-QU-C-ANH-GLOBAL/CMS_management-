@@ -407,11 +407,61 @@ async function translateMarkdownPlain(
   }
 }
 
+// Retry one section translation on transient failures (429 rate-limit / 5xx /
+// timeout). Exponential backoff with jitter. This is what makes per-section
+// parallelism safe — a single rate-limited section no longer fails the whole
+// route translation.
+async function translateMarkdownPlainWithRetry(
+  apiKey: string,
+  md: string,
+  targetLangName: string,
+  baseUrl: string,
+  attempts = 3,
+): Promise<string> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await translateMarkdownPlain(apiKey, md, targetLangName, baseUrl);
+    } catch (err) {
+      lastErr = err;
+      const status = (err as { statusCode?: number })?.statusCode;
+      const retryable = status === 429 || status === 502 || (err as Error)?.name === "AbortError";
+      if (!retryable || i === attempts - 1) break;
+      // 1.2s, 3s, 6s-ish with jitter
+      const delay = 1200 * Math.pow(2, i) + Math.floor(Math.random() * 600);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
+// Run async tasks with bounded concurrency, preserving result order. Keeps the
+// number of simultaneous OpenAI calls low enough to stay under the account's
+// requests/tokens-per-minute limits (the cause of "Vietnamese failed" when all
+// ~12 sections fired at once).
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 // Split markdown at `## ` section boundaries (intro before the first heading is
 // its own chunk). A single 50k-char route would need minutes for one OpenAI
 // call (gpt-4o-mini ≈ 100 tok/s) and trip the 60s per-call timeout — so we
-// translate sections separately and in parallel (total wall-clock ≈ slowest
-// section, not the sum).
+// translate sections separately (bounded concurrency + retry).
 function splitMarkdownSections(md: string): string[] {
   const chunks: string[] = [];
   let cur: string[] = [];
@@ -427,7 +477,9 @@ function splitMarkdownSections(md: string): string[] {
   return chunks.filter((c) => c.trim().length > 0);
 }
 
-/** Translate a (potentially large) markdown body by section, in parallel. */
+/** Translate a (potentially large) markdown body by section, with bounded
+ *  concurrency + per-section retry so rate limits / transient errors don't
+ *  fail the whole route. */
 async function translateLargeMarkdown(
   apiKey: string,
   md: string,
@@ -435,12 +487,13 @@ async function translateLargeMarkdown(
   baseUrl: string,
 ): Promise<string> {
   const sections = splitMarkdownSections(md);
-  // One section → just translate it directly (avoids needless join overhead).
   if (sections.length <= 1) {
-    return translateMarkdownPlain(apiKey, md, targetLangName, baseUrl);
+    return translateMarkdownPlainWithRetry(apiKey, md, targetLangName, baseUrl);
   }
-  const translated = await Promise.all(
-    sections.map((s) => translateMarkdownPlain(apiKey, s, targetLangName, baseUrl)),
+  // Max 3 concurrent calls — fast enough (≈ ceil(N/3) waves) while staying
+  // comfortably under OpenAI rate limits.
+  const translated = await mapPool(sections, 3, (s) =>
+    translateMarkdownPlainWithRetry(apiKey, s, targetLangName, baseUrl),
   );
   return translated.join("\n\n");
 }
