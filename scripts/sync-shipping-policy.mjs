@@ -186,43 +186,128 @@ async function fetchTab(gid) {
 const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 
-async function translateMarkdown(md, targetLang) {
-  const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            `You localize cross-border shipping policy for THG Fulfill. Translate the ` +
-            `user's markdown from English to ${targetLang}. STRICT RULES:\n` +
-            `- Preserve ALL markdown structure exactly: ## headings, ### subheadings, ` +
-            `- bullets, [text](url) links, blank lines.\n` +
-            `- Keep verbatim (do NOT translate): numbers, prices, currency codes/symbols ` +
-            `($ € £ NOK CHF RMB ₫), country codes (US, EU, UK...), dates, URLs, weights/` +
-            `dimensions, and proper nouns/acronyms (THG, Yunexpress, IOSS, USPS, DHL, Evri, ` +
-            `VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
-            `- Translate naturally and professionally for a seller audience.\n` +
-            `- Output ONLY the translated markdown — no preamble, no code fences.`,
-        },
-        { role: "user", content: md },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`OpenAI HTTP ${res.status}: ${t.slice(0, 200)}`);
+// Cap per chunk so even verbose Vietnamese output stays under the
+// per-call timeout. Mirrors the in-Worker translate.
+const MAX_CHUNK_CHARS = 2500;
+const TRANSLATE_CONCURRENCY = 8;
+
+// Split markdown into translate-sized chunks: first at `## ` boundaries, then
+// further split any oversized section at line boundaries.
+function splitForTranslate(md) {
+  const sections = [];
+  let cur = [];
+  for (const line of md.split("\n")) {
+    if (/^##\s+/.test(line) && cur.length > 0) {
+      sections.push(cur.join("\n"));
+      cur = [line];
+    } else cur.push(line);
   }
-  const json = await res.json();
-  const out = json?.choices?.[0]?.message?.content?.trim();
-  if (!out) throw new Error("OpenAI returned empty content");
-  return out;
+  if (cur.length > 0) sections.push(cur.join("\n"));
+
+  const chunks = [];
+  for (const section of sections) {
+    if (section.length <= MAX_CHUNK_CHARS) {
+      if (section.trim()) chunks.push(section);
+      continue;
+    }
+    let buf = []; let len = 0;
+    for (const line of section.split("\n")) {
+      if (len + line.length + 1 > MAX_CHUNK_CHARS && buf.length > 0) {
+        chunks.push(buf.join("\n"));
+        buf = []; len = 0;
+      }
+      buf.push(line);
+      len += line.length + 1;
+    }
+    if (buf.join("").trim()) chunks.push(buf.join("\n"));
+  }
+  return chunks.filter((c) => c.trim().length > 0);
+}
+
+// Bounded-concurrency map preserving result order.
+async function mapPool(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
+async function translateChunkOnce(md, targetLang) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 90_000);
+  try {
+    const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              `You localize cross-border shipping policy for THG Fulfill. Translate the ` +
+              `user's markdown from English to ${targetLang}. STRICT RULES:\n` +
+              `- Preserve ALL markdown structure exactly: ## headings, ### subheadings, ` +
+              `- bullets, [text](url) links, blank lines.\n` +
+              `- Keep verbatim (do NOT translate): numbers, prices, currency codes/symbols ` +
+              `($ € £ NOK CHF RMB ₫), country codes (US, EU, UK...), dates, URLs, weights/` +
+              `dimensions, and proper nouns/acronyms (THG, Yunexpress, IOSS, USPS, DHL, Evri, ` +
+              `VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
+              `- Translate naturally and professionally for a seller audience.\n` +
+              `- Output ONLY the translated markdown — no preamble, no code fences.`,
+          },
+          { role: "user", content: md },
+        ],
+      }),
+      signal: ctl.signal,
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      const e = new Error(`OpenAI HTTP ${res.status}: ${t.slice(0, 200)}`);
+      e.status = res.status;
+      throw e;
+    }
+    const json = await res.json();
+    const out = json?.choices?.[0]?.message?.content?.trim();
+    if (!out) throw new Error("OpenAI returned empty content");
+    return out;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function translateChunkWithRetry(md, targetLang, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await translateChunkOnce(md, targetLang);
+    } catch (err) {
+      lastErr = err;
+      const status = err?.status;
+      const retryable = status === 429 || status === 502 || status === 503 || err?.name === "AbortError";
+      if (!retryable || i === attempts - 1) break;
+      const delay = 1200 * Math.pow(2, i) + Math.floor(Math.random() * 600);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
+async function translateMarkdown(md, targetLang) {
+  const chunks = splitForTranslate(md);
+  if (chunks.length <= 1) return translateChunkWithRetry(md, targetLang);
+  const translated = await mapPool(chunks, TRANSLATE_CONCURRENCY, (c) =>
+    translateChunkWithRetry(c, targetLang),
+  );
+  return translated.join("\n\n");
 }
 
 async function main() {
