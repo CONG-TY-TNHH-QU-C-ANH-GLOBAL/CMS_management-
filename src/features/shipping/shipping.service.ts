@@ -465,10 +465,39 @@ async function mapPool<T, R>(
 // timeout. ~2500 source chars ≈ ~4-5k VI chars ≈ ~20-30s generation.
 const MAX_CHUNK_CHARS = 2500;
 
+// Break ONE oversized line into ≤cap pieces. Markdown synced from the master
+// sheet collapses each cell's internal whitespace (incl. newlines) into single
+// spaces, so a multi-paragraph cell becomes a single line many KB long with no
+// `\n` to split on. The prior line-only splitter left it whole, producing a
+// chunk that overran the 90s OpenAI timeout ("operation was aborted" on the big
+// CN routes). We break at the last sentence boundary within the cap, else the
+// last space, else a hard cut — so no chunk can exceed the cap.
+function hardSplitLine(line: string, cap: number): string[] {
+  const out: string[] = [];
+  let rest = line;
+  const SENT = /[.!?。！？;；](\s|$)/g;
+  while (rest.length > cap) {
+    const window = rest.slice(0, cap);
+    let cut = -1;
+    SENT.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = SENT.exec(window)) !== null) cut = m.index + 1; // just past the punctuation
+    if (cut < cap * 0.5) {
+      const sp = window.lastIndexOf(" ");
+      cut = sp >= cap * 0.5 ? sp + 1 : cap;
+    }
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut);
+  }
+  if (rest.trim()) out.push(rest.trim());
+  return out;
+}
+
 // Split markdown into translate-sized chunks. First split at `## ` section
-// boundaries (intro before the first heading is its own chunk); then any
-// section still over MAX_CHUNK_CHARS is sub-split at line boundaries so no
-// single chunk is large enough to time out — regardless of target language.
+// boundaries (intro before the first heading is its own chunk); then pack
+// lines into ≤ MAX_CHUNK_CHARS chunks, hard-splitting any single line that is
+// itself over the cap so NO chunk can exceed it — regardless of input or
+// target language.
 function splitMarkdownSections(md: string): string[] {
   const sections: string[] = [];
   let cur: string[] = [];
@@ -489,19 +518,26 @@ function splitMarkdownSections(md: string): string[] {
       continue;
     }
     // Section too big — pack its lines into ≤ MAX_CHUNK_CHARS sub-chunks,
-    // keeping whole lines intact (never split mid-line / mid-bullet).
+    // keeping whole lines intact, and hard-splitting any line that alone
+    // exceeds the cap (never leave an oversized chunk).
     let buf: string[] = [];
     let len = 0;
+    const flush = () => {
+      if (buf.join("").trim()) chunks.push(buf.join("\n"));
+      buf = [];
+      len = 0;
+    };
     for (const line of section.split("\n")) {
-      if (len + line.length + 1 > MAX_CHUNK_CHARS && buf.length > 0) {
-        chunks.push(buf.join("\n"));
-        buf = [];
-        len = 0;
+      if (line.length > MAX_CHUNK_CHARS) {
+        flush();
+        for (const piece of hardSplitLine(line, MAX_CHUNK_CHARS)) chunks.push(piece);
+        continue;
       }
+      if (len + line.length + 1 > MAX_CHUNK_CHARS && buf.length > 0) flush();
       buf.push(line);
       len += line.length + 1;
     }
-    if (buf.join("").trim()) chunks.push(buf.join("\n"));
+    flush();
   }
   return chunks.filter((c) => c.trim().length > 0);
 }
