@@ -519,9 +519,13 @@ async function translateLargeMarkdown(
   if (sections.length <= 1) {
     return translateMarkdownPlainWithRetry(apiKey, md, targetLangName, baseUrl);
   }
-  // Max 3 concurrent calls — fast enough (≈ ceil(N/3) waves) while staying
-  // comfortably under OpenAI rate limits.
-  const translated = await mapPool(sections, 3, (s) =>
+  // Concurrency 8. Chunks are small (≤2500 chars ≈ 1-2k tokens each), so 8
+  // in flight is well under gpt-4o-mini rate limits while cutting wall-clock
+  // ~8×: a 24-chunk route finishes in ~3 waves (~40s) instead of ~8 (~100s,
+  // which was overrunning the request budget and failing the longer-output
+  // Vietnamese pass while compact Chinese still squeaked through). Retry
+  // absorbs the occasional 429.
+  const translated = await mapPool(sections, 8, (s) =>
     translateMarkdownPlainWithRetry(apiKey, s, targetLangName, baseUrl),
   );
   return translated.join("\n\n");
