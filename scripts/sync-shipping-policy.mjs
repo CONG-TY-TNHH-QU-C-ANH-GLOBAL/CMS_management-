@@ -39,15 +39,75 @@
 const SPREADSHEET_ID = "1woNrfCqybDs0zYKbGnilchhXE6JaWLAsOJxN-pQO0e4";
 const OUT_REL = "scripts/.tmp-sync-shipping-policy.sql";
 
-// gsheet "Policy ..." tab GID  →  CMS shipping_routes.slug
+// gsheet "Policy ..." tab GID  →  CMS shipping_routes.slug + canonical titles.
+//
+// Titles are NOT in the sheet (the policy tabs are pure content), and the
+// bootstrap-seeded titles were inconsistent across locales — some said "USA"
+// when the route actually ships Worldwide, and the priority routes drifted on
+// the Germany/EU scope. We pin them here (per operator decision) so every
+// re-sync writes a consistent set across en/vi/zh.
+//
+// Scope note: the slugs say "us" for historical reasons, but standard /
+// cosmetics / batteries are Worldwide routes (the policy lists UK, EU, JP, AU,
+// etc.). Slugs are kept as-is (landing references them); only the display
+// titles are corrected. Priority routes keep their specific destinations.
 const ROUTE_TABS = [
-  { slug: "vn-us-regular", gid: "1366777313", sheet: "Policy VNTHZXR VN standard WW" },
-  { slug: "vn-us-cosmetics", gid: "1764855107", sheet: "Policy VNMUZXR standard VN WW (cosmetics)" },
-  { slug: "cn-us-regular", gid: "535541764", sheet: "Policy THPHR (Standard CN regular)" },
-  { slug: "cn-us-cosmetics", gid: "1814177658", sheet: "Policy MUZXR (Stand CN WW cosmetics)" },
-  { slug: "cn-us-batteries", gid: "1808506806", sheet: "Policy THZXR (Stand CN WW batteries)" },
-  { slug: "vn-us-priority", gid: "1437367264", sheet: "Policy VN-YTYCPREC VN priority" },
-  { slug: "cn-us-priority", gid: "1663964711", sheet: "Policy YTYCPREC priority CN US" },
+  {
+    slug: "vn-us-regular", gid: "1366777313", sheet: "Policy VNTHZXR VN standard WW",
+    titles: {
+      en: "Vietnam → Worldwide · Standard",
+      vi: "Việt Nam → Toàn Cầu · Hàng thường",
+      zh: "越南 → 全球 · 标准",
+    },
+  },
+  {
+    slug: "vn-us-cosmetics", gid: "1764855107", sheet: "Policy VNMUZXR standard VN WW (cosmetics)",
+    titles: {
+      en: "Vietnam → Worldwide · Cosmetics",
+      vi: "Việt Nam → Toàn Cầu · Mỹ phẩm",
+      zh: "越南 → 全球 · 化妆品",
+    },
+  },
+  {
+    slug: "cn-us-regular", gid: "535541764", sheet: "Policy THPHR (Standard CN regular)",
+    titles: {
+      en: "China → Worldwide · Standard",
+      vi: "Trung Quốc → Toàn Cầu · Hàng thường",
+      zh: "中国 → 全球 · 标准",
+    },
+  },
+  {
+    slug: "cn-us-cosmetics", gid: "1814177658", sheet: "Policy MUZXR (Stand CN WW cosmetics)",
+    titles: {
+      en: "China → Worldwide · Cosmetics",
+      vi: "Trung Quốc → Toàn Cầu · Mỹ phẩm",
+      zh: "中国 → 全球 · 化妆品",
+    },
+  },
+  {
+    slug: "cn-us-batteries", gid: "1808506806", sheet: "Policy THZXR (Stand CN WW batteries)",
+    titles: {
+      en: "China → Worldwide · Batteries",
+      vi: "Trung Quốc → Toàn Cầu · Pin điện",
+      zh: "中国 → 全球 · 电池",
+    },
+  },
+  {
+    slug: "vn-us-priority", gid: "1437367264", sheet: "Policy VN-YTYCPREC VN priority",
+    titles: {
+      en: "Vietnam → USA & Germany · Priority",
+      vi: "Việt Nam → Mỹ & Đức · Priority",
+      zh: "越南 → 美国 & 德国 · Priority",
+    },
+  },
+  {
+    slug: "cn-us-priority", gid: "1663964711", sheet: "Policy YTYCPREC priority CN US",
+    titles: {
+      en: "China → USA/UK/Germany/France/Spain · Priority",
+      vi: "Trung Quốc → Mỹ/Anh/Đức/Pháp/Tây Ban Nha · Priority",
+      zh: "中国 → 美国/英国/德国/法国/西班牙 · Priority",
+    },
+  },
 ];
 
 // ── CSV parser (RFC-4180-ish, handles quoted multiline cells) ──────────────
@@ -200,17 +260,22 @@ async function main() {
     process.stderr.write("\n");
 
     stmts.push(`-- ${tab.slug}  ← sheet "${tab.sheet}" (gid ${tab.gid})`);
-    // Each locale's content goes into its own locale row (legacy 3-row model).
+    // Each locale's content + canonical title goes into its own locale row
+    // (legacy 3-row model). Title is pinned here (not from the sheet) so the
+    // three locales stay consistent on every re-sync.
     stmts.push(
-      `UPDATE shipping_routes SET body_md = '${sqlEscape(enMd)}', notes_json = NULL ` +
+      `UPDATE shipping_routes SET title = '${sqlEscape(tab.titles.en)}', ` +
+        `body_md = '${sqlEscape(enMd)}', notes_json = NULL ` +
         `WHERE slug = '${tab.slug}' AND locale = 'en';`,
     );
     stmts.push(
-      `UPDATE shipping_routes SET body_md = '${sqlEscape(viMd)}', notes_json = NULL ` +
+      `UPDATE shipping_routes SET title = '${sqlEscape(tab.titles.vi)}', ` +
+        `body_md = '${sqlEscape(viMd)}', notes_json = NULL ` +
         `WHERE slug = '${tab.slug}' AND locale = 'vi';`,
     );
     stmts.push(
-      `UPDATE shipping_routes SET body_md = '${sqlEscape(zhMd)}', notes_json = NULL ` +
+      `UPDATE shipping_routes SET title = '${sqlEscape(tab.titles.zh)}', ` +
+        `body_md = '${sqlEscape(zhMd)}', notes_json = NULL ` +
         `WHERE slug = '${tab.slug}' AND locale = 'zh';`,
     );
     // Drop stale 0028 tables (sheet policy is prose, not tables).
