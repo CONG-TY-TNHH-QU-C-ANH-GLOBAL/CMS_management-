@@ -363,7 +363,7 @@ async function translateMarkdownPlain(
   baseUrl: string,
 ): Promise<string> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60_000);
+  const timer = setTimeout(() => controller.abort(), 90_000);
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
@@ -458,22 +458,51 @@ async function mapPool<T, R>(
   return results;
 }
 
-// Split markdown at `## ` section boundaries (intro before the first heading is
-// its own chunk). A single 50k-char route would need minutes for one OpenAI
-// call (gpt-4o-mini ≈ 100 tok/s) and trip the 60s per-call timeout — so we
-// translate sections separately (bounded concurrency + retry).
+// Max characters per translation chunk. Vietnamese output runs ~1.5-2× the
+// English source length (Chinese is far more compact), so a big `##` section
+// can blow the per-call timeout in VI even when it's fine in ZH. We cap every
+// chunk so the slowest-language output for any chunk stays well under the
+// timeout. ~2500 source chars ≈ ~4-5k VI chars ≈ ~20-30s generation.
+const MAX_CHUNK_CHARS = 2500;
+
+// Split markdown into translate-sized chunks. First split at `## ` section
+// boundaries (intro before the first heading is its own chunk); then any
+// section still over MAX_CHUNK_CHARS is sub-split at line boundaries so no
+// single chunk is large enough to time out — regardless of target language.
 function splitMarkdownSections(md: string): string[] {
-  const chunks: string[] = [];
+  const sections: string[] = [];
   let cur: string[] = [];
   for (const line of md.split("\n")) {
     if (/^##\s+/.test(line) && cur.length > 0) {
-      chunks.push(cur.join("\n"));
+      sections.push(cur.join("\n"));
       cur = [line];
     } else {
       cur.push(line);
     }
   }
-  if (cur.length > 0) chunks.push(cur.join("\n"));
+  if (cur.length > 0) sections.push(cur.join("\n"));
+
+  const chunks: string[] = [];
+  for (const section of sections) {
+    if (section.length <= MAX_CHUNK_CHARS) {
+      if (section.trim()) chunks.push(section);
+      continue;
+    }
+    // Section too big — pack its lines into ≤ MAX_CHUNK_CHARS sub-chunks,
+    // keeping whole lines intact (never split mid-line / mid-bullet).
+    let buf: string[] = [];
+    let len = 0;
+    for (const line of section.split("\n")) {
+      if (len + line.length + 1 > MAX_CHUNK_CHARS && buf.length > 0) {
+        chunks.push(buf.join("\n"));
+        buf = [];
+        len = 0;
+      }
+      buf.push(line);
+      len += line.length + 1;
+    }
+    if (buf.join("").trim()) chunks.push(buf.join("\n"));
+  }
   return chunks.filter((c) => c.trim().length > 0);
 }
 
