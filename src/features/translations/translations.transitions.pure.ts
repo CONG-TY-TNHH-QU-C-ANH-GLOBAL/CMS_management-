@@ -95,8 +95,12 @@ const TRANSITIONS: Record<
     ai_completed: "draft",
     ai_failed: "failed",
     operator_retried: "draft",
+    // Allow the operator to SALVAGE a failed translation by editing it — the
+    // edit moves it to `draft` (then they can Approve). Previously this was
+    // rejected, leaving the only recovery path as Delete + Re-translate.
+    operator_edited: "draft",
+    // Still can't approve a never-succeeded row directly — must edit → draft first.
     operator_approved: null,
-    operator_edited: null,
     source_changed: null,
     prompt_changed: null,
     model_changed: null,

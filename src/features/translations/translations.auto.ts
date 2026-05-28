@@ -84,6 +84,34 @@ export async function autoTranslateMissingLocales(
       baseUrl,
     );
   } catch (err) {
+    // Non-blocking (the source save already committed), but DO NOT fail
+    // silently: record it in ai_translation_log so the operator/eng channel
+    // can see that an auto-translate attempt failed and why. translate() logs
+    // its own per-locale outcomes when it RUNS; this catch covers the case
+    // where it THREW before logging (e.g. source-not-found, unexpected DB error).
+    const message = err instanceof Error ? err.message : String(err);
     console.error(`[auto-translate] ${entityType}#${entityId} failed`, err);
+    try {
+      const { insertAiTranslationLog } = await import("./translations.log.service");
+      await insertAiTranslationLog({
+        entity_type: entityType,
+        entity_id: entityId,
+        target_locales: missing,
+        target_translation_ids: [],
+        ai_model: "auto",
+        prompt_version: "auto",
+        tokens_in: 0,
+        tokens_out: 0,
+        estimated_cost_usd: 0,
+        latency_ms: 0,
+        status: "api_error",
+        error_message: `auto-translate threw: ${message}`.slice(0, 1000),
+        raw_response_json: null,
+        requested_by: actorId,
+        source_hash: "",
+      });
+    } catch {
+      // logging is best-effort too
+    }
   }
 }

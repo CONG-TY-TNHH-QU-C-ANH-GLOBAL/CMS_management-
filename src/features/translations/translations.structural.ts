@@ -54,6 +54,20 @@ export function passesStructuralChecks(
     if (typeof dst !== "string") return false;
     if (dst.length === 0 && src.length > 0) return false;
 
+    // JSON-valued fields (e.g. responsibilities_json, payload_json) are NOT
+    // markdown — bullet/heading/line heuristics are meaningless on them and
+    // were a major false-failure source (esp. careers_job). Validate only that
+    // the translation is still parseable JSON; structure is checked by callers.
+    if (key.endsWith("_json")) {
+      if (dst.trim().length === 0) continue;
+      try {
+        JSON.parse(dst);
+      } catch {
+        return false;
+      }
+      continue;
+    }
+
     // Bullet count must match — don't let AI drop list items.
     const srcBullets = (src.match(/^[ \t]*[-*+]\s/gm) ?? []).length;
     const dstBullets = (dst.match(/^[ \t]*[-*+]\s/gm) ?? []).length;
@@ -64,11 +78,10 @@ export function passesStructuralChecks(
     const dstHeadings = (dst.match(/^#{1,6}\s/gm) ?? []).length;
     if (srcHeadings !== dstHeadings) return false;
 
-    // Line count rough match within ±20% (translations often slightly
-    // shorter/longer per line — loose threshold).
-    const srcLines = src.split("\n").length;
-    const dstLines = dst.split("\n").length;
-    if (Math.abs(srcLines - dstLines) / Math.max(srcLines, 1) > 0.2) return false;
+    // NOTE: the old ±20% line-count check was removed — legitimate
+    // localizations (esp. compact ZH or wrapped VI) routinely differ by more
+    // than 20% in line count, which marked good translations as `failed`. The
+    // bullet + heading guards above still catch real structural corruption.
   }
   return true;
 }

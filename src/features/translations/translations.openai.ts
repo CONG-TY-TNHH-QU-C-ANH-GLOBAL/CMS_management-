@@ -14,9 +14,24 @@ import { buildRetryMessage, type PromptMessage } from "./translations.prompt";
  *  if direct api.openai.com calls hit geo-blocked egress IPs from
  *  Cloudflare Workers. */
 const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
-/** Timeout per OpenAI call. gpt-4o-mini usually returns in 2-4s; we allow
- *  generous headroom before declaring api_error. */
-const TIMEOUT_MS = 30_000;
+/** Timeout per OpenAI call. gpt-4o-mini usually returns in 2-4s, but a large
+ *  careers JD (10 fields incl. heavy JSON) can take much longer; 60s avoids
+ *  false timeouts on big entities. Combine with one-locale-per-call upstream
+ *  to keep payloads small. */
+const TIMEOUT_MS = 60_000;
+
+/** Transient-failure retry (429 rate-limit, 5xx, network/abort). Exponential
+ *  backoff with jitter — mirrors the shipping plain-markdown translator so a
+ *  single rate-limited call no longer fails the whole translation. */
+const MAX_TRANSIENT_ATTEMPTS = 3;
+
+function isTransient(err: unknown): boolean {
+  if (err instanceof OpenAiApiError) {
+    return err.status === 429 || err.status === 408 || (err.status >= 500 && err.status < 600);
+  }
+  // AbortError (timeout) + network errors are transient.
+  return true;
+}
 
 export interface OpenAiCallResult {
   /** Raw assistant message content. Captured even when parsing fails. */
@@ -84,6 +99,27 @@ async function callOnce(
   }
 }
 
+/** callOnce + exponential-backoff retry on transient failures. */
+async function callOnceWithRetry(
+  apiKey: string,
+  model: string,
+  messages: PromptMessage[],
+  baseUrl: string,
+): Promise<OpenAiCallResult> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < MAX_TRANSIENT_ATTEMPTS; attempt++) {
+    try {
+      return await callOnce(apiKey, model, messages, baseUrl);
+    } catch (err) {
+      lastErr = err;
+      if (!isTransient(err) || attempt === MAX_TRANSIENT_ATTEMPTS - 1) break;
+      const delay = 1200 * Math.pow(2, attempt) + Math.floor(Math.random() * 600);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
 export interface RecoveryResult {
   /** Raw response(s) joined by "---RETRY---" if a retry happened. Always present. */
   rawResponse: string;
@@ -114,7 +150,7 @@ export async function callOpenAiWithJsonRecovery(
 ): Promise<RecoveryResult> {
   let first: OpenAiCallResult;
   try {
-    first = await callOnce(apiKey, model, messages, baseUrl);
+    first = await callOnceWithRetry(apiKey, model, messages, baseUrl);
   } catch (err) {
     return {
       rawResponse: "",
@@ -141,7 +177,7 @@ export async function callOpenAiWithJsonRecovery(
   const retryMessages = [...messages, ...buildRetryMessage(first.rawText)];
   let second: OpenAiCallResult;
   try {
-    second = await callOnce(apiKey, model, retryMessages, baseUrl);
+    second = await callOnceWithRetry(apiKey, model, retryMessages, baseUrl);
   } catch (err) {
     return {
       rawResponse: first.rawText + "\n---RETRY-API-ERROR---\n",

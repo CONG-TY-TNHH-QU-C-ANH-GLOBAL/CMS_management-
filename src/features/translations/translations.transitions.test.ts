@@ -63,7 +63,9 @@ const MATRIX: Record<TranslationStatus, Record<TransitionEvent["kind"], Expected
     ai_completed: "draft",
     ai_failed: "failed",
     operator_approved: "REJECT",
-    operator_edited: "REJECT",
+    // A6: operators can now SALVAGE a failed translation by editing it → draft
+    // (then Approve). Previously rejected, which left only Delete + Re-translate.
+    operator_edited: "draft",
     source_changed: "REJECT",
     prompt_changed: "REJECT",
     model_changed: "REJECT",
@@ -232,9 +234,10 @@ describe("validateTransition — rejected transitions return helpful errors", ()
     }
   });
 
-  test("editing a failed row is rejected", () => {
+  test("editing a failed row salvages it to draft (A6)", () => {
     const result = validateTransition("failed", eventOf("operator_edited"));
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.to).toBe("draft");
   });
 
   test("marking a failed row stale is rejected", () => {
