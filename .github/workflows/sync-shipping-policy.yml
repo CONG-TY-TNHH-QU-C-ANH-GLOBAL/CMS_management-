@@ -24,6 +24,10 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Optional: add OPENAI_API_KEY as a repo secret to auto-translate EN→VI/ZH.
+      # Without it, only the EN row is populated and VI/ZH are cleared.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
     steps:
       - name: Verify confirmation
         if: ${{ github.event.inputs.confirm != 'SYNC SHIPPING' }}
