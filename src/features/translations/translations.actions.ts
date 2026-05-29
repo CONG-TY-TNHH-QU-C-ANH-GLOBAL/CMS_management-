@@ -480,6 +480,8 @@ export const editCareersJobTranslationFn = createServerFn({ method: "POST" })
         title: z.string().max(2000).nullable(),
         body_md: z.string().max(50000).nullable(),
         tagline: z.string().max(2000).nullable(),
+        salary: z.string().max(2000).nullable(),
+        salary_unit: z.string().max(2000).nullable(),
         salary_note: z.string().max(2000).nullable(),
         experience: z.string().max(2000).nullable(),
         lead: z.string().max(5000).nullable(),

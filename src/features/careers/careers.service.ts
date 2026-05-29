@@ -110,7 +110,7 @@ export async function listCareersJobsForPublic(filter?: {
   if (filter.category) { where.push("v.category = ?"); binds.push(filter.category); }
   const viBackedSql = `
     SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
-           v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
+           v.location, v.employment_type, COALESCE(NULLIF(t.salary, ''), v.salary) AS salary, COALESCE(NULLIF(t.salary_unit, ''), v.salary_unit) AS salary_unit, v.deadline,
            v.status, v.posted_at,
            t.title, t.body_md, t.tagline, t.salary_note, t.experience, t.lead,
            t.responsibilities_json, t.requirements_json, t.benefits_json, t.bonuses_json
@@ -173,7 +173,7 @@ export async function getCareersJobForPublic(
   const viBacked = await getDb()
     .prepare(
       `SELECT v.id, v.slug, ? AS locale, v.position, v.category, v.hot, v.badge,
-              v.location, v.employment_type, v.salary, v.salary_unit, v.deadline,
+              v.location, v.employment_type, COALESCE(NULLIF(t.salary, ''), v.salary) AS salary, COALESCE(NULLIF(t.salary_unit, ''), v.salary_unit) AS salary_unit, v.deadline,
               v.status, v.posted_at,
               t.title, t.body_md, t.tagline, t.salary_note, t.experience, t.lead,
               t.responsibilities_json, t.requirements_json, t.benefits_json, t.bonuses_json
@@ -352,6 +352,8 @@ export async function upsertCareersJob(
         title: after.title,
         body_md: after.body_md,
         tagline: after.tagline,
+        salary: after.salary,
+        salary_unit: after.salary_unit,
         salary_note: after.salary_note,
         experience: after.experience,
         lead: after.lead,
