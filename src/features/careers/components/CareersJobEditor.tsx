@@ -39,6 +39,7 @@ interface FormState {
   benefits_json: string;
   bonuses_json: string;
   position: number;
+  posted_at: string; // YYYY-MM-DD for <input type="date">; "" = keep/auto
 }
 
 function safeJson(s: string | null): string {
@@ -67,6 +68,7 @@ function fromJob(j: CareersJobRow | null): FormState {
     benefits_json: safeJson(j?.benefits_json ?? null),
     bonuses_json: safeJson(j?.bonuses_json ?? null),
     position: j?.position ?? 99,
+    posted_at: j?.posted_at ? new Date(j.posted_at * 1000).toISOString().slice(0, 10) : "",
   };
 }
 
@@ -136,6 +138,9 @@ export function CareersJobEditor({ slug, locale, job, onSaved }: Props) {
           benefits: ben.value ?? null,
           bonuses: bon.value ?? null,
           position: form.position,
+          posted_at: form.posted_at
+            ? Math.floor(new Date(`${form.posted_at}T00:00:00Z`).getTime() / 1000)
+            : undefined,
         },
       });
       toast.success(`Đã lưu bản dịch ${locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"}`);
@@ -178,6 +183,10 @@ export function CareersJobEditor({ slug, locale, job, onSaved }: Props) {
             <Field label="Experience"><input type="text" value={form.experience} onChange={(e) => set("experience", e.target.value)} maxLength={100} className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="2-5 năm" /></Field>
             <Field label="Position">
               <input type="number" min={0} value={form.position} onChange={(e) => set("position", Number(e.target.value))} className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </Field>
+            <Field label="Ngày đăng (datePosted)">
+              <input type="date" value={form.posted_at} onChange={(e) => set("posted_at", e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              <p className="text-[11px] text-muted-foreground mt-1">Ngày đăng tin — hiển thị trên Google for Jobs. Để trống = giữ nguyên (hoặc tự đặt = hôm nay khi tạo mới). Cập nhật để "làm mới" tin.</p>
             </Field>
           </div>
           <div className="flex items-center gap-3">

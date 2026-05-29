@@ -249,6 +249,7 @@ export async function upsertCareersJob(
     benefits?: Array<{ i: string; t: string; d: string }> | null;
     bonuses?: string[] | null;
     position?: number;
+    posted_at?: number; // epoch seconds — editable "Ngày đăng" (drives JobPosting datePosted)
   },
 ): Promise<CareersJobRow> {
   const before = await getCareersJob(input.slug, input.locale);
@@ -281,6 +282,7 @@ export async function upsertCareersJob(
     if (benJson !== undefined) { fields.push("benefits_json = ?"); values.push(benJson); }
     if (bonJson !== undefined) { fields.push("bonuses_json = ?"); values.push(bonJson); }
     if (input.position !== undefined) { fields.push("position = ?"); values.push(input.position); }
+    if (input.posted_at !== undefined) { fields.push("posted_at = ?"); values.push(input.posted_at); }
     if (fields.length > 0) {
       values.push(input.slug, input.locale);
       await getDb().prepare(`UPDATE careers_jobs SET ${fields.join(", ")} WHERE slug = ? AND locale = ?`).bind(...values).run();
@@ -293,7 +295,7 @@ export async function upsertCareersJob(
             category, hot, badge, tagline, salary, salary_unit, salary_note, deadline, experience, lead,
             responsibilities_json, requirements_json, benefits_json, bonuses_json, position
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, unixepoch(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         input.slug,
@@ -303,6 +305,7 @@ export async function upsertCareersJob(
         input.location ?? null,
         input.employment_type ?? null,
         input.status ?? "open",
+        input.posted_at ?? Math.floor(Date.now() / 1000),
         input.category ?? null,
         input.hot ? 1 : 0,
         input.badge ?? null,

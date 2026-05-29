@@ -81,6 +81,7 @@ const upsertSchema = z.object({
   benefits: benefitsSchema.nullable().optional(),
   bonuses: bonusesSchema.nullable().optional(),
   position: z.number().int().min(0).optional(),
+  posted_at: z.number().int().min(0).optional(), // epoch seconds — editable posted date
 });
 
 export const upsertCareersJobFn = createServerFn({ method: "POST" })
