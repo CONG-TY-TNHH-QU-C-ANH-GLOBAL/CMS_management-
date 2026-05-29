@@ -39,6 +39,7 @@ RULES:
 - DO NOT add or remove any field keys.
 - For numeric values, prices, addresses, URLs: keep verbatim.
 - For currency: if VI says "$" assume USD; keep "$" in en; use "美元" in zh prose, "$" in tables.
+- Vietnamese money amounts written WITHOUT a currency symbol (e.g. "7 triệu", "10tr", "15 triệu/tháng") are in Vietnamese đồng — when localizing, MAKE THE CURRENCY EXPLICIT so a foreign reader doesn't assume USD: en "7 million VND", zh "700万越南盾". Do NOT add a currency to non-money numbers (counts, weights, dimensions, percentages, dates).
 - Bullet count, heading count, and rough line count must match the source.`;
 
   const userContent = `Translate this ${input.entityType} row to ${localesText}:
