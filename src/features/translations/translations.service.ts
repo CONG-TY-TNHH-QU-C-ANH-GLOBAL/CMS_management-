@@ -101,6 +101,8 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
       "title",
       "body_md",
       "tagline",
+      "salary",
+      "salary_unit",
       "salary_note",
       "experience",
       "lead",

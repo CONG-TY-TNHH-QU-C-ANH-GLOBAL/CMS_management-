@@ -28,6 +28,8 @@ export interface CareersJobTranslationRow {
   title: string | null;
   body_md: string | null;
   tagline: string | null;
+  salary: string | null;
+  salary_unit: string | null;
   salary_note: string | null;
   experience: string | null;
   lead: string | null;
@@ -51,10 +53,10 @@ export interface CareersJobTranslationRow {
 }
 
 const CJ_TRANS_COLUMNS = `id, careers_job_id, locale, title, body_md, tagline,
-  salary_note, experience, lead, responsibilities_json, requirements_json,
-  benefits_json, bonuses_json, status, stale_reason, source_locale, source_hash,
-  source_snapshot, ai_generated_at, ai_model, prompt_version, reviewed_at,
-  reviewed_by, in_flight_until, created_at, updated_at`;
+  salary, salary_unit, salary_note, experience, lead, responsibilities_json,
+  requirements_json, benefits_json, bonuses_json, status, stale_reason,
+  source_locale, source_hash, source_snapshot, ai_generated_at, ai_model,
+  prompt_version, reviewed_at, reviewed_by, in_flight_until, created_at, updated_at`;
 
 export async function listCareersJobTranslationsForId(
   careersJobId: number,
@@ -94,6 +96,8 @@ export interface CareersJobEditInput {
   title: string | null;
   body_md: string | null;
   tagline: string | null;
+  salary: string | null;
+  salary_unit: string | null;
   salary_note: string | null;
   experience: string | null;
   lead: string | null;
@@ -119,15 +123,17 @@ export async function editCareersJobTranslation(
   await getDb()
     .prepare(
       `UPDATE careers_job_translations
-          SET title = ?, body_md = ?, tagline = ?, salary_note = ?, experience = ?,
-              lead = ?, responsibilities_json = ?, requirements_json = ?,
-              benefits_json = ?, bonuses_json = ?, updated_at = ?
+          SET title = ?, body_md = ?, tagline = ?, salary = ?, salary_unit = ?,
+              salary_note = ?, experience = ?, lead = ?, responsibilities_json = ?,
+              requirements_json = ?, benefits_json = ?, bonuses_json = ?, updated_at = ?
         WHERE id = ?`,
     )
     .bind(
       input.title,
       input.body_md,
       input.tagline,
+      input.salary,
+      input.salary_unit,
       input.salary_note,
       input.experience,
       input.lead,
@@ -149,6 +155,8 @@ export async function editCareersJobTranslation(
       title: before.title,
       body_md: before.body_md,
       tagline: before.tagline,
+      salary: before.salary,
+      salary_unit: before.salary_unit,
       salary_note: before.salary_note,
       experience: before.experience,
       lead: before.lead,
@@ -161,6 +169,8 @@ export async function editCareersJobTranslation(
       title: input.title,
       body_md: input.body_md,
       tagline: input.tagline,
+      salary: input.salary,
+      salary_unit: input.salary_unit,
       salary_note: input.salary_note,
       experience: input.experience,
       lead: input.lead,
@@ -209,6 +219,8 @@ export async function onCareersJobSourceChanged(
     title: string | null;
     body_md: string | null;
     tagline: string | null;
+    salary: string | null;
+    salary_unit: string | null;
     salary_note: string | null;
     experience: string | null;
     lead: string | null;
@@ -222,6 +234,8 @@ export async function onCareersJobSourceChanged(
     title: newSource.title ?? "",
     body_md: newSource.body_md ?? "",
     tagline: newSource.tagline ?? "",
+    salary: newSource.salary ?? "",
+    salary_unit: newSource.salary_unit ?? "",
     salary_note: newSource.salary_note ?? "",
     experience: newSource.experience ?? "",
     lead: newSource.lead ?? "",
