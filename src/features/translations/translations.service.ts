@@ -635,11 +635,16 @@ export async function translate(
         source_hash: sourceHash,
       });
 
-      // A10: update provider health. Only a provider apiError (after the
-      // internal transient retries) counts toward tripping the breaker — a
-      // parse/structural reject is a content problem, not the provider's fault.
+      // A10: update provider health. Only a TRANSIENT provider apiError (after
+      // the internal retries) counts toward tripping the breaker. A parse/
+      // structural reject is a content problem; and a 401/403 is an operator
+      // CONFIG error (bad/expired API key) — tripping the breaker on it would
+      // pause translation and mask the real "Incorrect API key" reason on
+      // subsequent attempts, so we skip those too.
       if (recovery.apiError) {
-        await recordProviderFailure(recovery.apiError.message);
+        const status = (recovery.apiError as { status?: number }).status;
+        const isAuthError = status === 401 || status === 403;
+        if (!isAuthError) await recordProviderFailure(recovery.apiError.message);
       } else if (outcome === "draft") {
         await recordProviderSuccess();
       }
