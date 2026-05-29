@@ -20,6 +20,13 @@ declare global {
       OPENAI_API_KEY?: string; // Copilot LLM — undefined disables /admin/ai/copilot chat
       OPENAI_BASE_URL?: string; // Override OpenAI endpoint (e.g. Cloudflare AI Gateway proxy URL) — bypass geo-blocked egress
       SESSION_SECRET?: string; // Auth cookie signer (defined elsewhere; declaring for completeness)
+      // Landing auto-redeploy (Workstream C3): on careers publish/edit the cron
+      // fires a GitHub repository_dispatch to rebuild the landing site so new/
+      // changed JD pages are prerendered. Token = fine-grained PAT with
+      // "contents: write" (or actions) on the landing repo.
+      GITHUB_DISPATCH_TOKEN?: string;
+      LANDING_REPO?: string; // "owner/name" of the landing repo
+      LANDING_DISPATCH_EVENT_TYPE?: string; // default "cms-content-updated"
     }
   }
 }

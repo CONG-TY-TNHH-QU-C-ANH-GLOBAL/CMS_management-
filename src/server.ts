@@ -92,10 +92,18 @@ export default {
     const { runTranslationJobs } = await import(
       "./features/translations/translation-jobs.engine"
     );
+    // C3: flush a pending landing rebuild (coalesced dirty flag → one
+    // repository_dispatch). Independent of translation work.
+    const { flushLandingRebuild } = await import("./features/careers/landing-rebuild");
     ctx.waitUntil(
-      runTranslationJobs(env, 60_000).catch((err) =>
-        console.error("[scheduled] translation jobs pass failed", err),
-      ),
+      Promise.allSettled([
+        runTranslationJobs(env, 60_000),
+        flushLandingRebuild(),
+      ]).then((results) => {
+        for (const r of results) {
+          if (r.status === "rejected") console.error("[scheduled] task failed", r.reason);
+        }
+      }),
     );
   },
 };

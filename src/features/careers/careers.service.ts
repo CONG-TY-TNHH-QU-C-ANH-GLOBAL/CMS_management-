@@ -366,7 +366,22 @@ export async function upsertCareersJob(
     }
   }
 
+  // C3: a JD changed → the public /careers + /careers/:slug pages must
+  // re-prerender. Mark the landing rebuild dirty flag (the cron coalesces +
+  // dispatches). Best-effort — never block the save.
+  try {
+    const { markLandingRebuildNeeded } = await import("./landing-rebuild");
+    await markLandingRebuildNeeded(`careers upsert ${input.slug}:${input.locale}`);
+  } catch { /* best-effort */ }
+
   return after!;
+}
+
+async function markLandingDirty(reason: string): Promise<void> {
+  try {
+    const { markLandingRebuildNeeded } = await import("./landing-rebuild");
+    await markLandingRebuildNeeded(reason);
+  } catch { /* best-effort */ }
 }
 
 export async function deleteCareersJob(actorId: number, slug: string, locale: CareerLocale): Promise<void> {
@@ -374,6 +389,7 @@ export async function deleteCareersJob(actorId: number, slug: string, locale: Ca
   if (!before) return;
   await getDb().prepare(`DELETE FROM careers_jobs WHERE slug = ? AND locale = ?`).bind(slug, locale).run();
   await auditLog(actorId, "delete", "careers_jobs", `${slug}:${locale}`, before, null);
+  await markLandingDirty(`careers delete ${slug}:${locale}`);
 }
 
 export async function deleteCareersJobSlug(actorId: number, slug: string): Promise<void> {
@@ -382,6 +398,7 @@ export async function deleteCareersJobSlug(actorId: number, slug: string): Promi
   if (variants.length === 0) return;
   await getDb().prepare(`DELETE FROM careers_jobs WHERE slug = ?`).bind(slug).run();
   await auditLog(actorId, "delete", "careers_jobs", slug, variants, null);
+  await markLandingDirty(`careers delete-slug ${slug}`);
 }
 
 // ─────────────────────────────── applicants ───────────────────────────────

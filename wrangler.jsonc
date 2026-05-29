@@ -21,7 +21,14 @@
 		// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
 		// Admin /admin/* is same-origin so doesn't need to appear here.
 		// Override locally via `.dev.vars` CORS_ORIGIN=http://localhost:5173,http://localhost:8080.
-		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com"
+		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com",
+		// C3 landing auto-redeploy: which repo + event the cron dispatches when a
+		// JD changes. The token is a SECRET — set via
+		// `bunx wrangler secret put GITHUB_DISPATCH_TOKEN` (fine-grained PAT,
+		// contents:write on the landing repo). Without the secret the flush is a
+		// no-op (logged + flag cleared).
+		"LANDING_REPO": "CONG-TY-TNHH-QU-C-ANH-GLOBAL/THG_landingpage",
+		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated"
 	},
 	"d1_databases": [
 		{
