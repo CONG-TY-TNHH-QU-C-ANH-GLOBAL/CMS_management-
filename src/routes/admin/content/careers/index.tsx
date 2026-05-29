@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { Card, PageContainer, StatusBadge } from "@/components/cms/ui";
 import { NewCareersJobDialog } from "@/features/careers/components/NewCareersJobDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import {
   deleteCareersJobSlugFn,
   listCareersJobsFn,
@@ -75,6 +76,7 @@ function CareersList() {
               placeholder="Tìm theo tên vị trí hoặc đường dẫn..."
               className="h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm w-48"
             />
+            <BulkTranslateButton entityType="careers_job" onDone={() => router.invalidate()} />
             <button
               onClick={() => setNewOpen(true)}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft"

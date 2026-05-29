@@ -21,7 +21,24 @@ import {
   recomputeJobRollup,
   type JobLocale,
   type TranslationJobChunkRow,
+  type TranslationJobRow,
 } from "./translation-jobs.service";
+import { translate, type TargetLocale, type TranslateEntityType } from "./translations.service";
+
+// Review-gated JSON entities: a chunk = one (entity, locale) and is processed by
+// calling the in-place translate() for that locale (which writes a `draft`
+// <entity>_translations row + log/events/breaker). Shipping_route is the only
+// "markdown" entity (chunks assemble into the source row, no review gate).
+const JSON_ENTITY_TYPES = new Set<string>([
+  "faq",
+  "service_block",
+  "testimonial",
+  "homepage_block",
+  "careers_job",
+  "blog_post",
+  "policy",
+  "contact_location",
+]);
 
 const LOCALE_NAMES: Record<JobLocale, string> = {
   en: "English",
@@ -162,10 +179,23 @@ export async function runOnePass(env: EngineEnv): Promise<number> {
   const claimed = await claimChunks(PASS_BATCH);
   if (claimed.length === 0) return 0;
 
+  // Prefetch the jobs for the claimed chunks — entity_type drives the mode
+  // (json-draft vs markdown), and JSON chunks need job.created_by for the actor.
+  const jobs = new Map<number, TranslationJobRow>();
+  for (const id of [...new Set(claimed.map((c) => c.job_id))]) {
+    const j = await getJob(id);
+    if (j) jobs.set(id, j);
+  }
+
   await mapPool(claimed, CONCURRENCY, async (chunk: TranslationJobChunkRow) => {
+    const job = jobs.get(chunk.job_id);
     try {
-      const out = await translateChunk(apiKey, baseUrl, chunk.source_text, chunk.target_locale);
-      await completeChunk(chunk.id, out);
+      if (job && JSON_ENTITY_TYPES.has(job.entity_type)) {
+        await processJsonChunk(apiKey, baseUrl, job, chunk);
+      } else {
+        const out = await translateChunk(apiKey, baseUrl, chunk.source_text, chunk.target_locale);
+        await completeChunk(chunk.id, out);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await failChunk(chunk.id, chunk.attempts, msg);
@@ -179,10 +209,15 @@ export async function runOnePass(env: EngineEnv): Promise<number> {
     touched.get(c.job_id)!.add(c.target_locale);
   }
   for (const [jobId, locales] of touched) {
-    const job = await getJob(jobId);
+    const job = jobs.get(jobId) ?? (await getJob(jobId));
     if (!job) continue;
-    for (const locale of locales) {
-      await finalizeLocaleIfComplete(jobId, job.entity_type, job.entity_ref, locale);
+    // Markdown entities (shipping_route) assemble chunks into the source row.
+    // JSON entities already wrote their `draft` <entity>_translations row inside
+    // processJsonChunk — nothing to assemble, review gate intact.
+    if (!JSON_ENTITY_TYPES.has(job.entity_type)) {
+      for (const locale of locales) {
+        await finalizeLocaleIfComplete(jobId, job.entity_type, job.entity_ref, locale);
+      }
     }
     const rolled = await recomputeJobRollup(jobId);
     if (rolled && isJobTerminal(rolled.status)) {
@@ -191,6 +226,41 @@ export async function runOnePass(env: EngineEnv): Promise<number> {
   }
 
   return claimed.length;
+}
+
+// Process one (entity, locale) chunk for a review-gated JSON entity by invoking
+// the in-place translate() for that single locale. translate() writes a
+// `draft`/`failed` <entity>_translations row + ai_translation_log + A9 events +
+// A10 breaker — so the review gate holds (draft, NOT published). The chunk only
+// records the per-locale outcome; there is no markdown to assemble/finalize.
+async function processJsonChunk(
+  apiKey: string,
+  baseUrl: string | undefined,
+  job: TranslationJobRow,
+  chunk: TranslationJobChunkRow,
+): Promise<void> {
+  const entityId = Number(job.entity_ref);
+  const actorId = job.created_by ?? 0;
+  if (!Number.isFinite(entityId) || !actorId) {
+    await failChunk(chunk.id, chunk.attempts, "json job missing valid entity_ref/created_by");
+    return;
+  }
+  const result = await translate(
+    apiKey,
+    actorId,
+    {
+      entity_type: job.entity_type as TranslateEntityType,
+      entity_id: entityId,
+      target_locales: [chunk.target_locale as TargetLocale],
+    },
+    baseUrl,
+  );
+  const draft = result.drafts.find((d) => d.locale === chunk.target_locale);
+  if (draft && draft.status === "draft") {
+    await completeChunk(chunk.id, "draft");
+  } else {
+    await failChunk(chunk.id, chunk.attempts, draft?.error ?? "translate returned no draft");
+  }
 }
 
 /** Loop passes until the queue is idle or the wall-clock budget is spent.

@@ -146,6 +146,21 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
   },
 };
 
+/** Table/column info for an entity type — used by the bulk-translate enqueuer
+ *  (translation-jobs.service) to list VI source rows + their reviewed locales. */
+export function getEntityTableInfo(entityType: TranslateEntityType): {
+  sourceTable: string;
+  translationsTable: string;
+  sourceFkColumn: string;
+} {
+  const cfg = ENTITY_CONFIG[entityType];
+  return {
+    sourceTable: cfg.sourceTable,
+    translationsTable: cfg.translationsTable,
+    sourceFkColumn: cfg.sourceFkColumn,
+  };
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // Source loading — VI row from the canonical table
 // ────────────────────────────────────────────────────────────────────────
