@@ -37,6 +37,7 @@ const jobSummarySchema = z.object({
   salary_note: z.string().nullable(),
   deadline: z.string().nullable(),
   experience: z.string().nullable(),
+  posted_at: z.number().int(), // epoch seconds — for JobPosting datePosted (Google for Jobs)
 });
 
 // /api/v1/jobs?lang=&category= response body.
@@ -87,6 +88,7 @@ const jobDetailSchema = z.object({
   salary_note: z.string().nullable(),
   deadline: z.string().nullable(),
   experience: z.string().nullable(),
+  posted_at: z.number().int(), // epoch seconds — for JobPosting datePosted (Google for Jobs)
   lead: z.string().nullable(),
   responsibilities: z.record(z.string(), z.array(z.string())),
   requirements: z.array(z.string()),

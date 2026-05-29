@@ -37,6 +37,7 @@ export const Route = createFileRoute("/api/v1/(public)/jobs/")({
             salary_note: j.salary_note,
             deadline: j.deadline,
             experience: j.experience,
+            posted_at: j.posted_at,
           })),
           total: jobs.length,
         });
