@@ -8,6 +8,8 @@
 
 import { getDb } from "@/core/db/client";
 
+import { getEntityTableInfo, type TranslateEntityType } from "./translations.service";
+
 export type JobLocale = "en" | "vi" | "zh";
 export type JobStatus = "pending" | "running" | "completed" | "partial" | "failed";
 export type ChunkStatus = "pending" | "running" | "done" | "failed";
@@ -166,6 +168,137 @@ export async function createTranslationJob(input: {
   await db.batch(batch);
 
   return { jobId: job.id, totalChunks };
+}
+
+/** Has a non-terminal (pending|running) job for this entity? Job-level dedup
+ *  (A11) so repeated/concurrent bulk enqueues never double-translate an entity.
+ *  We deliberately do NOT add a UNIQUE idempotency_key on chunks — terminal-job
+ *  chunk history is retained, so a unique key would block legitimate re-enqueue. */
+export async function hasActiveJob(entityType: string, entityRef: string): Promise<boolean> {
+  const row = await getDb()
+    .prepare(
+      `SELECT 1 AS x FROM translation_jobs
+        WHERE entity_type = ? AND entity_ref = ? AND status IN ('pending', 'running') LIMIT 1`,
+    )
+    .bind(entityType, entityRef)
+    .first<{ x: number }>();
+  return !!row;
+}
+
+/** Create a job for a review-gated JSON entity (faq/careers_job/…): ONE chunk
+ *  per target locale (no markdown splitting — each chunk = one whole-entity
+ *  translate for that locale, run by the engine via translate(), which writes a
+ *  `draft` <entity>_translations row). Skips if an active job already exists. */
+export async function createJsonEntityTranslationJob(input: {
+  entityType: string;
+  entityRef: string; // entity id as string
+  targetLocales: JobLocale[];
+  createdBy: number | null;
+}): Promise<{ jobId: number; totalChunks: number } | { skipped: "active" | "no-targets" }> {
+  const targets = input.targetLocales.filter((l) => l !== "vi");
+  if (targets.length === 0) return { skipped: "no-targets" };
+  if (await hasActiveJob(input.entityType, input.entityRef)) return { skipped: "active" };
+
+  const db = getDb();
+  const job = await db
+    .prepare(
+      `INSERT INTO translation_jobs (entity_type, entity_ref, source_locale, target_locales, status, total_chunks, created_by)
+         VALUES (?, ?, 'vi', ?, 'pending', ?, ?) RETURNING id`,
+    )
+    .bind(input.entityType, input.entityRef, JSON.stringify(targets), targets.length, input.createdBy)
+    .first<{ id: number }>();
+  if (!job) throw new Error("Không tạo được translation job.");
+
+  const stmt = db.prepare(
+    `INSERT INTO translation_job_chunks (job_id, target_locale, seq, source_text) VALUES (?, ?, 0, ?)`,
+  );
+  await db.batch(
+    targets.map((locale) => stmt.bind(job.id, locale, `${input.entityType}:${input.entityRef}`)),
+  );
+  return { jobId: job.id, totalChunks: targets.length };
+}
+
+/** Bulk-enqueue translation for every VI entity of `entityType` that has a
+ *  MISSING/non-reviewed en or zh locale. Reviewed locales are skipped so we
+ *  never clobber operator-approved content; entities with an active job reuse
+ *  it. Returns the relevant job ids (for progress polling) + counts. */
+export async function enqueueBulkTranslate(
+  entityType: TranslateEntityType,
+  createdBy: number | null,
+): Promise<{ jobIds: number[]; chunkCount: number; entitiesQueued: number }> {
+  const { sourceTable, translationsTable, sourceFkColumn } = getEntityTableInfo(entityType);
+  const db = getDb();
+
+  const srcRows = await db
+    .prepare(`SELECT id FROM ${sourceTable} WHERE locale = 'vi'`)
+    .all<{ id: number }>();
+  const revRows = await db
+    .prepare(`SELECT ${sourceFkColumn} AS fk, locale FROM ${translationsTable} WHERE status = 'reviewed'`)
+    .all<{ fk: number; locale: string }>();
+
+  const reviewedByEntity = new Map<number, Set<string>>();
+  for (const r of revRows.results ?? []) {
+    if (!reviewedByEntity.has(r.fk)) reviewedByEntity.set(r.fk, new Set());
+    reviewedByEntity.get(r.fk)!.add(r.locale);
+  }
+
+  const ALL: JobLocale[] = ["en", "zh"];
+  const jobIds: number[] = [];
+  let chunkCount = 0;
+  let entitiesQueued = 0;
+
+  for (const row of srcRows.results ?? []) {
+    const reviewed = reviewedByEntity.get(row.id) ?? new Set<string>();
+    const targets = ALL.filter((l) => !reviewed.has(l));
+    if (targets.length === 0) continue; // fully reviewed — nothing to do
+    const ref = String(row.id);
+    const active = await db
+      .prepare(
+        `SELECT id FROM translation_jobs WHERE entity_type = ? AND entity_ref = ? AND status IN ('pending', 'running') LIMIT 1`,
+      )
+      .bind(entityType, ref)
+      .first<{ id: number }>();
+    if (active) {
+      jobIds.push(active.id);
+      continue;
+    }
+    const created = await createJsonEntityTranslationJob({
+      entityType,
+      entityRef: ref,
+      targetLocales: targets,
+      createdBy,
+    });
+    if ("jobId" in created) {
+      jobIds.push(created.jobId);
+      chunkCount += created.totalChunks;
+      entitiesQueued += 1;
+    }
+  }
+  return { jobIds, chunkCount, entitiesQueued };
+}
+
+export interface BulkTranslateStatus {
+  total: number;
+  done: number;
+  failed: number;
+  pending: number;
+}
+
+/** Chunk rollup across a specific set of jobs (the batch the UI is tracking). */
+export async function getBulkTranslateStatus(jobIds: number[]): Promise<BulkTranslateStatus> {
+  if (jobIds.length === 0) return { total: 0, done: 0, failed: 0, pending: 0 };
+  const placeholders = jobIds.map(() => "?").join(", ");
+  const row = await getDb()
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done,
+              SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+              SUM(CASE WHEN status IN ('pending', 'running') THEN 1 ELSE 0 END) AS pending
+         FROM translation_job_chunks WHERE job_id IN (${placeholders})`,
+    )
+    .bind(...jobIds)
+    .first<BulkTranslateStatus>();
+  return row ?? { total: 0, done: 0, failed: 0, pending: 0 };
 }
 
 /** Atomically claim up to `limit` chunks that are pending OR whose running

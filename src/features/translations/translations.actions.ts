@@ -898,3 +898,47 @@ export const pumpTranslationJobFn = createServerFn({ method: "POST" })
     await runOnePass(env);
     return { job: await getJob(data.jobId) };
   });
+
+// ─────────────── Phase A2: bulk async translation ───────────────
+// Enqueue translation jobs for EVERY VI entity of a type that has a missing/
+// non-reviewed en/zh locale (reviewed locales are skipped — never clobbered).
+// The client then drives passes via pumpTranslationJobsFn + polls
+// getBulkTranslateStatusFn; the 1-min Cron is the resume backstop.
+
+export const enqueueBulkTranslateFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ entity_type: ENTITY_TYPE }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { env } = await import("cloudflare:workers");
+    const { enqueueBulkTranslate } = await import("./translation-jobs.service");
+    const me = await requireSession("editor");
+    if (!env.OPENAI_API_KEY) {
+      throw Object.assign(new Error("OPENAI_API_KEY chưa được set trên Worker."), { statusCode: 503 });
+    }
+    return await enqueueBulkTranslate(data.entity_type, me.id);
+  });
+
+/** Run ONE global engine pass (claims a batch across ALL pending jobs). The
+ *  bulk UI loops this; cron is the backstop. */
+export const pumpTranslationJobsFn = createServerFn({ method: "POST" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { env } = await import("cloudflare:workers");
+  const { runOnePass } = await import("./translation-jobs.engine");
+  await requireSession("editor");
+  if (!env.OPENAI_API_KEY) {
+    throw Object.assign(new Error("OPENAI_API_KEY chưa được set trên Worker."), { statusCode: 503 });
+  }
+  const claimed = await runOnePass(env);
+  return { claimed };
+});
+
+export const getBulkTranslateStatusFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ jobIds: z.array(z.number().int().positive()).max(5000) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { getBulkTranslateStatus } = await import("./translation-jobs.service");
+    await requireSession("viewer");
+    return { status: await getBulkTranslateStatus(data.jobIds) };
+  });

@@ -15,6 +15,7 @@ import {
   reorderFaqsFn,
   type FaqRow,
 } from "@/features/content/content.actions";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
 import { TranslationStatusBadge } from "@/features/translations/components/TranslationStatusBadge";
 import {
@@ -161,6 +162,9 @@ function FaqsPage() {
               </button>
             );
           })}
+          <div className="ml-auto">
+            <BulkTranslateButton entityType="faq" onDone={() => router.invalidate()} />
+          </div>
         </div>
 
         <Card className="overflow-hidden">
