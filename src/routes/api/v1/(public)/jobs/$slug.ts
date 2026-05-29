@@ -39,6 +39,7 @@ export const Route = createFileRoute("/api/v1/(public)/jobs/$slug")({
             salary_note: job.salary_note,
             deadline: job.deadline,
             experience: job.experience,
+            posted_at: job.posted_at,
             lead: job.lead,
             responsibilities: parseJson<Record<string, string[]>>(job.responsibilities_json) ?? {},
             requirements: parseJson<string[]>(job.requirements_json) ?? [],
