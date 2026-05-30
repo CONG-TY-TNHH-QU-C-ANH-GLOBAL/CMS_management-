@@ -14,6 +14,7 @@ import {
   listContactLocationsFn,
   type ContactLocationRow,
 } from "@/features/content/content.actions";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
 import {
   approveContactLocationTranslationFn,
@@ -77,15 +78,18 @@ function ContactPage() {
         title="Liên hệ & Văn phòng"
         subtitle={`${distinctCount} địa điểm liên hệ — mỗi địa điểm có 3 bản dịch`}
         action={
-          <button
-            onClick={() => {
-              setEditingRow(null);
-              setDialogOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft"
-          >
-            <Plus className="w-4 h-4" /> Thêm mục
-          </button>
+          <div className="flex items-center gap-2">
+            <BulkTranslateButton entityType="contact_location" onDone={() => router.invalidate()} />
+            <button
+              onClick={() => {
+                setEditingRow(null);
+                setDialogOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 shadow-soft"
+            >
+              <Plus className="w-4 h-4" /> Thêm mục
+            </button>
+          </div>
         }
       />
       <PageContainer>

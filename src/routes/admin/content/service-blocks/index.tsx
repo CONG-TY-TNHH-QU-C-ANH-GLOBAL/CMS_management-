@@ -14,6 +14,7 @@ import {
 } from "@/features/content/content.actions";
 import type { ServiceBlockRow } from "@/features/content";
 import { ServiceBlockDialog } from "@/features/content/components/ServiceBlockDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
 import {
   approveServiceBlockTranslationFn,
@@ -84,6 +85,7 @@ function ServiceBlocksPage() {
       <CmsTopbar
         title="Service blocks"
         subtitle={`${blocks.length} block — chia theo trang & loại. VI là canonical, EN/ZH dịch qua AI.`}
+        action={<BulkTranslateButton entityType="service_block" onDone={() => router.invalidate()} />}
       />
       <PageContainer>
         <Card className="overflow-hidden">

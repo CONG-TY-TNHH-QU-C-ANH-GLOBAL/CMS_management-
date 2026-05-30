@@ -8,6 +8,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { Card, PageContainer } from "@/components/cms/ui";
 import { NewPolicyDialog } from "@/features/policies/components/NewPolicyDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import {
   deletePolicySlugFn,
   listPoliciesFn,
@@ -80,6 +81,9 @@ function PoliciesPage() {
               placeholder="Tìm theo tên chính sách hoặc đường dẫn..."
               className="h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm flex-1 max-w-xs"
             />
+            <div className="ml-auto">
+              <BulkTranslateButton entityType="policy" onDone={() => router.invalidate()} />
+            </div>
           </div>
           {filtered.length === 0 ? (
             <div className="p-12 text-center">
