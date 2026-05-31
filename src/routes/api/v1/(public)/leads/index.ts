@@ -64,6 +64,9 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
 
         // Route to subscribed Telegram channels via durable outbox.
         // Idempotency key collapses double-submits to one notification.
+        // DIAGNOSTIC: log catch errors so Telegram silent-failure is visible in
+        // `wrangler tail` / Cloudflare dashboard logs. Remove this logging once
+        // the dispatch chain is confirmed working in prod.
         dispatchEvent({
           event_type: "lead_received",
           idempotency_key: `lead:${id}`,
@@ -76,7 +79,9 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
             source_page: data.source_page ?? null,
             locale: data.locale ?? null,
           },
-        }).catch(() => {});
+        })
+          .then((n) => console.log(`[telegram] lead_received#${id} enqueued ${n} row(s)`))
+          .catch((e) => console.error(`[telegram] lead_received#${id} dispatch failed:`, e));
 
         return corsJson(
           request,
