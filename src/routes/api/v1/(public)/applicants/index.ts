@@ -74,21 +74,13 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
           user_agent: request.headers.get("user-agent") ?? null,
         });
 
-        // Route to subscribed Telegram channels via durable outbox.
-        //
-        // AWAITED (not fire-and-forget) — Cloudflare Workers may terminate the
-        // isolate after the response is returned, cancelling any unsettled
-        // promises before they reach .then/.catch (which was why the dispatch
-        // chain looked silent: dispatchEvent never got far enough to log).
-        // Awaiting blocks the response for up to ~5s (the inline flush budget)
-        // when Telegram is slow; the outbox cron is still the durability net.
-        //
-        // Telegram failures must NOT break the applicant insert (the applicant
-        // is already persisted at this point), so the try/catch swallows the
-        // error and only logs.
-        console.log(`[telegram] applicant_received#${inserted.id}: dispatching…`);
+        // Route to subscribed Telegram channels via durable outbox. AWAITED —
+        // a fire-and-forget would be cancelled by CF Worker when the response
+        // returns. The await blocks at most ~5s (the inline flush budget); the
+        // outbox cron is still the durability net. Catch swallows so a
+        // Telegram outage never breaks the applicant insert (already persisted).
         try {
-          const enqueued = await dispatchEvent({
+          await dispatchEvent({
             event_type: "applicant_received",
             idempotency_key: `applicant:${inserted.id}`,
             payload: {
@@ -103,7 +95,6 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
               locale: input.locale,
             },
           });
-          console.log(`[telegram] applicant_received#${inserted.id} enqueued ${enqueued} row(s)`);
         } catch (e) {
           console.error(`[telegram] applicant_received#${inserted.id} dispatch failed:`, e);
         }

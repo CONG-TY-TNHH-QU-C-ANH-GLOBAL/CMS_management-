@@ -62,18 +62,12 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           utm: data.utm ?? null,
         });
 
-        // Route to subscribed Telegram channels via durable outbox.
-        // Idempotency key collapses double-submits to one notification.
-        //
-        // AWAITED — see the applicants endpoint for the rationale. Fire-and-
-        // forget dispatch was being cancelled before .then/.catch could fire,
-        // making the chain look silent. Awaiting blocks the response for up to
-        // ~5s when Telegram is slow; the outbox cron is still the durability
-        // net. Errors are swallowed so a Telegram outage doesn't break the
-        // lead insert (lead is already persisted at this point).
-        console.log(`[telegram] lead_received#${id}: dispatching…`);
+        // Route to subscribed Telegram channels via durable outbox. AWAITED —
+        // see the applicants endpoint for the rationale. Idempotency key
+        // collapses double-submits to one notification. Catch swallows so a
+        // Telegram outage never breaks the lead insert (already persisted).
         try {
-          const enqueued = await dispatchEvent({
+          await dispatchEvent({
             event_type: "lead_received",
             idempotency_key: `lead:${id}`,
             payload: {
@@ -86,7 +80,6 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
               locale: data.locale ?? null,
             },
           });
-          console.log(`[telegram] lead_received#${id} enqueued ${enqueued} row(s)`);
         } catch (e) {
           console.error(`[telegram] lead_received#${id} dispatch failed:`, e);
         }

@@ -90,7 +90,15 @@ export async function flushTelegramOutbox(budgetMs: number = BUDGET_MS_DEFAULT):
     if (!row) return; // queue empty
 
     const result = await sendTelegramMessage(botToken, row.chat_id, row.body_text);
-    console.log(`[telegram] outbox#${row.id} → chat ${row.chat_id}: ${result.kind}${"status" in result && result.status ? ` (${result.status})` : ""}${"message" in result && result.message ? ` ${result.message}` : ""}`);
+    // Log failures only — success path is silent. Operators care about what
+    // went wrong (permanent or repeatedly transient), not every successful send.
+    if (result.kind !== "ok") {
+      console.warn(
+        `[telegram] outbox#${row.id} → chat ${row.chat_id}: ${result.kind}` +
+          (result.status ? ` (${result.status})` : "") +
+          (result.message ? ` ${result.message}` : ""),
+      );
+    }
 
     if (result.kind === "ok") {
       await getDb()

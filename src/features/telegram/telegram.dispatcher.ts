@@ -67,13 +67,10 @@ export async function dispatchEvent(input: DispatchInput): Promise<number> {
         ?? 0;
       if (changes >= 1) enqueued += 1;
     } catch (e) {
-      // UNIQUE(idempotency_key) violation = "we've seen this exact event
-      // already" — that's the expected dedup path. Log so genuine INSERT
-      // errors (schema drift, missing table) are still visible.
+      // UNIQUE(idempotency_key) violation = expected dedup path, swallow.
+      // Any OTHER error (schema drift, missing table) should be visible.
       const msg = e instanceof Error ? e.message : String(e);
-      if (/UNIQUE/i.test(msg)) {
-        console.log(`[telegram] outbox dedup hit for ${input.event_type} (${idempKey})`);
-      } else {
+      if (!/UNIQUE/i.test(msg)) {
         console.error(`[telegram] outbox INSERT failed for ${input.event_type} → channel ${t.channel_id}:`, e);
       }
     }
