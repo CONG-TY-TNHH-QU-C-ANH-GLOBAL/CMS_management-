@@ -75,26 +75,38 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
         });
 
         // Route to subscribed Telegram channels via durable outbox.
-        // DIAGNOSTIC: log catch errors so Telegram silent-failure is visible in
-        // `wrangler tail` / Cloudflare dashboard logs. Remove this logging once
-        // the dispatch chain is confirmed working in prod.
-        dispatchEvent({
-          event_type: "applicant_received",
-          idempotency_key: `applicant:${inserted.id}`,
-          payload: {
-            id: inserted.id,
-            name: input.name,
-            email: input.email,
-            phone: input.phone ?? null,
-            cv_url: input.cv_url ?? null,
-            cover_letter: input.cover_letter ?? null,
-            job_slug: input.job_slug,
-            job_title: job.title,
-            locale: input.locale,
-          },
-        })
-          .then((n) => console.log(`[telegram] applicant_received#${inserted.id} enqueued ${n} row(s)`))
-          .catch((e) => console.error(`[telegram] applicant_received#${inserted.id} dispatch failed:`, e));
+        //
+        // AWAITED (not fire-and-forget) — Cloudflare Workers may terminate the
+        // isolate after the response is returned, cancelling any unsettled
+        // promises before they reach .then/.catch (which was why the dispatch
+        // chain looked silent: dispatchEvent never got far enough to log).
+        // Awaiting blocks the response for up to ~5s (the inline flush budget)
+        // when Telegram is slow; the outbox cron is still the durability net.
+        //
+        // Telegram failures must NOT break the applicant insert (the applicant
+        // is already persisted at this point), so the try/catch swallows the
+        // error and only logs.
+        console.log(`[telegram] applicant_received#${inserted.id}: dispatching…`);
+        try {
+          const enqueued = await dispatchEvent({
+            event_type: "applicant_received",
+            idempotency_key: `applicant:${inserted.id}`,
+            payload: {
+              id: inserted.id,
+              name: input.name,
+              email: input.email,
+              phone: input.phone ?? null,
+              cv_url: input.cv_url ?? null,
+              cover_letter: input.cover_letter ?? null,
+              job_slug: input.job_slug,
+              job_title: job.title,
+              locale: input.locale,
+            },
+          });
+          console.log(`[telegram] applicant_received#${inserted.id} enqueued ${enqueued} row(s)`);
+        } catch (e) {
+          console.error(`[telegram] applicant_received#${inserted.id} dispatch failed:`, e);
+        }
 
         return corsJson(request, { ok: true, id: inserted.id });
       },
