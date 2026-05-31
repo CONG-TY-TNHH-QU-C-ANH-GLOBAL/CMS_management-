@@ -62,5 +62,15 @@
 	// inline pass on creation so this is only the durability backstop.
 	"triggers": {
 		"crons": ["* * * * *"]
+	},
+	// Workers Logs — captures console.log/warn/error from this Worker into
+	// the dashboard "Logs" stream. Without this block (or with enabled=false)
+	// console statements are silently dropped, even when the dashboard's
+	// Observability toggle is ON — that toggle only governs persistence /
+	// sampling, not whether the Worker emits at all. head_sampling_rate=1.0
+	// captures every request (acceptable at our traffic; lower for high QPS).
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1.0
 	}
 }
