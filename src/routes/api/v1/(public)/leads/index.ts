@@ -64,24 +64,32 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
 
         // Route to subscribed Telegram channels via durable outbox.
         // Idempotency key collapses double-submits to one notification.
-        // DIAGNOSTIC: log catch errors so Telegram silent-failure is visible in
-        // `wrangler tail` / Cloudflare dashboard logs. Remove this logging once
-        // the dispatch chain is confirmed working in prod.
-        dispatchEvent({
-          event_type: "lead_received",
-          idempotency_key: `lead:${id}`,
-          payload: {
-            id,
-            name: data.name,
-            email: data.email,
-            phone: data.phone ?? null,
-            message: data.message ?? null,
-            source_page: data.source_page ?? null,
-            locale: data.locale ?? null,
-          },
-        })
-          .then((n) => console.log(`[telegram] lead_received#${id} enqueued ${n} row(s)`))
-          .catch((e) => console.error(`[telegram] lead_received#${id} dispatch failed:`, e));
+        //
+        // AWAITED — see the applicants endpoint for the rationale. Fire-and-
+        // forget dispatch was being cancelled before .then/.catch could fire,
+        // making the chain look silent. Awaiting blocks the response for up to
+        // ~5s when Telegram is slow; the outbox cron is still the durability
+        // net. Errors are swallowed so a Telegram outage doesn't break the
+        // lead insert (lead is already persisted at this point).
+        console.log(`[telegram] lead_received#${id}: dispatching…`);
+        try {
+          const enqueued = await dispatchEvent({
+            event_type: "lead_received",
+            idempotency_key: `lead:${id}`,
+            payload: {
+              id,
+              name: data.name,
+              email: data.email,
+              phone: data.phone ?? null,
+              message: data.message ?? null,
+              source_page: data.source_page ?? null,
+              locale: data.locale ?? null,
+            },
+          });
+          console.log(`[telegram] lead_received#${id} enqueued ${enqueued} row(s)`);
+        } catch (e) {
+          console.error(`[telegram] lead_received#${id} dispatch failed:`, e);
+        }
 
         return corsJson(
           request,
