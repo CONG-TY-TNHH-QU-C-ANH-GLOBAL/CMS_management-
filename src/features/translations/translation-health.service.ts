@@ -8,6 +8,7 @@
 // pause translation.
 
 import { getDb } from "@/core/db/client";
+import { dispatchEvent } from "@/features/telegram";
 import { emitTranslationEvent } from "./translation-events.service";
 
 const PROVIDER = "openai";
@@ -97,6 +98,18 @@ export async function recordProviderFailure(errorMsg: string): Promise<void> {
         event: "provider_paused",
         detail: { consecutive_failures: failures, paused_until: pausedUntil, last_error: errorMsg.slice(0, 200) },
       });
+      // Workstream B: route trip to Infra Telegram channel(s). Idempotency key
+      // includes paused_until so the SAME trip won't re-notify on re-entry,
+      // but a fresh trip after auto-resume gets its own message.
+      await dispatchEvent({
+        event_type: "provider_breaker_tripped",
+        idempotency_key: `breaker:${PROVIDER}:${pausedUntil}`,
+        payload: {
+          provider: PROVIDER,
+          consecutive_failures: failures,
+          paused_until: pausedUntil,
+        },
+      }).catch(() => {});
     } else {
       await getDb()
         .prepare(
