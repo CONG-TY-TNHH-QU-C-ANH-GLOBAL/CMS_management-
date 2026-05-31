@@ -79,7 +79,10 @@ function backoffSec(attempt: number, retryAfterSec?: number): number {
  *  within budget. Best-effort: errors are recorded in last_error, not thrown. */
 export async function flushTelegramOutbox(budgetMs: number = BUDGET_MS_DEFAULT): Promise<void> {
   const botToken = await getBotToken();
-  if (!botToken) return; // nothing to flush if bot not configured
+  if (!botToken) {
+    console.warn("[telegram] flushTelegramOutbox: no bot_token in telegram_config — nothing sent");
+    return;
+  }
 
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
@@ -87,6 +90,7 @@ export async function flushTelegramOutbox(budgetMs: number = BUDGET_MS_DEFAULT):
     if (!row) return; // queue empty
 
     const result = await sendTelegramMessage(botToken, row.chat_id, row.body_text);
+    console.log(`[telegram] outbox#${row.id} → chat ${row.chat_id}: ${result.kind}${"status" in result && result.status ? ` (${result.status})` : ""}${"message" in result && result.message ? ` ${result.message}` : ""}`);
 
     if (result.kind === "ok") {
       await getDb()

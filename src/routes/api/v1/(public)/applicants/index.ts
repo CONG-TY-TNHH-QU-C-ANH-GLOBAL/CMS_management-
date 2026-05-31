@@ -75,6 +75,9 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
         });
 
         // Route to subscribed Telegram channels via durable outbox.
+        // DIAGNOSTIC: log catch errors so Telegram silent-failure is visible in
+        // `wrangler tail` / Cloudflare dashboard logs. Remove this logging once
+        // the dispatch chain is confirmed working in prod.
         dispatchEvent({
           event_type: "applicant_received",
           idempotency_key: `applicant:${inserted.id}`,
@@ -89,7 +92,9 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
             job_title: job.title,
             locale: input.locale,
           },
-        }).catch(() => {});
+        })
+          .then((n) => console.log(`[telegram] applicant_received#${inserted.id} enqueued ${n} row(s)`))
+          .catch((e) => console.error(`[telegram] applicant_received#${inserted.id} dispatch failed:`, e));
 
         return corsJson(request, { ok: true, id: inserted.id });
       },

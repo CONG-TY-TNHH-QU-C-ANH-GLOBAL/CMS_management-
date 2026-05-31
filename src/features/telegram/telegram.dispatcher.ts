@@ -38,7 +38,10 @@ export async function dispatchEvent(input: DispatchInput): Promise<number> {
     .bind(input.event_type)
     .all<SubscriberRow>();
   const targets = subs.results ?? [];
-  if (targets.length === 0) return 0;
+  if (targets.length === 0) {
+    console.warn(`[telegram] dispatchEvent(${input.event_type}): no enabled subscribers (check matrix + channel.paused)`);
+    return 0;
+  }
 
   // 2. One body per emit (same content across channels).
   const bodyText = formatEvent(input);
@@ -63,9 +66,16 @@ export async function dispatchEvent(input: DispatchInput): Promise<number> {
         ?? (res.meta as { rows_written?: number } | undefined)?.rows_written
         ?? 0;
       if (changes >= 1) enqueued += 1;
-    } catch {
+    } catch (e) {
       // UNIQUE(idempotency_key) violation = "we've seen this exact event
-      // already" — that's the expected dedup path, swallow.
+      // already" — that's the expected dedup path. Log so genuine INSERT
+      // errors (schema drift, missing table) are still visible.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/UNIQUE/i.test(msg)) {
+        console.log(`[telegram] outbox dedup hit for ${input.event_type} (${idempKey})`);
+      } else {
+        console.error(`[telegram] outbox INSERT failed for ${input.event_type} → channel ${t.channel_id}:`, e);
+      }
     }
   }
 
