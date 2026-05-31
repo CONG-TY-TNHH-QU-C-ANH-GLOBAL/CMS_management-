@@ -8,6 +8,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { Card, PageContainer, StatusBadge } from "@/components/cms/ui";
 import { NewBlogPostDialog } from "@/features/blog/components/NewBlogPostDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import {
   deleteBlogSlugFn,
   listBlogPostsFn,
@@ -91,6 +92,7 @@ function BlogsPage() {
                 className="flex-1 bg-transparent outline-none"
               />
             </div>
+            <BulkTranslateButton entityType="blog_post" onDone={() => router.invalidate()} />
           </div>
 
           <div className="overflow-x-auto">

@@ -19,6 +19,7 @@ import {
   type HomepageBlockKind,
 } from "@/features/homepage/homepage.actions";
 import { TranslationReviewDialog } from "@/features/translations/components/TranslationReviewDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import {
   approveHomepageBlockTranslationFn,
   deleteHomepageBlockTranslationFn,
@@ -252,6 +253,7 @@ function LandingPage() {
                 <CheckCircle2 className="w-3.5 h-3.5" /> Đã đồng bộ với website
               </span>
             )}
+            <BulkTranslateButton entityType="homepage_block" onDone={() => router.invalidate()} />
             <a
               href="https://www.thgfulfill.com"
               target="_blank"
