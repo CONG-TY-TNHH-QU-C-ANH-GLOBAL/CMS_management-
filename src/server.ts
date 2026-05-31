@@ -95,10 +95,15 @@ export default {
     // C3: flush a pending landing rebuild (coalesced dirty flag → one
     // repository_dispatch). Independent of translation work.
     const { flushLandingRebuild } = await import("./features/careers/landing-rebuild");
+    // Workstream B: drain Telegram outbox (retry transient sends, mark
+    // permanent failures). Inline-kick from dispatchEvent handles the happy
+    // path; this is the durability backstop for transient/queued rows.
+    const { flushTelegramOutbox } = await import("./features/telegram");
     ctx.waitUntil(
       Promise.allSettled([
         runTranslationJobs(env, 60_000),
         flushLandingRebuild(),
+        flushTelegramOutbox(60_000),
       ]).then((results) => {
         for (const r of results) {
           if (r.status === "rejected") console.error("[scheduled] task failed", r.reason);

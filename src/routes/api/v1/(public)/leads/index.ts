@@ -4,7 +4,7 @@ import { z } from "zod";
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createLead } from "@/features/leads";
-import { formatLeadMessage, notifyTelegram } from "@/features/telegram";
+import { dispatchEvent } from "@/features/telegram";
 
 const leadSchema = z.object({
   name: z.string().trim().min(1, "Tên không được rỗng").max(120),
@@ -62,10 +62,12 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           utm: data.utm ?? null,
         });
 
-        // Fire-and-forget Telegram notify (no await — don't block response)
-        notifyTelegram({
-          event: "new_lead",
-          text: formatLeadMessage({
+        // Route to subscribed Telegram channels via durable outbox.
+        // Idempotency key collapses double-submits to one notification.
+        dispatchEvent({
+          event_type: "lead_received",
+          idempotency_key: `lead:${id}`,
+          payload: {
             id,
             name: data.name,
             email: data.email,
@@ -73,7 +75,7 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
             message: data.message ?? null,
             source_page: data.source_page ?? null,
             locale: data.locale ?? null,
-          }),
+          },
         }).catch(() => {});
 
         return corsJson(
