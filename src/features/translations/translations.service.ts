@@ -10,6 +10,7 @@
 
 import { getDb } from "@/core/db/client";
 import { auditLog } from "@/core/db/mutations";
+import { dispatchEvent } from "@/features/telegram";
 import { listGlossaryForPrompt } from "./glossary.service";
 import { computeSourceHash } from "./translations.hash";
 import { insertAiTranslationLog } from "./translations.log.service";
@@ -548,6 +549,17 @@ export async function translate(
           event: "translate_failed",
           detail: { reason: "provider_paused", paused_until: pause.until },
         });
+        // Workstream B: route to Infra Telegram channel(s).
+        await dispatchEvent({
+          event_type: "translation_failed",
+          idempotency_key: `tfail:${input.entity_type}:${input.entity_id}:${locale}:${sourceHash}`,
+          payload: {
+            entity_type: input.entity_type,
+            entity_id: input.entity_id,
+            locale,
+            error_message: msg,
+          },
+        }).catch(() => {});
       }
       return {
         drafts,
@@ -671,6 +683,22 @@ export async function translate(
         event: outcome === "draft" ? "translate_succeeded" : "translate_failed",
         detail: { status: logStatus, error: outcome === "failed" ? errorMsg : null, latency_ms: latencyMs },
       });
+
+      // Workstream B: route failures to Infra Telegram channel(s). Idempotency
+      // key includes sourceHash so a deterministic re-run with the same input
+      // collapses to one notification; a different source content gets its own.
+      if (outcome === "failed") {
+        await dispatchEvent({
+          event_type: "translation_failed",
+          idempotency_key: `tfail:${input.entity_type}:${input.entity_id}:${locale}:${sourceHash}`,
+          payload: {
+            entity_type: input.entity_type,
+            entity_id: input.entity_id,
+            locale,
+            error_message: errorMsg ?? "(unknown error)",
+          },
+        }).catch(() => {});
+      }
 
       // Clear the lock immediately after each locale's outcome is persisted.
       await clearInFlightLock(input.entity_type, input.entity_id, locale);
