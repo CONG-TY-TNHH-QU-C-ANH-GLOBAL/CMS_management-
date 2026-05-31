@@ -29,11 +29,20 @@ export async function sendTelegramMessage(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
+    // Telegram accepts chat_id as int OR string, but for negative channel/
+    // supergroup ids (-100xxxxxxxxxx) sending it as a JSON STRING is flaky —
+    // observed `400 Bad Request: chat not found` despite the bot being a valid
+    // admin in the channel (the same id via URL ?chat_id=... works). Convert
+    // numeric ids (incl. signed negative) to Number; leave @username strings
+    // alone so public-channel send-by-handle still works.
+    const chatIdValue: string | number = /^-?\d+$/.test(chatId)
+      ? Number(chatId)
+      : chatId;
     const res = await fetch(`${TELEGRAM_API_BASE}/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: chatIdValue,
         text: bodyText,
         parse_mode: "HTML",
         disable_web_page_preview: true,
