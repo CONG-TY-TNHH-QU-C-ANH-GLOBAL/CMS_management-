@@ -90,6 +90,11 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
     }
     setPending(true);
     try {
+      // The operator cleared a previously-set thumbnail. setBlogThumbnailFn only
+      // accepts a real URL, so it can never clear — pass thumbnail_media_id:null
+      // through the upsert instead (the service does a `!== undefined` update, so
+      // an explicit null clears while omitting leaves it untouched).
+      const clearedThumbnail = !form.thumbnail_url.trim() && !!post?.thumbnail_url;
       // 1. Upsert post fields
       await upsert({
         data: {
@@ -102,6 +107,7 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
           status: form.status,
           seo_title: form.seo_title.trim() || null,
           seo_description: form.seo_description.trim() || null,
+          ...(clearedThumbnail ? { thumbnail_media_id: null } : {}),
         },
       });
       // 2. Update thumbnail (separate action so URL→media upsert handles itself)

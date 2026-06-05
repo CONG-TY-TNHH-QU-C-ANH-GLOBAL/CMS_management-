@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -38,6 +38,20 @@ export function ContactLocationDialog({ open, onOpenChange, onSaved, locale, row
   const [langClass, setLangClass] = useState(row?.lang_class ?? "");
   const [position, setPosition] = useState(row?.position ?? 99);
   const [pending, setPending] = useState(false);
+
+  // Re-sync on open / row change — the dialog instance is kept mounted across
+  // open/close, so without this a reopened dialog shows abandoned edits.
+  useEffect(() => {
+    if (!open) return;
+    setKind(row?.kind ?? "office");
+    setLabel(row?.label ?? "");
+    setAddress(row?.address ?? "");
+    setPhone(row?.phone ?? "");
+    setUrl(row?.url ?? "");
+    setLangClass(row?.lang_class ?? "");
+    setPosition(row?.position ?? 99);
+    setPending(false);
+  }, [open, row]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

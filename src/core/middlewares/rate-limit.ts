@@ -1,5 +1,10 @@
-// IP-based rate limit using Cloudflare KV.
-// Bucket key: `ratelimit:<scope>:<ip>`. Counter increments per request, expires after window.
+// IP-based rate limit backed by a Durable Object (one instance per scope+ip).
+//
+// Previously this used Cloudflare KV with a read-then-write, which is NOT
+// atomic: concurrent requests from one IP all read the same count and wrote
+// count+1, so a burst undercounted and bypassed the cap (KV is also eventually
+// consistent, widening that race). The DO serializes calls on a single thread,
+// so its read-modify-write is atomic. See rate-limiter-do.ts.
 
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
@@ -15,33 +20,21 @@ export async function rateLimit(
   ip: string,
   options: { max: number; windowSeconds: number },
 ): Promise<RateLimitResult> {
-  const key = `ratelimit:${scope}:${ip}`;
-  const now = Math.floor(Date.now() / 1000);
-  const resetAt = now + options.windowSeconds;
-
-  const raw = await env.CMS_REV.get(key);
-  let count = 0;
-  let bucketResetAt = resetAt;
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as { count: number; resetAt: number };
-      if (parsed.resetAt > now) {
-        count = parsed.count;
-        bucketResetAt = parsed.resetAt;
-      }
-    } catch {
-      // ignore corrupt value
-    }
+  try {
+    const id = env.RATE_LIMITER.idFromName(`${scope}:${ip}`);
+    const stub = env.RATE_LIMITER.get(id);
+    return await stub.hit(options.max, options.windowSeconds);
+  } catch (err) {
+    // Fail OPEN: a Durable Object hiccup must not take down public lead /
+    // applicant submission. These endpoints are also guarded by Turnstile, so
+    // a brief loss of the secondary IP throttle is an acceptable trade-off.
+    console.warn(`[rateLimit] DO call failed for ${scope}:${ip}; allowing request`, err);
+    return {
+      allowed: true,
+      remaining: options.max,
+      resetAt: Math.floor(Date.now() / 1000) + options.windowSeconds,
+    };
   }
-
-  count += 1;
-  const allowed = count <= options.max;
-  const ttl = Math.max(1, bucketResetAt - now);
-  await env.CMS_REV.put(key, JSON.stringify({ count, resetAt: bucketResetAt }), {
-    expirationTtl: ttl,
-  });
-
-  return { allowed, remaining: Math.max(0, options.max - count), resetAt: bucketResetAt };
 }
 
 /**

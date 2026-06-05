@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -27,10 +27,18 @@ export function FaqDialog({ open, onOpenChange, onSaved, scope, locale, row }: P
   const [position, setPosition] = useState(row?.position ?? 99);
   const [pending, setPending] = useState(false);
 
-  // Reset form when row changes (dialog reused for different entries)
-  if (!pending && row && (question !== row.question || answer !== row.answer || position !== row.position) && !document.activeElement?.matches("textarea, input")) {
-    // No-op; we're using uncontrolled init via useState — relies on caller remounting the dialog.
-  }
+  // Re-sync form state every time the dialog opens (or the target row changes).
+  // Without this, the instance is kept mounted across open/close (the parent
+  // only toggles `open`), so reopening after a Cancel — or reusing it for a new
+  // row whose key didn't change — would show the previously abandoned edits
+  // instead of the server value.
+  useEffect(() => {
+    if (!open) return;
+    setQuestion(row?.question ?? "");
+    setAnswer(row?.answer ?? "");
+    setPosition(row?.position ?? 99);
+    setPending(false);
+  }, [open, row]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -83,7 +83,7 @@ function PricingDetail() {
 
       <div className={showHistory ? "grid lg:grid-cols-[1fr_320px] gap-6" : ""}>
         <div className="min-w-0">
-          <PricingSpreadsheetEditor table={parsedTable} />
+          <PricingSpreadsheetEditor key={`${raw.slug}:${raw.version}`} table={parsedTable} />
         </div>
 
         {showHistory && (

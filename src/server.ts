@@ -3,6 +3,10 @@ import "./core/utils/error-capture";
 import { consumeLastCapturedError } from "./core/utils/error-capture";
 import { renderErrorPage } from "./core/utils/error-page";
 
+// Durable Object class must be exported from the Worker entry so wrangler can
+// bundle and bind it (see wrangler.jsonc durable_objects + migrations).
+export { RateLimiterDO } from "./core/middlewares/rate-limiter-do";
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };

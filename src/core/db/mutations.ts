@@ -32,4 +32,19 @@ export async function auditLog(
 export async function bumpCmsRev(): Promise<void> {
   const { env } = await import("cloudflare:workers");
   await env.CMS_REV.put("rev", String(Date.now()));
+
+  // Every public-content publish also makes the PRERENDERED landing site stale
+  // (its static HTML — what crawlers/first-paint see — bakes CMS data at build
+  // time). bumpCmsRev is the single chokepoint all content mutations call, so
+  // mark a coalesced landing rebuild here. The careers path already did this for
+  // JD pages; routing it through bumpCmsRev extends the same trailing-edge
+  // coalescing (≤1 repository_dispatch/minute via the cron flush) to services,
+  // policies, shipping, homepage, site-settings, etc. Best-effort: a rebuild
+  // mark must never fail the underlying mutation.
+  try {
+    const { markLandingRebuildNeeded } = await import("@/features/careers/landing-rebuild");
+    await markLandingRebuildNeeded("cms content publish");
+  } catch (err) {
+    console.error("[bumpCmsRev] markLandingRebuildNeeded failed", err);
+  }
 }

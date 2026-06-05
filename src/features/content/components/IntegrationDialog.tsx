@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -23,6 +23,17 @@ export function IntegrationDialog({ open, onOpenChange, onSaved, row }: Props) {
   const [colorClass, setColorClass] = useState(row?.color_class ?? "");
   const [position, setPosition] = useState(row?.position ?? 99);
   const [pending, setPending] = useState(false);
+
+  // Re-sync on open / row change — the dialog instance is kept mounted across
+  // open/close, so without this a reopened dialog shows abandoned edits.
+  useEffect(() => {
+    if (!open) return;
+    setName(row?.name ?? "");
+    setUrl(row?.url ?? "");
+    setColorClass(row?.color_class ?? "");
+    setPosition(row?.position ?? 99);
+    setPending(false);
+  }, [open, row]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

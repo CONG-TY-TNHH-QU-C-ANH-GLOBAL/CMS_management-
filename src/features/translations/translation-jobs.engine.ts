@@ -240,9 +240,14 @@ async function processJsonChunk(
   chunk: TranslationJobChunkRow,
 ): Promise<void> {
   const entityId = Number(job.entity_ref);
+  // created_by is `ON DELETE SET NULL` (migration 0029): when the user who
+  // enqueued the job is later deleted it becomes NULL, and the cron resume path
+  // can re-drive such a job. Treat a null creator as the system actor (0) for
+  // audit purposes instead of failing every chunk — otherwise the whole
+  // entity's translation is permanently stuck. Only entity_ref must be valid.
   const actorId = job.created_by ?? 0;
-  if (!Number.isFinite(entityId) || !actorId) {
-    await failChunk(chunk.id, chunk.attempts, "json job missing valid entity_ref/created_by");
+  if (!Number.isFinite(entityId)) {
+    await failChunk(chunk.id, chunk.attempts, "json job missing valid entity_ref");
     return;
   }
   const result = await translate(
