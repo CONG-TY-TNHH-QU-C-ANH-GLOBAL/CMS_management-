@@ -77,6 +77,18 @@ export function ShippingRouteEditor({ slug, locale, route, tables, onSaved }: Pr
   const [tableList, setTableList] = useState<TableInput[]>(() => fromTables(tables));
   const [pending, setPending] = useState(false);
 
+  // Detect stored JSON that failed to parse. fromRoute/fromTables swallow parse
+  // errors and fall back to empty, so a corrupt blob would render blank and a
+  // Save would silently overwrite the (recoverable) original with nothing. Warn
+  // the operator so they don't clobber it.
+  const [jsonWarning] = useState(() => {
+    const blobs = [route?.notes_json, ...tables.flatMap((t) => [t.columns_json, t.rows_json])];
+    return blobs.some((s) => {
+      if (!s) return false;
+      try { JSON.parse(s); return false; } catch { return true; }
+    });
+  });
+
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
   }
@@ -153,16 +165,20 @@ export function ShippingRouteEditor({ slug, locale, route, tables, onSaved }: Pr
           position: form.position,
         },
       });
-      // Convert string cell values to number where parseable for serialization.
+      // Store cell values verbatim as strings (empty → null). The old code
+      // coerced "parseable" cells to numbers, but a price like "1.234" (VN
+      // thousands for 1234) parsed to the number 1.234 — a silent 1000×
+      // corruption. There's no reliable way to tell decimal-dot from
+      // thousands-dot, and the public renderer only does String(cell), so
+      // keeping the operator's exact text both avoids the bug and preserves
+      // their formatting (grouping separators, units, "Thoả thuận", etc.).
       const tablesPayload = tableList.map((t) => ({
         caption: t.caption.trim() || null,
         columns: t.columns,
         rows: t.rows.map((r) => {
-          const out: Record<string, string | number | null> = {};
+          const out: Record<string, string | null> = {};
           for (const [k, v] of Object.entries(r)) {
-            if (v === "") { out[k] = null; continue; }
-            const num = Number(v);
-            out[k] = !isNaN(num) && /^[\d.,-]+$/.test(v.trim()) ? num : v;
+            out[k] = v === "" ? null : v;
           }
           return out;
         }),
@@ -179,6 +195,11 @@ export function ShippingRouteEditor({ slug, locale, route, tables, onSaved }: Pr
 
   return (
     <Card className="overflow-hidden">
+      {jsonWarning ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-5 py-2.5 text-xs text-amber-800">
+          ⚠ Một số dữ liệu JSON đã lưu (ghi chú/bảng giá) bị lỗi định dạng và không đọc được — phần đó đang hiển thị trống. Nếu bạn bấm Lưu, dữ liệu gốc sẽ bị ghi đè. Hãy kiểm tra kỹ trước khi lưu.
+        </div>
+      ) : null}
       <div className="grid xl:grid-cols-2 gap-6 p-5">
         <div className="space-y-3.5">
           <CardHeader title="Thông tin tuyến vận chuyển" />
@@ -197,7 +218,7 @@ export function ShippingRouteEditor({ slug, locale, route, tables, onSaved }: Pr
             </Field>
           </div>
           <Field label="Mô tả chi tiết — điều kiện, quy tắc, lưu ý vận hành">
-            <textarea rows={8} value={form.body_md} onChange={(e) => set("body_md", e.target.value)} maxLength={20000} className="w-full px-3 py-2 rounded-md border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed" />
+            <textarea rows={8} value={form.body_md} onChange={(e) => set("body_md", e.target.value)} maxLength={200000} className="w-full px-3 py-2 rounded-md border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed" />
           </Field>
           <Field label="Lưu ý quan trọng — mỗi dòng 1 lưu ý">
             <textarea rows={3} value={form.notes_text} onChange={(e) => set("notes_text", e.target.value)} className="w-full px-3 py-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-y" placeholder="Lưu ý 1&#10;Lưu ý 2" />

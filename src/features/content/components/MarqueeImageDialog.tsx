@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -24,6 +24,16 @@ export function MarqueeImageDialog({ open, onOpenChange, onSaved, row }: Props) 
   const [pending, setPending] = useState(false);
 
   const isEdit = !!row;
+
+  // Re-sync on open / row change — the dialog instance is kept mounted across
+  // open/close, so without this a reopened dialog shows abandoned edits.
+  useEffect(() => {
+    if (!open) return;
+    setUrl(row?.src ?? "");
+    setAltText(row?.alt_text ?? "");
+    setPosition(row?.position ?? 99);
+    setPending(false);
+  }, [open, row]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

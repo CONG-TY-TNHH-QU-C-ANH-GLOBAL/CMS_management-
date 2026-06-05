@@ -1,14 +1,18 @@
-// Workstream C3 — landing auto-redeploy.
+// Landing auto-redeploy (originally Workstream C3, now all CMS content).
 //
-// Each JD has its own prerendered /careers/:slug page on the (separately
-// deployed) landing site. When HR publishes/edits/closes a job we must rebuild
-// the landing so the new/changed page is prerendered + the sitemap updates.
+// The landing site is prerendered: its static HTML bakes CMS data at build
+// time, so any published content change (JD pages, services, policies, shipping
+// routes, homepage, site-settings, …) leaves the served HTML — and what
+// crawlers/first-paint see — stale until the next build. To fix that, every
+// content publish marks a rebuild here; the hook lives in bumpCmsRev() so all
+// mutation paths flow through it (careers also marks directly for its specific
+// per-JD reason string).
 //
 // Coalescing: instead of dispatching a build on every edit (deploy storm), a
-// careers mutation just sets a "dirty" flag in KV. The existing 1-minute Cron
-// flushes it — trailing-edge coalescing means any number of edits within a
-// minute collapse into AT MOST ONE repository_dispatch, and the build always
-// fetches fresh CMS data so it captures every edit. GitHub Actions
+// mutation just sets a "dirty" flag in KV. The existing 1-minute Cron flushes
+// it — trailing-edge coalescing means any number of edits within a minute
+// collapse into AT MOST ONE repository_dispatch, and the build always fetches
+// fresh CMS data so it captures every edit. GitHub Actions
 // `concurrency: cancel-in-progress` cancels a superseded build on top of that.
 
 import { env } from "cloudflare:workers";

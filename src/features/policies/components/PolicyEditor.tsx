@@ -79,6 +79,17 @@ export function PolicyEditor({ slug, locale, policy, onSaved }: Props) {
   const [textBlocks, setTextBlocks] = useState<PolicyTextBlock[]>(() => parseTextBlocks(policy?.text_blocks_json ?? null));
   const [pending, setPending] = useState(false);
 
+  // Warn when stored JSON failed to parse — parseTextBlocks/parseImageList
+  // swallow the error and fall back to empty, so a corrupt blob renders blank
+  // and a Save would silently overwrite the recoverable original with nothing.
+  const [jsonWarning] = useState(() => {
+    const blobs = [policy?.text_blocks_json, policy?.image_list_json];
+    return blobs.some((s) => {
+      if (!s) return false;
+      try { JSON.parse(s); return false; } catch { return true; }
+    });
+  });
+
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
   }
@@ -165,6 +176,11 @@ export function PolicyEditor({ slug, locale, policy, onSaved }: Props) {
 
   return (
     <Card className="overflow-hidden">
+      {jsonWarning ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-5 py-2.5 text-xs text-amber-800">
+          ⚠ Một số dữ liệu JSON đã lưu (khối nội dung/danh sách ảnh) bị lỗi định dạng và không đọc được — phần đó đang hiển thị trống. Nếu bạn bấm Lưu, dữ liệu gốc sẽ bị ghi đè. Hãy kiểm tra kỹ trước khi lưu.
+        </div>
+      ) : null}
       <div className="grid xl:grid-cols-2 gap-6 p-5">
         <div className="space-y-3.5">
           <CardHeader title="Thông tin chính" />

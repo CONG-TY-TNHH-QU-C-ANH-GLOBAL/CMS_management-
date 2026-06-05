@@ -56,7 +56,12 @@ const upsertSchema = z.object({
   origin: z.string().max(50).nullable().optional(),
   destination: z.string().max(50).nullable().optional(),
   kind: z.string().max(100).nullable().optional(),
-  body_md: z.string().max(20000).nullable().optional(),
+  // body_md holds AI-translated markdown. Vietnamese output runs ~1.5-2× the
+  // English source, and the translate/sync paths write straight to the DB with
+  // NO cap — so a global route's VI body can land well past the old 20k bound,
+  // then fail re-save here (the "too_big at 20000" the CMS surfaced). Match the
+  // unbounded body_md the careers/policies schemas use, with a generous guard.
+  body_md: z.string().max(200000).nullable().optional(),
   notes: z.array(z.string().max(2000)).max(50).nullable().optional(),
   status: STATUS.optional(),
 });

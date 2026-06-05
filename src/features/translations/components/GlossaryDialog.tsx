@@ -47,6 +47,20 @@ export function GlossaryDialog({ open, onOpenChange, onSaved, row }: Props) {
   const [warnings, setWarnings] = useState<DuplicateWarning[]>([]);
   const [pending, setPending] = useState(false);
 
+  // Re-sync on open / row change — the dialog instance is kept mounted across
+  // open/close, so without this a reopened dialog shows abandoned edits.
+  useEffect(() => {
+    if (!open) return;
+    setTermVi(row?.term_vi ?? "");
+    setTermEn(row?.term_en ?? "");
+    setTermZh(row?.term_zh ?? "");
+    setCategory(row?.category ?? "general");
+    setNotes(row?.notes ?? "");
+    setPriority(row?.priority ?? 0);
+    setWarnings([]);
+    setPending(false);
+  }, [open, row]);
+
   // Duplicate check — debounced on term_vi changes. Warns but never blocks.
   useEffect(() => {
     if (!termVi.trim() || termVi.length < 2) {
@@ -72,9 +86,9 @@ export function GlossaryDialog({ open, onOpenChange, onSaved, row }: Props) {
         await update({
           data: {
             id: row.id,
-            term_vi: termVi,
-            term_en: termEn,
-            term_zh: termZh,
+            term_vi: termVi.trim(),
+            term_en: termEn.trim(),
+            term_zh: termZh.trim(),
             category,
             notes: notes.trim() || null,
             priority,
@@ -83,9 +97,9 @@ export function GlossaryDialog({ open, onOpenChange, onSaved, row }: Props) {
       } else {
         await create({
           data: {
-            term_vi: termVi,
-            term_en: termEn,
-            term_zh: termZh,
+            term_vi: termVi.trim(),
+            term_en: termEn.trim(),
+            term_zh: termZh.trim(),
             category,
             notes: notes.trim() || null,
             priority,

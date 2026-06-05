@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -25,6 +25,17 @@ export function TestimonialDialog({ open, onOpenChange, onSaved, locale, row }: 
   const [authorRole, setAuthorRole] = useState(row?.author_role ?? "");
   const [position, setPosition] = useState(row?.position ?? 99);
   const [pending, setPending] = useState(false);
+
+  // Re-sync on open / row change — the dialog instance is kept mounted across
+  // open/close, so without this a reopened dialog shows abandoned edits.
+  useEffect(() => {
+    if (!open) return;
+    setQuote(row?.quote ?? "");
+    setAuthorName(row?.author_name ?? "");
+    setAuthorRole(row?.author_role ?? "");
+    setPosition(row?.position ?? 99);
+    setPending(false);
+  }, [open, row]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -50,6 +50,16 @@
 			"id": "29652717320f496f89e6e25189ef9ca3"
 		}
 	],
+	// Atomic IP rate limiter — one DO instance per (scope, ip). SQLite-backed
+	// (works on the Workers Free plan). The class is exported from src/server.ts.
+	"durable_objects": {
+		"bindings": [
+			{ "name": "RATE_LIMITER", "class_name": "RateLimiterDO" }
+		]
+	},
+	"migrations": [
+		{ "tag": "v1", "new_sqlite_classes": ["RateLimiterDO"] }
+	],
 	// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
 	// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
 	"routes": [

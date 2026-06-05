@@ -1,12 +1,17 @@
 // Cloudflare Worker bindings — declared in wrangler.jsonc.
 // Access via `import { env } from "cloudflare:workers"` (typed as Cloudflare.Env).
 
+import type { RateLimiterDO } from "@/core/middlewares/rate-limiter-do";
+
 declare global {
   namespace Cloudflare {
     interface Env {
       DB: D1Database;
       MEDIA: R2Bucket;
       CMS_REV: KVNamespace;
+      // Atomic IP rate limiter (see rate-limiter-do.ts). Parameterized with the
+      // class so stub.hit(...) is RPC-typed.
+      RATE_LIMITER: DurableObjectNamespace<RateLimiterDO>;
       DEFAULT_LOCALE: string;
       BASE_URL: string;
       SUPPORTED_LOCALES: string;

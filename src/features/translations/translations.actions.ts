@@ -485,10 +485,14 @@ export const editCareersJobTranslationFn = createServerFn({ method: "POST" })
         salary_note: z.string().max(2000).nullable(),
         experience: z.string().max(2000).nullable(),
         lead: z.string().max(5000).nullable(),
+        // All four list-JSON fields share the same translate path, which writes
+        // with NO length check. VI→EN/ZH output of a long list can pass 20k, so
+        // a saved AI draft then failed to re-save here (same class as the fixed
+        // shipping body_md cap). Align all four to responsibilities_json's 50k.
         responsibilities_json: z.string().max(50000),
-        requirements_json: z.string().max(20000),
-        benefits_json: z.string().max(20000),
-        bonuses_json: z.string().max(20000),
+        requirements_json: z.string().max(50000),
+        benefits_json: z.string().max(50000),
+        bonuses_json: z.string().max(50000),
       })
       .parse(input),
   )
