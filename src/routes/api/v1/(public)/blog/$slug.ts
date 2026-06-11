@@ -26,6 +26,7 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
             slug: post.slug,
             title: post.title,
             excerpt: post.excerpt,
+            body_md: post.body_md,
             thumbnail_url: post.thumbnail_url,
             category: post.category,
             published_date: post.published_date,

@@ -72,7 +72,7 @@ function BlogDetailPage() {
             <span className="font-mono">{slug}</span>
             <span>•</span>
             <a
-              href={`https://thgfulfill.com/blog/${slug}`}
+              href={`https://thgfulfill.com/${locale}/blog/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 hover:text-foreground"

@@ -42,6 +42,7 @@ const upsertSchema = z.object({
   locale: LOCALE,
   title: z.string().min(1).max(500),
   excerpt: z.string().max(2000).nullable().optional(),
+  body_md: z.string().max(100000).nullable().optional(),
   thumbnail_media_id: z.number().int().positive().nullable().optional(),
   category: z.string().max(100).nullable().optional(),
   published_date: z.string().max(20).nullable().optional(),
