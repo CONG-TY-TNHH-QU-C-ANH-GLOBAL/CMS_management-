@@ -25,6 +25,7 @@ interface Props {
 interface FormState {
   title: string;
   excerpt: string;
+  body_md: string;
   category: string;
   published_date: string;
   status: BlogStatus;
@@ -37,6 +38,7 @@ function fromPost(p: BlogPostRow | null): FormState {
   return {
     title: p?.title ?? "",
     excerpt: p?.excerpt ?? "",
+    body_md: p?.body_md ?? "",
     category: p?.category ?? "",
     published_date: p?.published_date ?? "",
     status: p?.status ?? "draft",
@@ -102,6 +104,7 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
           locale,
           title: form.title.trim(),
           excerpt: form.excerpt.trim() || null,
+          body_md: form.body_md.trim() || null,
           category: form.category.trim() || null,
           published_date: form.published_date.trim() || null,
           status: form.status,
@@ -150,6 +153,16 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
               onChange={(e) => set("excerpt", e.target.value)}
               maxLength={2000}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+            />
+          </Field>
+          <Field label="Nội dung bài viết (Markdown) — hỗ trợ ## Tiêu đề, **đậm**, *nghiêng*, - danh sách, [link](url)">
+            <textarea
+              rows={15}
+              value={form.body_md}
+              onChange={(e) => set("body_md", e.target.value)}
+              maxLength={100000}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+              placeholder={"## Tiêu đề phần 1\n\nNội dung đoạn văn đầu tiên...\n\n## Tiêu đề phần 2\n\n- Điểm 1\n- Điểm 2\n- Điểm 3"}
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
