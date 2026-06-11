@@ -92,12 +92,7 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
     }
     setPending(true);
     try {
-      // The operator cleared a previously-set thumbnail. setBlogThumbnailFn only
-      // accepts a real URL, so it can never clear — pass thumbnail_media_id:null
-      // through the upsert instead (the service does a `!== undefined` update, so
-      // an explicit null clears while omitting leaves it untouched).
       const clearedThumbnail = !form.thumbnail_url.trim() && !!post?.thumbnail_url;
-      // 1. Upsert post fields
       await upsert({
         data: {
           slug,
@@ -113,13 +108,11 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
           ...(clearedThumbnail ? { thumbnail_media_id: null } : {}),
         },
       });
-      // 2. Update thumbnail (separate action so URL→media upsert handles itself)
       if (form.thumbnail_url.trim() && form.thumbnail_url !== post?.thumbnail_url) {
         await setThumbnail({
           data: { slug, locale, url: form.thumbnail_url.trim(), alt_text: form.title.trim() },
         });
       }
-      // 3. Replace slides
       const cleaned = slideList.filter((s) => s.url.trim()).map((s) => ({ url: s.url.trim(), alt_text: s.alt_text.trim() || form.title.trim() }));
       await replaceSlides({ data: { slug, locale, slides: cleaned } });
 
@@ -134,9 +127,12 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="grid xl:grid-cols-[1fr_360px] gap-6 p-5">
-        <div className="space-y-3.5 min-w-0">
-          <CardHeader title="Thông tin bài viết" hint="Hiển thị trên danh sách blog + đầu trang chi tiết" />
+      <div className="grid xl:grid-cols-[380px_1fr] gap-0 divide-x divide-border">
+
+        {/* ── LEFT: Metadata ─────────────────────────────────── */}
+        <div className="space-y-3.5 p-5 min-w-0">
+          <CardHeader title="Thông tin bài viết" hint="Tiêu đề, tóm tắt, danh mục, SEO, trạng thái" />
+
           <Field label="Tiêu đề" required>
             <input
               type="text"
@@ -146,25 +142,18 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
               className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
-          <Field label="Tóm tắt — hiển thị trên danh sách blog">
+
+          <Field label="Tóm tắt — dòng mở đầu bài viết">
             <textarea
               rows={3}
               value={form.excerpt}
               onChange={(e) => set("excerpt", e.target.value)}
               maxLength={2000}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+              placeholder="1-2 câu tóm tắt nội dung bài, hiển thị in nghiêng ở đầu bài viết..."
             />
           </Field>
-          <Field label="Nội dung bài viết (Markdown) — hỗ trợ ## Tiêu đề, **đậm**, *nghiêng*, - danh sách, [link](url)">
-            <textarea
-              rows={15}
-              value={form.body_md}
-              onChange={(e) => set("body_md", e.target.value)}
-              maxLength={100000}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              placeholder={"## Tiêu đề phần 1\n\nNội dung đoạn văn đầu tiên...\n\n## Tiêu đề phần 2\n\n- Điểm 1\n- Điểm 2\n- Điểm 3"}
-            />
-          </Field>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Danh mục">
               <input
@@ -185,23 +174,24 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
               />
             </Field>
           </div>
-          <Field label="Đường dẫn ảnh đại diện">
+
+          <Field label="Ảnh đại diện (thumbnail)">
             <input
               type="url"
               value={form.thumbnail_url}
               onChange={(e) => set("thumbnail_url", e.target.value)}
               maxLength={2000}
               className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="https://w.ladicdn.com/..."
+              placeholder="https://..."
             />
           </Field>
           {form.thumbnail_url && (
             <div className="rounded-lg border border-border bg-surface-muted overflow-hidden">
-              <img src={form.thumbnail_url} alt="" className="w-full max-h-32 object-cover" referrerPolicy="no-referrer" />
+              <img src={form.thumbnail_url} alt="" className="w-full max-h-28 object-cover" referrerPolicy="no-referrer" />
             </div>
           )}
 
-          <CardHeader title="SEO (tối ưu Google)" hint="Tùy chọn — nếu để trống sẽ dùng tiêu đề + tóm tắt phía trên" />
+          <CardHeader title="SEO (tối ưu Google)" hint="Tùy chọn — nếu trống sẽ dùng tiêu đề + tóm tắt" />
           <Field label="Tiêu đề trên Google">
             <input
               type="text"
@@ -222,106 +212,144 @@ export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
           </Field>
 
           <CardHeader title="Trạng thái" />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(["draft", "review", "live", "archived"] as const).map((s) => {
               const label = s === "draft" ? "Bản nháp" : s === "review" ? "Chờ duyệt" : s === "live" ? "Đang hiển thị" : "Đã ẩn";
               return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => set("status", s)}
-                className={`h-9 px-3 rounded-lg text-sm font-medium transition ${
-                  form.status === s
-                    ? "bg-foreground text-background"
-                    : "border border-border bg-surface text-foreground hover:bg-surface-muted"
-                }`}
-              >
-                {label}
-              </button>
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => set("status", s)}
+                  className={`h-9 px-3 rounded-lg text-sm font-medium transition ${
+                    form.status === s
+                      ? "bg-foreground text-background"
+                      : "border border-border bg-surface text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  {label}
+                </button>
               );
             })}
           </div>
         </div>
-        <div className="space-y-3 min-w-0">
-          <div className="flex items-center justify-between">
-            <CardHeader title={`Ảnh nội dung (${slideList.length})`} hint="Bài viết hiển thị dạng carousel — mỗi slide 1 ảnh" />
-            <button
-              type="button"
-              onClick={addSlide}
-              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-surface text-xs hover:bg-surface-muted"
-            >
-              <Plus className="w-3 h-3" /> Thêm ảnh
-            </button>
-          </div>
-          {slideList.length === 0 ? (
-            <div className="text-sm text-muted-foreground italic px-1">
-              Chưa có ảnh nào. Bấm "Thêm ảnh" để bắt đầu.
+
+        {/* ── RIGHT: Article content ──────────────────────────── */}
+        <div className="p-5 min-w-0 flex flex-col gap-5">
+
+          {/* Images section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <CardHeader
+                title={`Ảnh bài viết (${slideList.length})`}
+                hint="Ảnh đầu tiên hiển thị lớn trên trang. Chèn ảnh vào giữa bài: ![mô tả](URL ảnh)"
+              />
+              <button
+                type="button"
+                onClick={addSlide}
+                className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-surface text-xs hover:bg-surface-muted"
+              >
+                <Plus className="w-3 h-3" /> Thêm ảnh
+              </button>
             </div>
-          ) : (
-            <ul className="space-y-2">
-              {slideList.map((s, idx) => (
-                <li key={idx} className="flex gap-2 p-2 rounded-md border border-border bg-surface-muted/30">
-                  <div className="flex flex-col gap-0.5 mt-1">
-                    <button
-                      type="button"
-                      onClick={() => moveSlide(idx, -1)}
-                      disabled={idx === 0}
-                      className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronUp className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSlide(idx, +1)}
-                      disabled={idx === slideList.length - 1}
-                      className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronDown className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <input
-                      type="url"
-                      placeholder="https://...image.jpg"
-                      value={s.url}
-                      onChange={(e) => updateSlide(idx, { url: e.target.value })}
-                      maxLength={2000}
-                      className="w-full h-8 px-2 rounded border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Mô tả ngắn cho ảnh (giúp Google + người khiếm thị)"
-                      value={s.alt_text}
-                      onChange={(e) => updateSlide(idx, { alt_text: e.target.value })}
-                      maxLength={200}
-                      className="w-full h-8 px-2 rounded border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    {s.url && (
-                      <img
-                        src={s.url}
-                        alt=""
-                        className="w-full max-h-24 object-cover rounded"
-                        referrerPolicy="no-referrer"
+
+            {slideList.length === 0 ? (
+              <div className="text-sm text-muted-foreground italic px-1">
+                Chưa có ảnh nào. Bấm "Thêm ảnh" để thêm ảnh bài viết.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {slideList.map((s, idx) => (
+                  <li key={idx} className="flex gap-2 p-2 rounded-md border border-border bg-surface-muted/30">
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => moveSlide(idx, -1)}
+                        disabled={idx === 0}
+                        className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSlide(idx, +1)}
+                        disabled={idx === slideList.length - 1}
+                        className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex gap-2 items-center">
+                        {idx === 0 && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
+                            Featured
+                          </span>
+                        )}
+                        <input
+                          type="url"
+                          placeholder="https://...image.jpg"
+                          value={s.url}
+                          onChange={(e) => updateSlide(idx, { url: e.target.value })}
+                          maxLength={2000}
+                          className="w-full h-8 px-2 rounded border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Mô tả ảnh (giúp SEO + người khiếm thị)"
+                        value={s.alt_text}
+                        onChange={(e) => updateSlide(idx, { alt_text: e.target.value })}
+                        maxLength={200}
+                        className="w-full h-8 px-2 rounded border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                       />
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSlide(idx)}
-                    className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-red-600 hover:bg-red-50 self-start"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                      {s.url && (
+                        <img
+                          src={s.url}
+                          alt=""
+                          className="w-full max-h-32 object-cover rounded"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSlide(idx)}
+                      className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-red-600 hover:bg-red-50 self-start"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Body content */}
+          <div className="space-y-2 flex-1">
+            <CardHeader
+              title="Nội dung bài viết"
+              hint="Viết theo cấu trúc báo: tiêu đề phần, đoạn văn, danh sách. Hỗ trợ Markdown."
+            />
+            <textarea
+              rows={22}
+              value={form.body_md}
+              onChange={(e) => set("body_md", e.target.value)}
+              maxLength={100000}
+              className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed"
+              placeholder={"## Tổng quan thị trường\n\nNội dung đoạn mở đầu, phân tích tình hình chung...\n\n![Biểu đồ tăng trưởng](https://link-den-anh.jpg)\n\n## Xu hướng nổi bật tháng này\n\n- **Điểm 1**: Mô tả chi tiết\n- **Điểm 2**: Mô tả chi tiết\n- **Điểm 3**: Mô tả chi tiết\n\n## Nhận định & Khuyến nghị\n\nKết luận và hành động gợi ý cho doanh nghiệp..."}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Cú pháp: <code className="bg-muted px-1 rounded">## Tiêu đề</code> — <code className="bg-muted px-1 rounded">**đậm**</code> — <code className="bg-muted px-1 rounded">*nghiêng*</code> — <code className="bg-muted px-1 rounded">- danh sách</code> — <code className="bg-muted px-1 rounded">![mô tả](URL ảnh)</code>
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="border-t border-border bg-surface-muted/40 px-5 py-3 flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          Đang chỉnh sửa bài viết + slide cho bản dịch: <span className="font-medium text-foreground">{locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"}</span>.
+          Đang chỉnh sửa bản dịch: <span className="font-medium text-foreground">{locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"}</span>
         </div>
         <button
           type="button"
