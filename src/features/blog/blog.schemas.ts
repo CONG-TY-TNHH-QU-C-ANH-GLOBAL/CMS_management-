@@ -68,6 +68,7 @@ const blogPostDetailSchema = z.object({
   published_date: z.string().nullable(),
   seo_title: z.string().nullable(),
   seo_description: z.string().nullable(),
+  body_md: z.string().nullable(),
   updated_at: z.number().int(),
   slides: z.array(blogPostSlideSchema),
 });
