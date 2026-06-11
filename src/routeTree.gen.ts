@@ -76,6 +76,7 @@ import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(pub
 import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
 import { Route as ApiV1publicMediaSplatRouteImport } from './routes/api/v1/(public)/media/$'
 import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public)/jobs/$slug'
+import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
 
@@ -451,6 +452,12 @@ const ApiV1publicJobsSlugRoute = ApiV1publicJobsSlugRouteImport.update({
   path: '/api/v1/jobs/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicBlogCategoriesRoute =
+  ApiV1publicBlogCategoriesRouteImport.update({
+    id: '/api/v1/(public)/blog/categories',
+    path: '/api/v1/blog/categories',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicBlogSlugRoute = ApiV1publicBlogSlugRouteImport.update({
   id: '/api/v1/(public)/blog/$slug',
   path: '/api/v1/blog/$slug',
@@ -507,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -575,6 +583,7 @@ export interface FileRoutesByTo {
   '/admin/system/users': typeof AdminSystemUsersIndexRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -647,6 +656,7 @@ export interface FileRoutesById {
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
   '/api/v1/(admin)/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
+  '/api/v1/(public)/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/(public)/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/(public)/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/admin/system/users/'
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
+    | '/api/v1/blog/categories'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
     | '/api/v1/policies/$slug'
@@ -788,6 +799,7 @@ export interface FileRouteTypes {
     | '/admin/system/users'
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
+    | '/api/v1/blog/categories'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
     | '/api/v1/policies/$slug'
@@ -859,6 +871,7 @@ export interface FileRouteTypes {
     | '/admin/system/users/'
     | '/api/v1/(admin)/media/upload'
     | '/api/v1/(public)/blog/$slug'
+    | '/api/v1/(public)/blog/categories'
     | '/api/v1/(public)/jobs/$slug'
     | '/api/v1/(public)/media/$'
     | '/api/v1/(public)/policies/$slug'
@@ -924,6 +937,7 @@ export interface RootRouteChildren {
   AdminSystemUsersIndexRoute: typeof AdminSystemUsersIndexRoute
   ApiV1adminMediaUploadRoute: typeof ApiV1adminMediaUploadRoute
   ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
+  ApiV1publicBlogCategoriesRoute: typeof ApiV1publicBlogCategoriesRoute
   ApiV1publicJobsSlugRoute: typeof ApiV1publicJobsSlugRoute
   ApiV1publicMediaSplatRoute: typeof ApiV1publicMediaSplatRoute
   ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
@@ -1422,6 +1436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicJobsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/blog/categories': {
+      id: '/api/v1/(public)/blog/categories'
+      path: '/api/v1/blog/categories'
+      fullPath: '/api/v1/blog/categories'
+      preLoaderRoute: typeof ApiV1publicBlogCategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/blog/$slug': {
       id: '/api/v1/(public)/blog/$slug'
       path: '/api/v1/blog/$slug'
@@ -1527,6 +1548,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSystemUsersIndexRoute: AdminSystemUsersIndexRoute,
   ApiV1adminMediaUploadRoute: ApiV1adminMediaUploadRoute,
   ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
+  ApiV1publicBlogCategoriesRoute: ApiV1publicBlogCategoriesRoute,
   ApiV1publicJobsSlugRoute: ApiV1publicJobsSlugRoute,
   ApiV1publicMediaSplatRoute: ApiV1publicMediaSplatRoute,
   ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,

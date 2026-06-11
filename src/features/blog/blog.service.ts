@@ -162,6 +162,44 @@ export async function getBlogSlides(postId: number): Promise<BlogSlideRow[]> {
   return result.results ?? [];
 }
 
+export async function listBlogCategories(locale: BlogLocale): Promise<string[]> {
+  if (locale === "vi") {
+    const rows = await getDb()
+      .prepare(
+        `SELECT DISTINCT category FROM blog_posts
+          WHERE status = 'live' AND locale = 'vi' AND category IS NOT NULL
+          ORDER BY category`,
+      )
+      .all<{ category: string }>();
+    return (rows.results ?? []).map((r) => r.category);
+  }
+
+  // EN/ZH: reviewed translations first, then legacy fallback
+  const translated = await getDb()
+    .prepare(
+      `SELECT DISTINCT t.category FROM blog_posts p
+        JOIN blog_post_translations t ON t.blog_post_id = p.id
+          AND t.locale = ? AND t.status = 'reviewed'
+        WHERE p.status = 'live' AND p.locale = 'vi' AND t.category IS NOT NULL
+        ORDER BY t.category`,
+    )
+    .bind(locale)
+    .all<{ category: string }>();
+  const cats = new Set((translated.results ?? []).map((r) => r.category));
+
+  const legacy = await getDb()
+    .prepare(
+      `SELECT DISTINCT category FROM blog_posts
+        WHERE status = 'live' AND locale = ? AND category IS NOT NULL
+        ORDER BY category`,
+    )
+    .bind(locale)
+    .all<{ category: string }>();
+  for (const r of legacy.results ?? []) cats.add(r.category);
+
+  return [...cats].sort();
+}
+
 // Returns posts grouped by slug → list of {locale, title, ...} variants.
 // Used by admin list view to show all 3 locales in one row.
 export async function listBlogPostsGrouped(): Promise<
