@@ -167,3 +167,16 @@
     color: transparent;
   }
 }
+
+/* Rate Card Builder grid affordances */
+@keyframes rc-flash {
+  0% { background-color: color-mix(in oklab, var(--color-primary, #2563eb) 22%, transparent); }
+  100% { background-color: transparent; }
+}
+.rc-grid .rc-changed {
+  animation: rc-flash 1.1s ease-out;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-primary, #2563eb) 45%, transparent);
+}
+.rc-grid .rc-row-selected {
+  background-color: color-mix(in oklab, var(--color-primary, #2563eb) 8%, transparent);
+}

@@ -7,6 +7,7 @@ export type {
   PricingStatus,
   PricingTableRow,
   PricingTableSummary,
+  PricingVersionRow,
 } from "@/features/pricing";
 
 export const listPricingTablesFn = createServerFn({ method: "GET" }).handler(async () => {
@@ -33,6 +34,7 @@ const saveSchema = z.object({
   data_json: z.string().min(2), // at least "[]" or "{}"
   schema_json: z.string().optional(),
   comment: z.string().max(500).optional().nullable(),
+  expectedVersion: z.number().int().nonnegative().optional(),
 });
 
 export const savePricingTableFn = createServerFn({ method: "POST" })
@@ -48,8 +50,30 @@ export const savePricingTableFn = createServerFn({ method: "POST" })
       schema_json: data.schema_json,
       comment: data.comment ?? null,
       actorId: me.id,
+      expectedVersion: data.expectedVersion,
     });
     // Bump cms:rev so /api/v1/pricing/* edge cache invalidates
+    await env.CMS_REV.put("rev", String(Date.now()));
+    return result;
+  });
+
+const rollbackSchema = z.object({
+  slug: z.string().min(1),
+  toVersion: z.number().int().positive(),
+});
+
+export const rollbackPricingTableFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => rollbackSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { rollbackPricingTable } = await import("@/features/pricing");
+    const { env } = await import("cloudflare:workers");
+    const me = await requireSession("editor");
+    const result = await rollbackPricingTable({
+      slug: data.slug,
+      toVersion: data.toVersion,
+      actorId: me.id,
+    });
     await env.CMS_REV.put("rev", String(Date.now()));
     return result;
   });

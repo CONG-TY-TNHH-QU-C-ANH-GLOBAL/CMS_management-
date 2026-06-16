@@ -10,6 +10,8 @@ import { savePricingTableFn, type PricingTableRow } from "@/features/pricing/pri
 
 interface Props {
   table: PricingTableRow & { schema: unknown; data: unknown };
+  /** UI gate (backend enforces requireSession("editor") independently). */
+  canEdit?: boolean;
 }
 
 interface GridRow {
@@ -52,7 +54,14 @@ function normalizeWeightGrid(
 
   const cols: ColumnDef[] = orderedCodes.map((code, i) => {
     const found = schemaCols.find((c) => c.code === code);
-    return found ?? { code, label: code === "kg" ? "Kg" : code.toUpperCase(), position: i, type: code === "kg" ? "number" : "currency" };
+    return (
+      found ?? {
+        code,
+        label: code === "kg" ? "Kg" : code.toUpperCase(),
+        position: i,
+        type: code === "kg" ? "number" : "currency",
+      }
+    );
   });
 
   const rows: GridRow[] = (data as Record<string, unknown>[]).map((r) => {
@@ -134,7 +143,7 @@ function TextEditor({ row, column, onRowChange, onClose }: RenderEditCellProps<G
   );
 }
 
-export function PricingSpreadsheetEditor({ table }: Props) {
+export function PricingSpreadsheetEditor({ table, canEdit = true }: Props) {
   const router = useRouter();
   const save = useServerFn(savePricingTableFn);
   const isMetaKv = table.kind === "meta_kv";
@@ -160,8 +169,10 @@ export function PricingSpreadsheetEditor({ table }: Props) {
   const [pending, setPending] = useState(false);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(rows.map(({ __id, ...r }) => r)) !==
-      JSON.stringify(initial.map(({ __id, ...r }) => r));
+    return (
+      JSON.stringify(rows.map(({ __id, ...r }) => r)) !==
+      JSON.stringify(initial.map(({ __id, ...r }) => r))
+    );
   }, [rows, initial]);
 
   // Column defs for DataGrid
@@ -172,13 +183,13 @@ export function PricingSpreadsheetEditor({ table }: Props) {
           key: "key",
           name: "Key (mã)",
           width: 140,
-          editable: true,
+          editable: canEdit,
           renderEditCell: TextEditor,
         },
         {
           key: "value",
           name: "Value (mô tả)",
-          editable: true,
+          editable: canEdit,
           renderEditCell: TextEditor,
         },
       ];
@@ -188,10 +199,10 @@ export function PricingSpreadsheetEditor({ table }: Props) {
       name: c.label,
       width: i === 0 ? 80 : 100,
       frozen: i === 0,
-      editable: true,
+      editable: canEdit,
       renderEditCell: TextEditor,
     }));
-  }, [isMetaKv, cols]);
+  }, [isMetaKv, cols, canEdit]);
 
   function addRow() {
     if (isMetaKv) {
@@ -220,7 +231,10 @@ export function PricingSpreadsheetEditor({ table }: Props) {
       toast.error(`Cột "${code}" đã tồn tại`);
       return;
     }
-    setCols((c) => [...c, { code, label: code.toUpperCase(), position: c.length, type: "currency" }]);
+    setCols((c) => [
+      ...c,
+      { code, label: code.toUpperCase(), position: c.length, type: "currency" },
+    ]);
     setRows((rs) => rs.map((r) => ({ ...r, [code]: "" })));
   }
 
@@ -271,59 +285,70 @@ export function PricingSpreadsheetEditor({ table }: Props) {
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap p-3 rounded-lg border border-border bg-surface">
-        <button
-          onClick={addRow}
-          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-surface-muted"
-        >
-          <Plus className="w-3.5 h-3.5" /> Thêm hàng
-        </button>
-        <button
-          onClick={removeRow}
-          disabled={!selectedRow}
-          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Trash2 className="w-3.5 h-3.5" /> Xóa hàng
-        </button>
-        {!isMetaKv && (
-          <>
-            <div className="h-5 w-px bg-border mx-1" />
-            <button
-              onClick={addColumn}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-surface-muted"
-            >
-              <Plus className="w-3.5 h-3.5" /> Thêm cột
-            </button>
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  removeColumn(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              defaultValue=""
-              className="h-8 px-2 rounded-md border border-border bg-background text-xs"
-            >
-              <option value="">Xóa cột…</option>
-              {cols
-                .filter((c) => c.code !== "kg")
-                .map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code}
-                  </option>
-                ))}
-            </select>
-          </>
-        )}
-        <div className="ml-auto text-[11px] text-muted-foreground">
-          {rows.length} {isMetaKv ? "keys" : "rows"}{!isMetaKv ? ` × ${cols.length} cols` : ""}
-          {selectedRow && <span className="ml-2 text-primary">• 1 selected</span>}
+      {!canEdit && (
+        <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
+          Chế độ chỉ xem — cần quyền <strong className="text-foreground">editor</strong> để sửa.
         </div>
-      </div>
+      )}
+      {/* Toolbar */}
+      {canEdit && (
+        <div className="flex items-center gap-2 flex-wrap p-3 rounded-lg border border-border bg-surface">
+          <button
+            onClick={addRow}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-surface-muted"
+          >
+            <Plus className="w-3.5 h-3.5" /> Thêm hàng
+          </button>
+          <button
+            onClick={removeRow}
+            disabled={!selectedRow}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Xóa hàng
+          </button>
+          {!isMetaKv && (
+            <>
+              <div className="h-5 w-px bg-border mx-1" />
+              <button
+                onClick={addColumn}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-surface-muted"
+              >
+                <Plus className="w-3.5 h-3.5" /> Thêm cột
+              </button>
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    removeColumn(e.target.value);
+                    e.target.value = "";
+                  }
+                }}
+                defaultValue=""
+                className="h-8 px-2 rounded-md border border-border bg-background text-xs"
+              >
+                <option value="">Xóa cột…</option>
+                {cols
+                  .filter((c) => c.code !== "kg")
+                  .map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code}
+                    </option>
+                  ))}
+              </select>
+            </>
+          )}
+          <div className="ml-auto text-[11px] text-muted-foreground">
+            {rows.length} {isMetaKv ? "keys" : "rows"}
+            {!isMetaKv ? ` × ${cols.length} cols` : ""}
+            {selectedRow && <span className="ml-2 text-primary">• 1 selected</span>}
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
-      <div className="rounded-lg border border-border overflow-hidden bg-background" style={{ height: 540 }}>
+      <div
+        className="rounded-lg border border-border overflow-hidden bg-background"
+        style={{ height: 540 }}
+      >
         <DataGrid
           columns={gridColumns}
           rows={rows}
@@ -338,11 +363,14 @@ export function PricingSpreadsheetEditor({ table }: Props) {
 
       {/* Tip */}
       <div className="rounded-lg border border-info/20 bg-info/5 p-3 text-xs text-muted-foreground">
-        <strong>Mẹo:</strong> Click ô để edit; Enter để confirm; Escape để hủy. Click 1 hàng để chọn rồi "Xóa hàng". Click "Thêm cột" để thêm mã quốc gia mới (vd <code className="font-mono px-1 bg-muted rounded">jp</code>, <code className="font-mono px-1 bg-muted rounded">sg</code>).
+        <strong>Mẹo:</strong> Click ô để edit; Enter để confirm; Escape để hủy. Click 1 hàng để chọn
+        rồi "Xóa hàng". Click "Thêm cột" để thêm mã quốc gia mới (vd{" "}
+        <code className="font-mono px-1 bg-muted rounded">jp</code>,{" "}
+        <code className="font-mono px-1 bg-muted rounded">sg</code>).
       </div>
 
       {/* Sticky save bar */}
-      {isDirty && (
+      {canEdit && isDirty && (
         <div className="fixed bottom-0 right-0 lg:left-65 lg:right-0 z-30 border-t border-border bg-background/95 backdrop-blur-xl p-3 shadow-elevated">
           <div className="max-w-7xl mx-auto flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">

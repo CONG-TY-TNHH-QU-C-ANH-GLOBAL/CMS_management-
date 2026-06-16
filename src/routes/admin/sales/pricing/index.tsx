@@ -2,7 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Grid3x3, KeyRound } from "lucide-react";
 
 import { Card, PageContainer, StatusBadge } from "@/components/cms/ui";
-import { listPricingTablesFn, type PricingCategory, type PricingTableSummary } from "@/features/pricing/pricing.actions";
+import {
+  listPricingTablesFn,
+  type PricingCategory,
+  type PricingTableSummary,
+} from "@/features/pricing/pricing.actions";
 
 export const Route = createFileRoute("/admin/sales/pricing/")({
   loader: () => listPricingTablesFn(),
@@ -25,7 +29,8 @@ function PricingIndex() {
   return (
     <PageContainer>
       <div className="text-xs text-muted-foreground mb-4">
-        {totalTables} bảng giá trong {categories.length} nhóm. Click vào bảng để mở spreadsheet editor.
+        {totalTables} bảng giá trong {categories.length} nhóm. Click vào bảng để mở spreadsheet
+        editor.
       </div>
 
       <div className="space-y-6">
@@ -54,15 +59,13 @@ function PricingIndex() {
 function PricingCard({ table }: { table: PricingTableSummary }) {
   const isGrid = table.kind === "weight_grid";
   return (
-    <Link
-      to="/admin/sales/pricing/$slug"
-      params={{ slug: table.slug }}
-      className="block group"
-    >
+    <Link to="/admin/sales/pricing/$slug" params={{ slug: table.slug }} className="block group">
       <Card className="p-4 hover:shadow-elevated hover:border-primary/30 transition h-full">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${isGrid ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent-foreground"}`}>
+            <div
+              className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${isGrid ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent-foreground"}`}
+            >
               {isGrid ? <Grid3x3 className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
             </div>
             <div className="min-w-0">
@@ -95,7 +98,9 @@ function PricingCard({ table }: { table: PricingTableSummary }) {
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border pt-2.5">
-          <span>v{table.version} · {formatTime(table.updated_at)}</span>
+          <span>
+            v{table.version} · {formatTime(table.updated_at)}
+          </span>
           <span className="inline-flex items-center gap-0.5 text-primary group-hover:gap-1 transition-all font-medium">
             Mở <ArrowRight className="w-3 h-3" />
           </span>
