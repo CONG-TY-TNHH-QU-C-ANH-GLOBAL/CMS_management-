@@ -8,6 +8,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { Card, CardHeader, PageContainer } from "@/components/cms/ui";
 import {
   getSiteSettingsFn,
+  updateOgImageFn,
   updateSiteSettingsFn,
   type SiteSettingsRow,
 } from "@/features/settings/settings.actions";
@@ -52,14 +53,29 @@ function SettingsPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const update = useServerFn(updateSiteSettingsFn);
+  const updateOgImage = useServerFn(updateOgImageFn);
   const initial = useMemo(() => fromRow(data.settings as SiteSettingsRow | null), [data.settings]);
   const [form, setForm] = useState<FormState>(initial);
   const [pending, setPending] = useState(false);
+  const [ogPending, setOgPending] = useState(false);
 
   const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  async function handleSaveOgImage() {
+    setOgPending(true);
+    try {
+      await updateOgImage({ data: { og_image_url: form.og_image_url === "" ? null : form.og_image_url } });
+      toast.success("Đã lưu thumbnail — redeploy landing page để áp dụng");
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lưu thất bại");
+    } finally {
+      setOgPending(false);
+    }
   }
 
   async function handleSave() {
@@ -149,6 +165,15 @@ function SettingsPage() {
                   <img src={form.og_image_url} alt="OG preview" className="h-20 w-20 object-cover" referrerPolicy="no-referrer" />
                 </div>
               )}
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSaveOgImage}
+                  disabled={ogPending}
+                  className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-50 shadow-soft"
+                >
+                  <Save className="w-4 h-4" /> {ogPending ? "Đang lưu…" : "Lưu thumbnail"}
+                </button>
+              </div>
             </div>
           </Card>
 
