@@ -16,6 +16,7 @@ export interface SiteSettingsRow {
   facebook_url: string | null;
   lead_form_destination: string | null;
   about_video_url: string | null;
+  og_image_url: string | null;
   remote_area_links_json: string | null;
   terminology_json: string | null;
   updated_at: number;
@@ -40,6 +41,7 @@ export interface UpdateSiteSettingsInput {
   facebook_url?: string | null;
   lead_form_destination?: string | null;
   about_video_url?: string | null;
+  og_image_url?: string | null;
   remote_area_links_json?: string | null;
   terminology_json?: string | null;
 }
