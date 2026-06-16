@@ -61,6 +61,18 @@ export const updateSiteSettingsFn = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const updateOgImageFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ og_image_url: z.string().url().max(500).nullable() }).parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { updateSiteSettings } = await import("@/features/settings");
+    const { env } = await import("cloudflare:workers");
+    const me = await requireSession("editor");
+    await updateSiteSettings({ og_image_url: data.og_image_url }, me.id);
+    await env.CMS_REV.put("rev", String(Date.now()));
+    return { ok: true as const };
+  });
+
 export const saveTerminologyFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => saveTerminologySchema.parse(data))
   .handler(async ({ data }) => {
