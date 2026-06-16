@@ -8,6 +8,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { Card, CardHeader, PageContainer } from "@/components/cms/ui";
 import {
   getSiteSettingsFn,
+  updateOgImageFn,
   updateSiteSettingsFn,
   type SiteSettingsRow,
 } from "@/features/settings/settings.actions";
@@ -29,6 +30,7 @@ interface FormState {
   facebook_url: string;
   lead_form_destination: string;
   about_video_url: string;
+  og_image_url: string;
 }
 
 function fromRow(row: SiteSettingsRow | null): FormState {
@@ -43,6 +45,7 @@ function fromRow(row: SiteSettingsRow | null): FormState {
     facebook_url: row?.facebook_url ?? "",
     lead_form_destination: row?.lead_form_destination ?? "",
     about_video_url: row?.about_video_url ?? "",
+    og_image_url: row?.og_image_url ?? "",
   };
 }
 
@@ -50,14 +53,29 @@ function SettingsPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
   const update = useServerFn(updateSiteSettingsFn);
+  const updateOgImage = useServerFn(updateOgImageFn);
   const initial = useMemo(() => fromRow(data.settings as SiteSettingsRow | null), [data.settings]);
   const [form, setForm] = useState<FormState>(initial);
   const [pending, setPending] = useState(false);
+  const [ogPending, setOgPending] = useState(false);
 
   const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  async function handleSaveOgImage() {
+    setOgPending(true);
+    try {
+      await updateOgImage({ data: { og_image_url: form.og_image_url === "" ? null : form.og_image_url } });
+      toast.success("Đã lưu thumbnail — redeploy landing page để áp dụng");
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lưu thất bại");
+    } finally {
+      setOgPending(false);
+    }
   }
 
   async function handleSave() {
@@ -125,6 +143,36 @@ function SettingsPage() {
               />
               <div className="text-xs text-muted-foreground">
                 Dán link xem video YouTube vào đây. Hệ thống sẽ tự lấy mã video để nhúng vào trang chủ. Bỏ trống để ẩn video khỏi trang chủ.
+              </div>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader title="Ảnh thumbnail mặc định (Facebook / Zalo)" hint="Ảnh hiện ra khi chia sẻ link thgfulfill.com trên mạng xã hội" />
+            <div className="p-5 space-y-3">
+              <Field
+                label="URL ảnh thumbnail"
+                value={form.og_image_url}
+                onChange={(v) => set("og_image_url", v)}
+                placeholder="https://thgfulfill.com/thg-brand-icon.png"
+                type="url"
+              />
+              <div className="text-xs text-muted-foreground">
+                Dán URL ảnh vào đây (khuyến nghị tối thiểu 256×256px). Sau khi lưu, cần <strong>redeploy landing page</strong> để áp dụng (CI/CD sẽ tự inject vào index.html khi deploy).
+              </div>
+              {form.og_image_url && (
+                <div className="rounded-lg border border-border overflow-hidden inline-block">
+                  <img src={form.og_image_url} alt="OG preview" className="h-20 w-20 object-cover" referrerPolicy="no-referrer" />
+                </div>
+              )}
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSaveOgImage}
+                  disabled={ogPending}
+                  className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-foreground text-background text-sm font-semibold hover:opacity-90 disabled:opacity-50 shadow-soft"
+                >
+                  <Save className="w-4 h-4" /> {ogPending ? "Đang lưu…" : "Lưu thumbnail"}
+                </button>
               </div>
             </div>
           </Card>

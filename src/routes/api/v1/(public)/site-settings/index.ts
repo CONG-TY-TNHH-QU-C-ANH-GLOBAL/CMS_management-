@@ -56,6 +56,7 @@ export const Route = createFileRoute("/api/v1/(public)/site-settings/")({
             logo_media_id: row.logo_media_id,
             default_og_image_id: row.default_og_image_id,
             about_video_url: row.about_video_url,
+            og_image_url: row.og_image_url,
             remote_area_links: parseRemoteAreaLinks(row.remote_area_links_json),
             terminology: parseTerminology(row.terminology_json),
           },

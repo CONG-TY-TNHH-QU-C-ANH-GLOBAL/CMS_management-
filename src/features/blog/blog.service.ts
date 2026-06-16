@@ -13,6 +13,7 @@ export interface BlogPostRow {
   locale: BlogLocale;
   title: string;
   excerpt: string | null;
+  body_md: string | null;
   thumbnail_media_id: number | null;
   thumbnail_url: string | null;
   category: string | null;
@@ -46,7 +47,7 @@ export async function listBlogPosts(filter?: {
   const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
   const sql = `
-    SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.thumbnail_media_id,
+    SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.body_md, p.thumbnail_media_id,
            m.r2_key AS thumbnail_url, p.category, p.published_date, p.status,
            p.seo_title, p.seo_description, p.og_image_id, p.author_id, p.updated_at,
            (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
@@ -63,7 +64,7 @@ export async function listBlogPosts(filter?: {
 export async function getBlogPost(slug: string, locale: BlogLocale): Promise<BlogPostRow | null> {
   const result = await getDb()
     .prepare(
-      `SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.thumbnail_media_id,
+      `SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.body_md, p.thumbnail_media_id,
               m.r2_key AS thumbnail_url, p.category, p.published_date, p.status,
               p.seo_title, p.seo_description, p.og_image_id, p.author_id, p.updated_at,
               (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
@@ -99,7 +100,7 @@ export async function listBlogPostsForPublic(filter?: {
   const binds: unknown[] = [filter.locale, filter.locale];
   if (filter.status) { where.push("p.status = ?"); binds.push(filter.status); }
   const viBackedSql = `
-    SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, p.thumbnail_media_id,
+    SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, COALESCE(t.body_md, p.body_md) AS body_md, p.thumbnail_media_id,
            m.r2_key AS thumbnail_url, t.category, p.published_date, p.status,
            t.seo_title, t.seo_description, p.og_image_id, p.author_id, p.updated_at,
            (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
@@ -134,7 +135,7 @@ export async function getBlogPostForPublic(
 
   const viBacked = await getDb()
     .prepare(
-      `SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, p.thumbnail_media_id,
+      `SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, COALESCE(t.body_md, p.body_md) AS body_md, p.thumbnail_media_id,
               m.r2_key AS thumbnail_url, t.category, p.published_date, p.status,
               t.seo_title, t.seo_description, p.og_image_id, p.author_id, p.updated_at,
               (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
@@ -160,6 +161,44 @@ export async function getBlogSlides(postId: number): Promise<BlogSlideRow[]> {
     .bind(postId)
     .all<BlogSlideRow>();
   return result.results ?? [];
+}
+
+export async function listBlogCategories(locale: BlogLocale): Promise<string[]> {
+  if (locale === "vi") {
+    const rows = await getDb()
+      .prepare(
+        `SELECT DISTINCT category FROM blog_posts
+          WHERE status = 'live' AND locale = 'vi' AND category IS NOT NULL
+          ORDER BY category`,
+      )
+      .all<{ category: string }>();
+    return (rows.results ?? []).map((r) => r.category);
+  }
+
+  // EN/ZH: reviewed translations first, then legacy fallback
+  const translated = await getDb()
+    .prepare(
+      `SELECT DISTINCT t.category FROM blog_posts p
+        JOIN blog_post_translations t ON t.blog_post_id = p.id
+          AND t.locale = ? AND t.status = 'reviewed'
+        WHERE p.status = 'live' AND p.locale = 'vi' AND t.category IS NOT NULL
+        ORDER BY t.category`,
+    )
+    .bind(locale)
+    .all<{ category: string }>();
+  const cats = new Set((translated.results ?? []).map((r) => r.category));
+
+  const legacy = await getDb()
+    .prepare(
+      `SELECT DISTINCT category FROM blog_posts
+        WHERE status = 'live' AND locale = ? AND category IS NOT NULL
+        ORDER BY category`,
+    )
+    .bind(locale)
+    .all<{ category: string }>();
+  for (const r of legacy.results ?? []) cats.add(r.category);
+
+  return [...cats].sort();
 }
 
 // Returns posts grouped by slug → list of {locale, title, ...} variants.
@@ -194,6 +233,7 @@ export async function upsertBlogPost(
     locale: BlogLocale;
     title: string;
     excerpt?: string | null;
+    body_md?: string | null;
     thumbnail_media_id?: number | null;
     category?: string | null;
     published_date?: string | null;
@@ -210,6 +250,7 @@ export async function upsertBlogPost(
     const values: unknown[] = [];
     if (input.title !== undefined) { fields.push("title = ?"); values.push(input.title); }
     if (input.excerpt !== undefined) { fields.push("excerpt = ?"); values.push(input.excerpt); }
+    if (input.body_md !== undefined) { fields.push("body_md = ?"); values.push(input.body_md); }
     if (input.thumbnail_media_id !== undefined) { fields.push("thumbnail_media_id = ?"); values.push(input.thumbnail_media_id); }
     if (input.category !== undefined) { fields.push("category = ?"); values.push(input.category); }
     if (input.published_date !== undefined) { fields.push("published_date = ?"); values.push(input.published_date); }
@@ -228,14 +269,15 @@ export async function upsertBlogPost(
   } else {
     await getDb()
       .prepare(
-        `INSERT INTO blog_posts (slug, locale, title, excerpt, thumbnail_media_id, category, published_date, status, seo_title, seo_description, og_image_id, author_id, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
+        `INSERT INTO blog_posts (slug, locale, title, excerpt, body_md, thumbnail_media_id, category, published_date, status, seo_title, seo_description, og_image_id, author_id, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
       )
       .bind(
         input.slug,
         input.locale,
         input.title,
         input.excerpt ?? null,
+        input.body_md ?? null,
         input.thumbnail_media_id ?? null,
         input.category ?? null,
         input.published_date ?? null,
