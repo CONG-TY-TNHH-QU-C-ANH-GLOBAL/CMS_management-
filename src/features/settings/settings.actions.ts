@@ -41,6 +41,7 @@ const updateSchema = z.object({
   facebook_url: z.string().url().max(500).nullable().optional(),
   lead_form_destination: z.string().url().max(500).nullable().optional(),
   about_video_url: z.string().url().max(500).nullable().optional(),
+  og_image_url: z.string().url().max(500).nullable().optional(),
   terminology_json: z.string().nullable().optional(),
 });
 

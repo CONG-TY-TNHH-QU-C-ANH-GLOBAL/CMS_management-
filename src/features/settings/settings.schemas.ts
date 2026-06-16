@@ -40,6 +40,7 @@ const siteSettingsBodySchema = z.object({
   logo_media_id: z.number().int().nullable(),
   default_og_image_id: z.number().int().nullable(),
   about_video_url: z.string().nullable(),
+  og_image_url: z.string().nullable(),
   remote_area_links: z.array(remoteAreaLinkSchema),
   terminology: z.array(terminologyEntrySchema),
 });

@@ -29,6 +29,7 @@ interface FormState {
   facebook_url: string;
   lead_form_destination: string;
   about_video_url: string;
+  og_image_url: string;
 }
 
 function fromRow(row: SiteSettingsRow | null): FormState {
@@ -43,6 +44,7 @@ function fromRow(row: SiteSettingsRow | null): FormState {
     facebook_url: row?.facebook_url ?? "",
     lead_form_destination: row?.lead_form_destination ?? "",
     about_video_url: row?.about_video_url ?? "",
+    og_image_url: row?.og_image_url ?? "",
   };
 }
 
@@ -126,6 +128,27 @@ function SettingsPage() {
               <div className="text-xs text-muted-foreground">
                 Dán link xem video YouTube vào đây. Hệ thống sẽ tự lấy mã video để nhúng vào trang chủ. Bỏ trống để ẩn video khỏi trang chủ.
               </div>
+            </div>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader title="Ảnh thumbnail mặc định (Facebook / Zalo)" hint="Ảnh hiện ra khi chia sẻ link thgfulfill.com trên mạng xã hội" />
+            <div className="p-5 space-y-3">
+              <Field
+                label="URL ảnh thumbnail"
+                value={form.og_image_url}
+                onChange={(v) => set("og_image_url", v)}
+                placeholder="https://thgfulfill.com/thg-brand-icon.png"
+                type="url"
+              />
+              <div className="text-xs text-muted-foreground">
+                Dán URL ảnh vào đây (khuyến nghị tối thiểu 256×256px). Sau khi lưu, cần <strong>redeploy landing page</strong> để áp dụng (CI/CD sẽ tự inject vào index.html khi deploy).
+              </div>
+              {form.og_image_url && (
+                <div className="rounded-lg border border-border overflow-hidden inline-block">
+                  <img src={form.og_image_url} alt="OG preview" className="h-20 w-20 object-cover" referrerPolicy="no-referrer" />
+                </div>
+              )}
             </div>
           </Card>
 
