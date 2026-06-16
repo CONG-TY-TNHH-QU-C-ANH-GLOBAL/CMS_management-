@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Card, PageContainer, StatusBadge } from "@/components/cms/ui";
 import { PricingSpreadsheetEditor } from "@/features/pricing/components/PricingSpreadsheetEditor";
+import { RateCardBuilder } from "@/features/pricing/components/RateCardBuilder";
 import {
   getPricingTableFn,
   listPricingVersionsFn,
@@ -36,18 +37,66 @@ function formatTime(seconds: number): string {
 function PricingDetail() {
   const { slug } = useParams({ from: "/admin/sales/pricing/$slug" });
   const data = Route.useLoaderData();
+  const ctx = Route.useRouteContext();
+  // UI gate only — backend (savePricingTableFn/rollbackPricingTableFn) enforces
+  // requireSession("editor") independently.
+  const canEdit = ctx.user?.role === "editor" || ctx.user?.role === "admin";
   const [showHistory, setShowHistory] = useState(false);
 
   const raw = data.table;
   // Parse JSON cols (D1 returns text). Tolerate one bad field — if schema
   // is malformed JSON we still want to show the rows (and vice versa) so the
   // operator can fix it via the editor instead of seeing a blank page.
-  const safeParse = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
+  const safeParse = (s: string) => {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
+  };
   const parsedTable = {
     ...raw,
     schema: safeParse(raw.schema_json) as unknown,
     data: safeParse(raw.data_json) as unknown,
   };
+
+  // weight_grid → Rate Card Builder (paste/formula/mass-update/import/diff,
+  // owns its own history+rollback). meta_kv keeps the simple editor + the
+  // route-level history sidebar below.
+  const isWeightGrid = raw.kind === "weight_grid";
+
+  if (isWeightGrid) {
+    return (
+      <PageContainer>
+        <Link
+          to="/admin/sales/pricing"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" /> Quay lại danh sách
+        </Link>
+        <div className="mb-5">
+          <h2 className="text-xl font-semibold">{raw.name}</h2>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+            <span className="font-mono">{slug}</span>
+            <span>•</span>
+            <span>kind: {raw.kind}</span>
+            <span>•</span>
+            <span>v{raw.version}</span>
+            <span>•</span>
+            <StatusBadge status={raw.status} />
+            <span>•</span>
+            <span>cập nhật {formatTime(raw.updated_at)}</span>
+          </div>
+        </div>
+        <RateCardBuilder
+          key={`${raw.slug}:${raw.version}`}
+          table={parsedTable}
+          versions={data.versions}
+          canEdit={canEdit}
+        />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -77,13 +126,18 @@ function PricingDetail() {
           onClick={() => setShowHistory((s) => !s)}
           className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted"
         >
-          <HistoryIcon className="w-4 h-4" /> {showHistory ? "Ẩn" : "Xem"} lịch sử ({data.versions.length})
+          <HistoryIcon className="w-4 h-4" /> {showHistory ? "Ẩn" : "Xem"} lịch sử (
+          {data.versions.length})
         </button>
       </div>
 
       <div className={showHistory ? "grid lg:grid-cols-[1fr_320px] gap-6" : ""}>
         <div className="min-w-0">
-          <PricingSpreadsheetEditor key={`${raw.slug}:${raw.version}`} table={parsedTable} />
+          <PricingSpreadsheetEditor
+            key={`${raw.slug}:${raw.version}`}
+            table={parsedTable}
+            canEdit={canEdit}
+          />
         </div>
 
         {showHistory && (
