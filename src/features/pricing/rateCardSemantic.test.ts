@@ -67,8 +67,30 @@ describe("normalizeCellBySemantic — never turns decimal rate into integer", ()
     expect(normalizeCellBySemantic("1,387,634", "money_vnd")).toBe(1387634));
   test("vnd 1387634 VNĐ → 1387634", () =>
     expect(normalizeCellBySemantic("1387634 VNĐ", "money_vnd")).toBe(1387634));
-  test("vnd 4,03 → 4 (rounded int, NEVER 403, never decimal money)", () =>
-    expect(normalizeCellBySemantic("4,03", "money_vnd")).toBe(4));
+  test("vnd 1 387 634 (space grouping) → 1387634", () =>
+    expect(normalizeCellBySemantic("1 387 634", "money_vnd")).toBe(1387634));
+  test("vnd 1.000 → 1000, 1,000 → 1000", () => {
+    expect(normalizeCellBySemantic("1.000", "money_vnd")).toBe(1000);
+    expect(normalizeCellBySemantic("1,000", "money_vnd")).toBe(1000);
+  });
+  test("vnd 4,030 → 4030 (3-digit group = thousands)", () =>
+    expect(normalizeCellBySemantic("4,030", "money_vnd")).toBe(4030));
+  // STRICT: decimal/ambiguous VND is NOT rounded — kept as string → critical.
+  test("vnd 4,03 → kept string (NEVER 4, NEVER 403)", () =>
+    expect(normalizeCellBySemantic("4,03", "money_vnd")).toBe("4,03"));
+  test("vnd 4.03 → kept string", () =>
+    expect(normalizeCellBySemantic("4.03", "money_vnd")).toBe("4.03"));
+  test("vnd 1387634.5 → kept string", () =>
+    expect(normalizeCellBySemantic("1387634.5", "money_vnd")).toBe("1387634.5"));
+  test("vnd 1387634,5 → kept string", () =>
+    expect(normalizeCellBySemantic("1387634,5", "money_vnd")).toBe("1387634,5"));
+  test("vnd 1,23 → kept string, vnd 1.23 → kept string", () => {
+    expect(normalizeCellBySemantic("1,23", "money_vnd")).toBe("1,23");
+    expect(normalizeCellBySemantic("1.23", "money_vnd")).toBe("1.23");
+  });
+  // Same raw value is decimal in rate/USD context (semantic decides).
+  test("4,030 → 4.03 in rate_decimal (vs 4030 in money_vnd)", () =>
+    expect(normalizeCellBySemantic("4,030", "rate_decimal")).toBe(4.03));
   test("usd 4,03 → 4.03 (decimal comma, not 403, not VNĐ)", () =>
     expect(normalizeCellBySemantic("4,03", "money_usd")).toBe(4.03));
   test("weight 0,5 → 0.5", () => expect(normalizeCellBySemantic("0,5", "weight")).toBe(0.5));
@@ -104,15 +126,37 @@ describe("validation — currency-aware (TikTok regression)", () => {
     expect(cfg.weightCol).toBe("kg");
   });
 
+  const VND_COLS: RateCardColumn[] = [
+    { code: "kg", label: "Cân nặng (kg)", position: 0, type: "number" },
+    { code: "price", label: "Giá (VNĐ)", position: 1, type: "currency" },
+  ];
+
   test("VND table still enforces integer", () => {
-    const cols: RateCardColumn[] = [
-      { code: "kg", label: "Cân nặng (kg)", position: 0, type: "number" },
-      { code: "price", label: "Giá (VNĐ)", position: 1, type: "currency" },
-    ];
     const rows = [{ kg: 0.5, price: 1387634.5 }]; // non-integer VND
-    const cfg = inferGridConfig(cols, rows, { currency: "VND" });
+    const cfg = inferGridConfig(VND_COLS, rows, { currency: "VND" });
     const res = validateRateCard(rows, cfg, { strictNumericCols: new Set(["price"]) });
     expect(res.issues.some((i) => i.code === "price_not_integer")).toBe(true);
+  });
+
+  test("decimal VND input (after normalize) is critical, never silently accepted", () => {
+    // Mirror the editor: normalize each cell by its semantic, then validate.
+    const raws = ["4,03", "4.03", "1387634.5"];
+    for (const raw of raws) {
+      const price = normalizeCellBySemantic(raw, "money_vnd");
+      const rows = [{ kg: 0.5, price }];
+      const cfg = inferGridConfig(VND_COLS, rows, { currency: "VND" });
+      const res = validateRateCard(rows, cfg, { strictNumericCols: new Set(["price"]) });
+      expect(res.criticalCount).toBeGreaterThan(0); // 4.03 → not_integer; "4,03" → non_numeric
+    }
+  });
+
+  test("valid VND grouping (after normalize) has no critical", () => {
+    const price = normalizeCellBySemantic("1.387.634", "money_vnd"); // → 1387634
+    const rows = [{ kg: 0.5, price }];
+    const cfg = inferGridConfig(VND_COLS, rows, { currency: "VND" });
+    const res = validateRateCard(rows, cfg, { strictNumericCols: new Set(["price"]) });
+    expect(res.criticalCount).toBe(0);
+    expect(rows[0].price).toBe(1387634);
   });
 
   test("abc in RATE column is critical (strict numeric)", () => {

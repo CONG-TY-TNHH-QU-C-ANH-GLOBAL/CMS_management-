@@ -96,8 +96,61 @@ export function normalizeCurrency(raw: CellValue | null | undefined): number | n
 }
 
 /**
+ * Strict VND-integer parser. Accepts ONLY a whole number, optionally with
+ * thousands grouping (`.`, `,`, or space) or a VND suffix. Returns null for any
+ * decimal / ambiguous input — VND money is never decimal, so a value like
+ * "4,03" or "4.03" must be REJECTED (→ validation critical), not silently
+ * rounded. No Math.round / parseFloat / decimal-then-round.
+ *  - 1387634 / "1387634 VNĐ" → 1387634
+ *  - "1.387.634" / "1,387,634" / "1 387 634" → 1387634
+ *  - "1.000" / "1,000" → 1000 ; "4,030" → 4030
+ *  - "4,03" / "4.03" / "1387634.5" / "1,23" → null
+ */
+export function parseVndInteger(raw: CellValue | null | undefined): number | null {
+  if (typeof raw === "number") return Number.isFinite(raw) && Number.isInteger(raw) ? raw : null;
+  if (typeof raw !== "string") return null;
+
+  // Keep only digits, separators, space and sign (strips ₫, đ, "VNĐ", etc.).
+  let s = raw.replace(/[^\d.,\s-]/g, "").trim();
+  if (s === "" || !/\d/.test(s)) return null;
+
+  const neg = s.startsWith("-");
+  if (neg) s = s.slice(1).trim();
+
+  // Space grouping ("1 387 634") only if it's a clean 3-digit-group pattern.
+  if (s.includes(" ")) {
+    if (/^\d{1,3}( \d{3})+$/.test(s)) s = s.replace(/ /g, "");
+    else return null;
+  }
+
+  const hasDot = s.includes(".");
+  const hasComma = s.includes(",");
+  // Both separators present → one is a decimal point → not a VND integer.
+  if (hasDot && hasComma) return null;
+
+  let digits: string;
+  if (hasDot || hasComma) {
+    const parts = s.split(hasDot ? "." : ",");
+    // Pure thousands grouping: head 1–3 digits, every later group EXACTLY 3.
+    if (parts.length < 2) return null;
+    if (!/^\d{1,3}$/.test(parts[0])) return null;
+    for (let i = 1; i < parts.length; i++) if (!/^\d{3}$/.test(parts[i])) return null;
+    digits = parts.join("");
+  } else {
+    if (!/^\d+$/.test(s)) return null;
+    digits = s;
+  }
+
+  const n = Number(digits);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  return neg ? -n : n;
+}
+
+/**
  * Normalize a single cell by SEMANTIC type — the currency-aware path.
- *  - money_vnd: integer VND (rounds; "1.387.634" → 1387634).
+ *  - money_vnd: STRICT integer only (thousands grouping ok). A decimal/ambiguous
+ *    value ("4,03", "4.03", "1387634.5") is kept as a string so validation flags
+ *    it critical — never silently rounded.
  *  - money_usd / rate_decimal / number_decimal / weight: decimal-preserving
  *    ("$4.03" → 4.03, "4,03" → 4.03, "4.030" → 4.03, "0,5" → 0.5). NEVER rounds
  *    a decimal to an integer (the TikTok RATE bug).
@@ -109,7 +162,7 @@ export function normalizeCellBySemantic(raw: CellValue, semantic: SemanticType):
   const str = typeof raw === "string" ? raw.trim() : raw;
   if (str === "") return "";
   if (semantic === "money_vnd") {
-    const n = normalizeCurrency(str);
+    const n = parseVndInteger(str);
     return n === null ? String(str).trim() : n;
   }
   if (
