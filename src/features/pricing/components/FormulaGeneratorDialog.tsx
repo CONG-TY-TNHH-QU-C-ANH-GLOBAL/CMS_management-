@@ -12,12 +12,11 @@ import {
   type FormulaSpec,
   type RoundingUnit,
 } from "../rateCardFormula";
-import type { GridConfig, RateCardColumn } from "../rateCardTypes";
+import { formatCellBySemantic, type GridConfig, type RateCardColumn } from "../rateCardTypes";
 import type { GridRow, OpResult } from "../useRateCardEditor";
 import {
   Field,
   RateCardDialogShell,
-  formatVnd,
   inputClass,
   primaryBtn,
   secondaryBtn,
@@ -231,8 +230,12 @@ export function FormulaGeneratorDialog({
             <tbody>
               {preview.map((r, i) => (
                 <tr key={i} className="border-b border-border/50 last:border-0">
-                  <td className="px-3 py-1.5 tabular-nums">{String(r[config.weightCol])}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums">{formatVnd(r[priceCol])}</td>
+                  <td className="px-3 py-1.5 tabular-nums">
+                    {formatCellBySemantic(r[config.weightCol], "weight")}
+                  </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">
+                    {formatCellBySemantic(r[priceCol], config.semanticByCol[priceCol] ?? "unknown")}
+                  </td>
                 </tr>
               ))}
               {totalRows > preview.length && (

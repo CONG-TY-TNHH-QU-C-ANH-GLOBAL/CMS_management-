@@ -1,13 +1,13 @@
-// Rate Card Builder — Import dialog. CSV only (XLSX is a future extension
-// behind the same parse → preview → apply flow). Never auto-publishes.
+// Rate Card Builder — Import dialog. Excel (.xlsx) + CSV. Parse → preview →
+// apply to draft. Never auto-publishes.
 
 import { useRef, useState } from "react";
 import { FileUp } from "lucide-react";
 
-import { parseCsvImport, type ImportParseResult } from "../rateCardCsv";
-import type { RateCardColumn } from "../rateCardTypes";
+import { parseCsvImport, parseXlsxImport, type ImportParseResult } from "../rateCardCsv";
+import { formatCellBySemantic, type RateCardColumn } from "../rateCardTypes";
 import type { OpResult } from "../useRateCardEditor";
-import { RateCardDialogShell, formatVnd, primaryBtn, secondaryBtn } from "./rateCardUi";
+import { RateCardDialogShell, primaryBtn, secondaryBtn } from "./rateCardUi";
 
 interface Props {
   open: boolean;
@@ -32,8 +32,10 @@ export function ImportRateCardDialog({ open, onClose, cols, onApply }: Props) {
   async function handleFile(file: File) {
     setError(null);
     try {
-      const text = await file.text();
-      const result = parseCsvImport(text, cols);
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+      const result = isExcel
+        ? await parseXlsxImport(await file.arrayBuffer(), cols)
+        : parseCsvImport(await file.text(), cols);
       if (result.rows.length === 0) {
         setError(result.notes[0] ?? "Không đọc được dòng dữ liệu nào");
         setParsed(null);
@@ -42,7 +44,7 @@ export function ImportRateCardDialog({ open, onClose, cols, onApply }: Props) {
       setParsed(result);
       setFileName(file.name);
     } catch {
-      setError("Không đọc được file");
+      setError("Không đọc được file (kiểm tra định dạng .xlsx/.csv)");
     }
   }
 
@@ -68,8 +70,8 @@ export function ImportRateCardDialog({ open, onClose, cols, onApply }: Props) {
     <RateCardDialogShell
       open={open}
       onClose={close}
-      title="Import bảng giá từ CSV"
-      description="Tải lên file CSV → xem trước → áp dụng vào nháp. Không tự động publish."
+      title="Import bảng giá từ Excel/CSV"
+      description="Tải lên file Excel (.xlsx) hoặc CSV → xem trước → áp dụng vào nháp. Không tự động publish."
       size="max-w-2xl"
       footer={
         <>
@@ -92,14 +94,20 @@ export function ImportRateCardDialog({ open, onClose, cols, onApply }: Props) {
         }}
       >
         <FileUp className="w-6 h-6 text-muted-foreground" />
-        <span className="text-sm font-medium">Kéo thả file CSV vào đây hoặc bấm để chọn</span>
+        <span className="text-sm font-medium">
+          Kéo thả file Excel (.xlsx) hoặc CSV vào đây hoặc bấm để chọn
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          Google Sheets: tải xuống dạng .xlsx hoặc copy/paste trực tiếp vào bảng. Dữ liệu sẽ được
+          xem trước, không tự publish.
+        </span>
         <span className="text-[11px] text-muted-foreground">
           Cột nhận dạng theo tiêu đề ({cols.map((c) => c.code).join(", ")}) hoặc theo thứ tự
         </span>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -145,7 +153,7 @@ export function ImportRateCardDialog({ open, onClose, cols, onApply }: Props) {
                   <tr key={i} className="border-b border-border/50 last:border-0">
                     {cols.map((c) => (
                       <td key={c.code} className="px-3 py-1.5 tabular-nums">
-                        {c.type === "currency" ? formatVnd(r[c.code]) : String(r[c.code] ?? "")}
+                        {formatCellBySemantic(r[c.code], c.semantic ?? "unknown")}
                       </td>
                     ))}
                   </tr>

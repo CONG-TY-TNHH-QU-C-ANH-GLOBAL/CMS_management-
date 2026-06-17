@@ -10,13 +10,12 @@ import {
   type MassScope,
   type MassUpdateSpec,
 } from "../rateCardMassUpdate";
-import type { GridConfig, RateCardColumn } from "../rateCardTypes";
+import { formatCellBySemantic, type GridConfig, type RateCardColumn } from "../rateCardTypes";
 import type { GridRow, OpResult } from "../useRateCardEditor";
 import {
   Field,
   RateCardDialogShell,
   formatPct,
-  formatVnd,
   inputClass,
   primaryBtn,
   secondaryBtn,
@@ -108,6 +107,7 @@ export function MassUpdateDialog({
 
   const computed = useMemo(() => computeMassUpdate(plain, spec), [plain, spec]);
   const p = computed.preview;
+  const targetSemantic = config.semanticByCol[priceCol] ?? "unknown";
   const needsValue = OPS.find((o) => o.value === opKind)?.needsValue ?? true;
 
   function handleApply() {
@@ -226,11 +226,11 @@ export function MassUpdateDialog({
         <Stat label="Bỏ qua (không phải số)" value={String(p.skippedRows)} />
         <Stat
           label="Giá cũ (min → max)"
-          value={`${formatVnd(p.oldMin)} → ${formatVnd(p.oldMax)}`}
+          value={`${formatCellBySemantic(p.oldMin, targetSemantic)} → ${formatCellBySemantic(p.oldMax, targetSemantic)}`}
         />
         <Stat
           label="Giá mới (min → max)"
-          value={`${formatVnd(p.newMin)} → ${formatVnd(p.newMax)}`}
+          value={`${formatCellBySemantic(p.newMin, targetSemantic)} → ${formatCellBySemantic(p.newMax, targetSemantic)}`}
         />
         <Stat
           label="Thay đổi lớn nhất"

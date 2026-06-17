@@ -5,12 +5,16 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowRight, Save, ShieldAlert, Upload } from "lucide-react";
 
-import type { DiffResult, GridConfig, ValidationResult } from "../rateCardTypes";
+import {
+  formatCellBySemantic,
+  type DiffResult,
+  type GridConfig,
+  type ValidationResult,
+} from "../rateCardTypes";
 import {
   RateCardDialogShell,
   formatPct,
   formatSigned,
-  formatVnd,
   inputClass,
   primaryBtn,
   secondaryBtn,
@@ -187,13 +191,14 @@ export function RateCardDiffDialog({
                 </td>
                 <td className="px-3 py-1.5 tabular-nums font-medium">{r.key}</td>
                 {priceCols.map((pc) => {
+                  const sem = config.semanticByCol[pc] ?? "unknown";
                   const change = r.changes.find((c) => c.column === pc);
                   const oldV = r.oldRow?.[pc];
                   const newV = r.newRow?.[pc];
                   if (r.kind === "added")
                     return (
                       <td key={pc} className="px-3 py-1.5 text-right tabular-nums text-emerald-700">
-                        {formatVnd(newV)}
+                        {formatCellBySemantic(newV, sem)}
                       </td>
                     );
                   if (r.kind === "removed")
@@ -202,7 +207,7 @@ export function RateCardDiffDialog({
                         key={pc}
                         className="px-3 py-1.5 text-right tabular-nums text-red-600 line-through"
                       >
-                        {formatVnd(oldV)}
+                        {formatCellBySemantic(oldV, sem)}
                       </td>
                     );
                   if (!change)
@@ -211,17 +216,19 @@ export function RateCardDiffDialog({
                         key={pc}
                         className="px-3 py-1.5 text-right tabular-nums text-muted-foreground"
                       >
-                        {formatVnd(newV)}
+                        {formatCellBySemantic(newV, sem)}
                       </td>
                     );
                   return (
                     <td key={pc} className="px-3 py-1.5 text-right tabular-nums">
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="text-muted-foreground line-through">
-                          {formatVnd(change.oldValue)}
+                          {formatCellBySemantic(change.oldValue, sem)}
                         </span>
                         <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                        <span className="font-semibold">{formatVnd(change.newValue)}</span>
+                        <span className="font-semibold">
+                          {formatCellBySemantic(change.newValue, sem)}
+                        </span>
                       </div>
                       {change.changeAmount !== null && (
                         <div

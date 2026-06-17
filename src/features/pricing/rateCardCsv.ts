@@ -5,7 +5,7 @@
 // point). Export uses column labels as headers; import maps headers back to
 // column codes (by code OR label, case-insensitive), normalizing values.
 
-import { normalizeCell, splitLine, type Delimiter } from "./rateCardParse";
+import { normalizeCell, normalizeCellBySemantic, splitLine, type Delimiter } from "./rateCardParse";
 import type { RateCardColumn, RateCardRow } from "./rateCardTypes";
 
 /**
@@ -114,7 +114,10 @@ export function parseCsvImport(text: string, columns: RateCardColumn[]): ImportP
     for (let i = 0; i < cells.length && i < colOrder.length; i++) {
       const col = colOrder[i];
       if (!col) continue; // unmatched header column
-      row[col.code] = normalizeCell(cells[i], col.type);
+      // Semantic-aware (currency/rate) when available; legacy type otherwise.
+      row[col.code] = col.semantic
+        ? normalizeCellBySemantic(cells[i], col.semantic)
+        : normalizeCell(cells[i], col.type);
     }
     return row;
   });
@@ -125,4 +128,29 @@ export function parseCsvImport(text: string, columns: RateCardColumn[]): ImportP
     notes,
     hasHeader: looksLikeHeader,
   };
+}
+
+/**
+ * Parse an .xlsx/.xls ArrayBuffer into rows. Reads the FIRST worksheet, converts
+ * it to CSV text, and reuses parseCsvImport (so header detection, column
+ * mapping, and semantic-aware normalization are identical to CSV). `xlsx`
+ * (SheetJS) is dynamically imported so it stays out of the main bundle.
+ */
+export async function parseXlsxImport(
+  buffer: ArrayBuffer,
+  columns: RateCardColumn[],
+): Promise<ImportParseResult> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = wb.SheetNames[0];
+  if (!firstSheetName) {
+    return { rows: [], columns: [], notes: ["File Excel không có sheet nào"], hasHeader: false };
+  }
+  const sheet = wb.Sheets[firstSheetName];
+  // FS=","; SheetJS quotes any cell containing the delimiter, so commas inside
+  // values survive parseCsvImport's RFC-4180 splitter.
+  const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ",", blankrows: false });
+  const result = parseCsvImport(csv, columns);
+  const note = `Đọc sheet đầu tiên: "${firstSheetName}"${wb.SheetNames.length > 1 ? ` (bỏ qua ${wb.SheetNames.length - 1} sheet khác)` : ""}`;
+  return { ...result, notes: [note, ...result.notes] };
 }
