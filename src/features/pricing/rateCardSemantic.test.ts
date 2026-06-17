@@ -67,6 +67,10 @@ describe("normalizeCellBySemantic — never turns decimal rate into integer", ()
     expect(normalizeCellBySemantic("1,387,634", "money_vnd")).toBe(1387634));
   test("vnd 1387634 VNĐ → 1387634", () =>
     expect(normalizeCellBySemantic("1387634 VNĐ", "money_vnd")).toBe(1387634));
+  test("vnd 4,03 → 4 (rounded int, NEVER 403, never decimal money)", () =>
+    expect(normalizeCellBySemantic("4,03", "money_vnd")).toBe(4));
+  test("usd 4,03 → 4.03 (decimal comma, not 403, not VNĐ)", () =>
+    expect(normalizeCellBySemantic("4,03", "money_usd")).toBe(4.03));
   test("weight 0,5 → 0.5", () => expect(normalizeCellBySemantic("0,5", "weight")).toBe(0.5));
   test("weight 0.5 → 0.5", () => expect(normalizeCellBySemantic("0.5", "weight")).toBe(0.5));
   test("text kept verbatim", () =>
