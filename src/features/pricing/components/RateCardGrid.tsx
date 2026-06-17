@@ -9,10 +9,16 @@ import { useCallback, useMemo, useRef } from "react";
 import { DataGrid, SelectColumn, type Column, type RenderEditCellProps } from "react-data-grid";
 import "react-data-grid/lib/styles.css";
 
-import { applyPaste, normalizeCell, parseClipboardMatrix } from "../rateCardParse";
-import type { GridConfig, RateCardColumn, ValidationResult } from "../rateCardTypes";
+import { applyPaste, normalizeCellBySemantic, parseClipboardMatrix } from "../rateCardParse";
+import {
+  formatCellBySemantic,
+  isNumericSemantic,
+  type GridConfig,
+  type RateCardColumn,
+  type SemanticType,
+  type ValidationResult,
+} from "../rateCardTypes";
 import type { GridRow, OpResult } from "../useRateCardEditor";
-import { formatVnd } from "./rateCardUi";
 
 interface Props {
   rows: GridRow[];
@@ -94,7 +100,8 @@ export function RateCardGrid({
 
   const gridColumns = useMemo<Column<GridRow>[]>(() => {
     const dataCols = cols.map((c, i) => {
-      const isCurrency = c.type === "currency";
+      const semantic: SemanticType = c.semantic ?? "unknown";
+      const numeric = isNumericSemantic(semantic);
       return {
         key: c.code,
         name: c.label,
@@ -106,7 +113,7 @@ export function RateCardGrid({
         cellClass: (row: GridRow) => {
           const idKey = `${row.__id}:${c.code}`;
           const classes = ["tabular-nums"];
-          if (isCurrency || c.type === "number") classes.push("text-right");
+          if (numeric) classes.push("text-right");
           const sev = cellIssueIdKeys.get(idKey);
           if (sev === "critical")
             classes.push("!bg-red-50 !text-red-700 ring-1 ring-inset ring-red-300");
@@ -114,11 +121,7 @@ export function RateCardGrid({
           if (changedIdKeys.has(idKey)) classes.push("rc-changed");
           return classes.join(" ");
         },
-        renderCell: ({ row }) => {
-          const v = row[c.code];
-          if (isCurrency) return formatVnd(v);
-          return v === "" || v === undefined ? "" : String(v);
-        },
+        renderCell: ({ row }) => formatCellBySemantic(row[c.code], semantic),
       } satisfies Column<GridRow>;
     });
     return readOnly ? dataCols : [SelectColumn, ...dataCols];
@@ -126,13 +129,15 @@ export function RateCardGrid({
 
   const handleRowsChange = useCallback(
     (next: GridRow[], data: { indexes: number[]; column: { key: string } }) => {
-      // Normalize the edited cell(s) per column type so "1.387.634" → 1387634.
+      // Normalize the edited cell(s) per column SEMANTIC: VND→integer,
+      // USD/rate/number→decimal-preserving (so "4,03" → 4.03, never 403).
       const col = cols.find((c) => c.code === data.column.key);
       const changedKeys: string[] = [];
       if (col) {
+        const semantic: SemanticType = col.semantic ?? "unknown";
         for (const idx of data.indexes) {
           const raw = next[idx][col.code];
-          next[idx] = { ...next[idx], [col.code]: normalizeCell(raw as never, col.type) };
+          next[idx] = { ...next[idx], [col.code]: normalizeCellBySemantic(raw as never, semantic) };
           changedKeys.push(`${idx}:${col.code}`);
         }
       }

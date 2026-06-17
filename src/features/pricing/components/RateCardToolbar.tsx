@@ -86,7 +86,7 @@ export function RateCardToolbar({
       <Divider />
 
       <button onClick={onOpenImport} className={toolbarBtn}>
-        <Upload className="w-3.5 h-3.5" /> Import CSV
+        <Upload className="w-3.5 h-3.5" /> Import Excel/CSV
       </button>
       <button onClick={onExport} className={toolbarBtn}>
         <Download className="w-3.5 h-3.5" /> Export CSV

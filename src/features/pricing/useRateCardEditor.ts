@@ -9,8 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { diffRateCard } from "./rateCardDiff";
-import { normalizeCell } from "./rateCardParse";
+import { normalizeCellBySemantic } from "./rateCardParse";
 import {
+  annotateSemantics,
   inferGridConfig,
   isWeightCode,
   toNumberOrNull,
@@ -106,14 +107,15 @@ export function normalizeWeightGrid(
  * "Liên hệ" / bracket weights are preserved.
  */
 export function denormalizeWeightGrid(rows: GridRow[], cols: RateCardColumn[]): RateCardRow[] {
-  const typeByCode = new Map(cols.map((c) => [c.code, c.type]));
+  const annotated = annotateSemantics(cols, stripIds(rows as GridRow[]));
+  const semByCode = new Map(annotated.map((c) => [c.code, c.semantic]));
   return rows.map((r) => {
     const out: RateCardRow = {};
     for (const [k, v] of Object.entries(r)) {
       if (k === "__id") continue;
       if (v === "" || v === null || v === undefined) continue;
-      const type = typeByCode.get(k);
-      out[k] = type ? normalizeCell(v as never, type) : (v as never);
+      const sem = semByCode.get(k);
+      out[k] = sem ? normalizeCellBySemantic(v as never, sem) : (v as never);
     }
     return out;
   });
@@ -410,7 +412,9 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
         const schemaJson = JSON.stringify({
           ...baseSchema,
           type: "weight_grid",
-          columns: cols,
+          // Persist resolved semantics additively (landing ignores unknown keys)
+          // so currency/rate intent is the source of truth on the next load.
+          columns: config.columns,
           currency: config.currency,
           ...(config.step != null ? { step: config.step } : {}),
         });
@@ -425,7 +429,7 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
         setPublishing(false);
       }
     },
-    [rows, cols, config.currency, config.step, version, args, clearDraft],
+    [rows, cols, config.columns, config.currency, config.step, version, args, clearDraft],
   );
 
   // --- Unsaved-changes guard ---
@@ -444,7 +448,9 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
 
   return {
     rows,
-    cols,
+    // Expose semantic-annotated columns so the grid/dialogs format & validate
+    // per currency/rate semantic (raw editable state stays in `cols`).
+    cols: config.columns,
     config,
     status,
     isDirty,

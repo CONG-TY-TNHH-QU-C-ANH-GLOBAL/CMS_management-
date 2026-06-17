@@ -7,7 +7,13 @@
 //  - Anchored paste: map a matrix from a focused cell down/right, auto-
 //    expanding rows when the paste is taller than the grid.
 
-import type { CellValue, ColumnType, RateCardColumn, RateCardRow } from "./rateCardTypes";
+import type {
+  CellValue,
+  ColumnType,
+  RateCardColumn,
+  RateCardRow,
+  SemanticType,
+} from "./rateCardTypes";
 
 export interface PasteResult {
   rows: RateCardRow[];
@@ -90,23 +96,45 @@ export function normalizeCurrency(raw: CellValue | null | undefined): number | n
 }
 
 /**
- * Normalize a single cell for a column type. Numeric-looking input becomes a
- * number; anything else (e.g. "Liên hệ", "21-30") is kept as a trimmed string
- * so existing non-numeric rows survive. Empty stays "".
+ * Normalize a single cell by SEMANTIC type — the currency-aware path.
+ *  - money_vnd: integer VND (rounds; "1.387.634" → 1387634).
+ *  - money_usd / rate_decimal / number_decimal / weight: decimal-preserving
+ *    ("$4.03" → 4.03, "4,03" → 4.03, "4.030" → 4.03, "0,5" → 0.5). NEVER rounds
+ *    a decimal to an integer (the TikTok RATE bug).
+ *  - text / unknown: kept as a trimmed string.
+ * Non-numeric input in a numeric column is kept as a string (e.g. "Liên hệ"),
+ * so the validation layer — not the parser — decides severity.
  */
-export function normalizeCell(raw: CellValue, type: ColumnType): CellValue {
+export function normalizeCellBySemantic(raw: CellValue, semantic: SemanticType): CellValue {
   const str = typeof raw === "string" ? raw.trim() : raw;
   if (str === "") return "";
-  if (type === "currency") {
+  if (semantic === "money_vnd") {
     const n = normalizeCurrency(str);
     return n === null ? String(str).trim() : n;
   }
-  if (type === "number") {
-    // Weight columns: a single separator is a decimal ("1.5" kg), never thousands.
+  if (
+    semantic === "money_usd" ||
+    semantic === "rate_decimal" ||
+    semantic === "number_decimal" ||
+    semantic === "weight"
+  ) {
+    // Decimal-preserving: a single separator is always the decimal point.
     const n = parseLocaleNumber(str, true);
     return n === null ? String(str).trim() : n;
   }
+  // text / unknown
   return String(str).trim();
+}
+
+/**
+ * Legacy column-type normalize (kept for back-compat). Prefer
+ * `normalizeCellBySemantic`. "currency" maps to integer VND, "number" to a
+ * decimal-preserving numeric.
+ */
+export function normalizeCell(raw: CellValue, type: ColumnType): CellValue {
+  const semantic: SemanticType =
+    type === "currency" ? "money_vnd" : type === "number" ? "weight" : "text";
+  return normalizeCellBySemantic(raw, semantic);
 }
 
 export type Delimiter = "\t" | "," | ";" | "ws";
@@ -228,7 +256,9 @@ export function applyPaste(
       const colIndex = startCol + j;
       if (colIndex >= columns.length) break; // extra columns dropped (noted above)
       const col = columns[colIndex];
-      const value = normalizeCell(rowCells[j], col.type);
+      const value = col.semantic
+        ? normalizeCellBySemantic(rowCells[j], col.semantic)
+        : normalizeCell(rowCells[j], col.type);
       if (next[targetRow][col.code] !== value) {
         next[targetRow][col.code] = value;
         changedCells.push(`${targetRow}:${col.code}`);

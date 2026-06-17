@@ -46,7 +46,7 @@ export function validateRateCard(
   const checkMonotonic = options.checkMonotonic ?? true;
   const checkMissingStep = options.checkMissingStep ?? true;
   const strict = options.strictNumericCols;
-  const { weightCol, priceCols, step } = config;
+  const { weightCol, priceCols, step, semanticByCol } = config;
 
   const push = (i: Omit<ValidationIssue, never>) => issues.push(i);
 
@@ -115,6 +115,7 @@ export function validateRateCard(
         });
         continue;
       }
+      const semantic = semanticByCol[pc] ?? "number_decimal";
       const pn = toNumberOrNull(pRaw);
       if (pn === null) {
         const isStrict = strict?.has(pc) ?? false;
@@ -135,7 +136,9 @@ export function validateRateCard(
           rowIndex: r,
           column: pc,
         });
-      } else if (!Number.isInteger(pn)) {
+      } else if (semantic === "money_vnd" && !Number.isInteger(pn)) {
+        // Integer requirement applies ONLY to VND money. USD / rate / decimal
+        // columns legitimately hold decimals (e.g. TikTok RATE 4.03).
         push({
           severity: "critical",
           code: "price_not_integer",
