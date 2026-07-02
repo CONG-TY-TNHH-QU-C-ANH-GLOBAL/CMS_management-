@@ -4,6 +4,7 @@
 
 import type {
   ApplicantReceivedPayload,
+  CommunityQuestionReceivedPayload,
   DispatchInput,
   DraftPendingReviewPayload,
   LeadReceivedPayload,
@@ -50,6 +51,18 @@ export function formatApplicant(p: ApplicantReceivedPayload): string {
   if (p.phone) lines.push(`📞 ${esc(p.phone)}`);
   if (p.cv_url) lines.push(`📎 <a href="${esc(p.cv_url)}">Xem CV</a>`);
   if (p.cover_letter) lines.push("", `<i>${esc(truncate(p.cover_letter, 1200))}</i>`);
+  return clampBody(lines.join("\n"));
+}
+
+export function formatCommunityQuestion(p: CommunityQuestionReceivedPayload): string {
+  const lines = [
+    `❓ <b>Câu hỏi cộng đồng mới #${p.id}</b> (chờ duyệt)`,
+    `📝 ${esc(truncate(p.title, 200))}`,
+    `👤 ${esc(p.author_name)}`,
+    `📧 ${esc(p.author_email)}`,
+  ];
+  if (p.category_slug) lines.push(`🏷 ${esc(p.category_slug)}`);
+  lines.push(`🔗 <code>${esc(p.slug)}</code>`);
   return clampBody(lines.join("\n"));
 }
 
@@ -117,6 +130,8 @@ export function formatEvent(input: DispatchInput): string {
       return formatLead(input.payload);
     case "applicant_received":
       return formatApplicant(input.payload);
+    case "community_question_received":
+      return formatCommunityQuestion(input.payload);
     case "shipping_sync_failed":
       return formatShippingSyncFailed(input.payload);
     case "translation_failed":

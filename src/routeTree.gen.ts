@@ -35,6 +35,7 @@ import { Route as AdminContentGlossaryIndexRouteImport } from './routes/admin/co
 import { Route as AdminContentGalleryIndexRouteImport } from './routes/admin/content/gallery/index'
 import { Route as AdminContentFaqsIndexRouteImport } from './routes/admin/content/faqs/index'
 import { Route as AdminContentContactIndexRouteImport } from './routes/admin/content/contact/index'
+import { Route as AdminContentCommunityIndexRouteImport } from './routes/admin/content/community/index'
 import { Route as AdminContentCareersIndexRouteImport } from './routes/admin/content/careers/index'
 import { Route as AdminContentBlogsIndexRouteImport } from './routes/admin/content/blogs/index'
 import { Route as AdminAiSourcesIndexRouteImport } from './routes/admin/ai/sources/index'
@@ -79,6 +80,10 @@ import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
+import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
+import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
+import { Route as ApiV1publicCommunityQuestionsSlugRouteImport } from './routes/api/v1/(public)/community/questions/$slug'
+import { Route as ApiV1publicCommunityQuestionsSlugSameIssueRouteImport } from './routes/api/v1/(public)/community/questions/$slug.same-issue'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -224,6 +229,12 @@ const AdminContentContactIndexRoute =
   AdminContentContactIndexRouteImport.update({
     id: '/admin/content/contact/',
     path: '/admin/content/contact/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentCommunityIndexRoute =
+  AdminContentCommunityIndexRouteImport.update({
+    id: '/admin/content/community/',
+    path: '/admin/content/community/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentCareersIndexRoute =
@@ -468,6 +479,30 @@ const ApiV1adminMediaUploadRoute = ApiV1adminMediaUploadRouteImport.update({
   path: '/api/v1/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicCommunityQuestionsIndexRoute =
+  ApiV1publicCommunityQuestionsIndexRouteImport.update({
+    id: '/api/v1/(public)/community/questions/',
+    path: '/api/v1/community/questions/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicCommunityCategoriesIndexRoute =
+  ApiV1publicCommunityCategoriesIndexRouteImport.update({
+    id: '/api/v1/(public)/community/categories/',
+    path: '/api/v1/community/categories/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicCommunityQuestionsSlugRoute =
+  ApiV1publicCommunityQuestionsSlugRouteImport.update({
+    id: '/api/v1/(public)/community/questions/$slug',
+    path: '/api/v1/community/questions/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicCommunityQuestionsSlugSameIssueRoute =
+  ApiV1publicCommunityQuestionsSlugSameIssueRouteImport.update({
+    id: '/same-issue',
+    path: '/same-issue',
+    getParentRoute: () => ApiV1publicCommunityQuestionsSlugRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -492,6 +527,7 @@ export interface FileRoutesByFullPath {
   '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
+  '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
@@ -540,6 +576,10 @@ export interface FileRoutesByFullPath {
   '/api/v1/sitemap/': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations/': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
+  '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -561,6 +601,7 @@ export interface FileRoutesByTo {
   '/admin/ai/sources': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs': typeof AdminContentBlogsIndexRoute
   '/admin/content/careers': typeof AdminContentCareersIndexRoute
+  '/admin/content/community': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact': typeof AdminContentContactIndexRoute
   '/admin/content/faqs': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery': typeof AdminContentGalleryIndexRoute
@@ -609,6 +650,10 @@ export interface FileRoutesByTo {
   '/api/v1/sitemap': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/testimonials': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
+  '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -634,6 +679,7 @@ export interface FileRoutesById {
   '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
+  '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
@@ -682,6 +728,10 @@ export interface FileRoutesById {
   '/api/v1/(public)/sitemap/': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/(public)/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/(public)/translations/': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/(public)/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
+  '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/(public)/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -708,6 +758,7 @@ export interface FileRouteTypes {
     | '/admin/ai/sources/'
     | '/admin/content/blogs/'
     | '/admin/content/careers/'
+    | '/admin/content/community/'
     | '/admin/content/contact/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
@@ -756,6 +807,10 @@ export interface FileRouteTypes {
     | '/api/v1/sitemap/'
     | '/api/v1/testimonials/'
     | '/api/v1/translations/'
+    | '/api/v1/community/questions/$slug'
+    | '/api/v1/community/categories/'
+    | '/api/v1/community/questions/'
+    | '/api/v1/community/questions/$slug/same-issue'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -777,6 +832,7 @@ export interface FileRouteTypes {
     | '/admin/ai/sources'
     | '/admin/content/blogs'
     | '/admin/content/careers'
+    | '/admin/content/community'
     | '/admin/content/contact'
     | '/admin/content/faqs'
     | '/admin/content/gallery'
@@ -825,6 +881,10 @@ export interface FileRouteTypes {
     | '/api/v1/sitemap'
     | '/api/v1/testimonials'
     | '/api/v1/translations'
+    | '/api/v1/community/questions/$slug'
+    | '/api/v1/community/categories'
+    | '/api/v1/community/questions'
+    | '/api/v1/community/questions/$slug/same-issue'
   id:
     | '__root__'
     | '/'
@@ -849,6 +909,7 @@ export interface FileRouteTypes {
     | '/admin/ai/sources/'
     | '/admin/content/blogs/'
     | '/admin/content/careers/'
+    | '/admin/content/community/'
     | '/admin/content/contact/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
@@ -897,6 +958,10 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/sitemap/'
     | '/api/v1/(public)/testimonials/'
     | '/api/v1/(public)/translations/'
+    | '/api/v1/(public)/community/questions/$slug'
+    | '/api/v1/(public)/community/categories/'
+    | '/api/v1/(public)/community/questions/'
+    | '/api/v1/(public)/community/questions/$slug/same-issue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -917,6 +982,7 @@ export interface RootRouteChildren {
   AdminAiReviewsIndexRoute: typeof AdminAiReviewsIndexRoute
   AdminAiSourcesIndexRoute: typeof AdminAiSourcesIndexRoute
   AdminContentBlogsIndexRoute: typeof AdminContentBlogsIndexRoute
+  AdminContentCommunityIndexRoute: typeof AdminContentCommunityIndexRoute
   AdminContentContactIndexRoute: typeof AdminContentContactIndexRoute
   AdminContentFaqsIndexRoute: typeof AdminContentFaqsIndexRoute
   AdminContentGalleryIndexRoute: typeof AdminContentGalleryIndexRoute
@@ -963,6 +1029,9 @@ export interface RootRouteChildren {
   ApiV1publicSitemapIndexRoute: typeof ApiV1publicSitemapIndexRoute
   ApiV1publicTestimonialsIndexRoute: typeof ApiV1publicTestimonialsIndexRoute
   ApiV1publicTranslationsIndexRoute: typeof ApiV1publicTranslationsIndexRoute
+  ApiV1publicCommunityQuestionsSlugRoute: typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  ApiV1publicCommunityCategoriesIndexRoute: typeof ApiV1publicCommunityCategoriesIndexRoute
+  ApiV1publicCommunityQuestionsIndexRoute: typeof ApiV1publicCommunityQuestionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1147,6 +1216,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/content/contact'
       fullPath: '/admin/content/contact/'
       preLoaderRoute: typeof AdminContentContactIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/community/': {
+      id: '/admin/content/community/'
+      path: '/admin/content/community'
+      fullPath: '/admin/content/community/'
+      preLoaderRoute: typeof AdminContentCommunityIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/careers/': {
@@ -1457,6 +1533,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1adminMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/community/questions/': {
+      id: '/api/v1/(public)/community/questions/'
+      path: '/api/v1/community/questions'
+      fullPath: '/api/v1/community/questions/'
+      preLoaderRoute: typeof ApiV1publicCommunityQuestionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/community/categories/': {
+      id: '/api/v1/(public)/community/categories/'
+      path: '/api/v1/community/categories'
+      fullPath: '/api/v1/community/categories/'
+      preLoaderRoute: typeof ApiV1publicCommunityCategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/community/questions/$slug': {
+      id: '/api/v1/(public)/community/questions/$slug'
+      path: '/api/v1/community/questions/$slug'
+      fullPath: '/api/v1/community/questions/$slug'
+      preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/community/questions/$slug/same-issue': {
+      id: '/api/v1/(public)/community/questions/$slug/same-issue'
+      path: '/same-issue'
+      fullPath: '/api/v1/community/questions/$slug/same-issue'
+      preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugSameIssueRouteImport
+      parentRoute: typeof ApiV1publicCommunityQuestionsSlugRoute
+    }
   }
 }
 
@@ -1510,6 +1614,21 @@ const AdminSalesPricingRouteRouteWithChildren =
     AdminSalesPricingRouteRouteChildren,
   )
 
+interface ApiV1publicCommunityQuestionsSlugRouteChildren {
+  ApiV1publicCommunityQuestionsSlugSameIssueRoute: typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
+}
+
+const ApiV1publicCommunityQuestionsSlugRouteChildren: ApiV1publicCommunityQuestionsSlugRouteChildren =
+  {
+    ApiV1publicCommunityQuestionsSlugSameIssueRoute:
+      ApiV1publicCommunityQuestionsSlugSameIssueRoute,
+  }
+
+const ApiV1publicCommunityQuestionsSlugRouteWithChildren =
+  ApiV1publicCommunityQuestionsSlugRoute._addFileChildren(
+    ApiV1publicCommunityQuestionsSlugRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
@@ -1528,6 +1647,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAiReviewsIndexRoute: AdminAiReviewsIndexRoute,
   AdminAiSourcesIndexRoute: AdminAiSourcesIndexRoute,
   AdminContentBlogsIndexRoute: AdminContentBlogsIndexRoute,
+  AdminContentCommunityIndexRoute: AdminContentCommunityIndexRoute,
   AdminContentContactIndexRoute: AdminContentContactIndexRoute,
   AdminContentFaqsIndexRoute: AdminContentFaqsIndexRoute,
   AdminContentGalleryIndexRoute: AdminContentGalleryIndexRoute,
@@ -1574,6 +1694,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicSitemapIndexRoute: ApiV1publicSitemapIndexRoute,
   ApiV1publicTestimonialsIndexRoute: ApiV1publicTestimonialsIndexRoute,
   ApiV1publicTranslationsIndexRoute: ApiV1publicTranslationsIndexRoute,
+  ApiV1publicCommunityQuestionsSlugRoute:
+    ApiV1publicCommunityQuestionsSlugRouteWithChildren,
+  ApiV1publicCommunityCategoriesIndexRoute:
+    ApiV1publicCommunityCategoriesIndexRoute,
+  ApiV1publicCommunityQuestionsIndexRoute:
+    ApiV1publicCommunityQuestionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

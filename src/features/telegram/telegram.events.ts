@@ -21,6 +21,12 @@ export const EVENT_TYPES = [
     description: "Có người nộp đơn ứng tuyển một JD.",
   },
   {
+    type: "community_question_received",
+    label: "Câu hỏi cộng đồng mới (chờ duyệt)",
+    kind: "ops",
+    description: "Seller gửi câu hỏi mới trên Community Hub — cần kiểm duyệt.",
+  },
+  {
     type: "shipping_sync_failed",
     label: "Lỗi sync chính sách vận chuyển",
     kind: "ops",
@@ -85,6 +91,15 @@ export interface ApplicantReceivedPayload {
   locale: string;
 }
 
+export interface CommunityQuestionReceivedPayload {
+  id: number;
+  slug: string;
+  title: string;
+  author_name: string;
+  author_email: string;
+  category_slug: string | null;
+}
+
 export interface ShippingSyncFailedPayload {
   route_key: string;
   error_message: string;
@@ -113,6 +128,7 @@ export interface DraftPendingReviewPayload {
 export type DispatchInput =
   | { event_type: "lead_received"; payload: LeadReceivedPayload; idempotency_key?: string }
   | { event_type: "applicant_received"; payload: ApplicantReceivedPayload; idempotency_key?: string }
+  | { event_type: "community_question_received"; payload: CommunityQuestionReceivedPayload; idempotency_key?: string }
   | { event_type: "shipping_sync_failed"; payload: ShippingSyncFailedPayload; idempotency_key?: string }
   | { event_type: "translation_failed"; payload: TranslationFailedPayload; idempotency_key?: string }
   | { event_type: "provider_breaker_tripped"; payload: ProviderBreakerTrippedPayload; idempotency_key?: string }
