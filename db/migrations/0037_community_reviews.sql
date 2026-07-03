@@ -22,6 +22,12 @@
 -- FK references are documentation — D1 does not persist PRAGMA foreign_keys;
 -- enforcement is application-side (repo convention, see 0035 header).
 
+-- Verified Reviews span the full seller journey; add the two categories the
+-- Q&A seed (0035) didn't need. Idempotent + shared with Q&A (same taxonomy).
+INSERT OR IGNORE INTO community_categories (slug, name, position) VALUES
+  ('fulfillment', 'Fulfillment', 5),
+  ('nha-cung-cap', 'Nhà cung cấp', 6);
+
 CREATE TABLE IF NOT EXISTS community_reviews (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT NOT NULL UNIQUE,
