@@ -4,10 +4,20 @@
 
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
+import { isLocalhostOrigin } from "./cors-origin";
 
 const DEFAULT_CACHE = "public, s-maxage=300, stale-while-revalidate=900";
 
+// The landing SEO prerender (THG_landingpage/scripts/prerender.mjs) drives a
+// headless browser served from http://127.0.0.1:<random-port>; its in-page
+// React then fetches this public CMS API, so the browser's Origin is a
+// localhost preview origin that no fixed allowlist can enumerate. Echo those
+// back so the prerendered shells get real content + JSON-LD. Safe here because
+// (a) this helper is used ONLY by (public) read endpoints — admin is
+// same-origin, (b) a localhost Origin can't be forged by a remote page (the
+// browser sets it), and (c) no route sends Access-Control-Allow-Credentials.
 function getAllowedOrigin(requestOrigin: string | null): string {
+  if (isLocalhostOrigin(requestOrigin)) return requestOrigin as string;
   const list = (env.CORS_ORIGIN ?? "")
     .split(",")
     .map((o) => o.trim())
