@@ -12,6 +12,7 @@
 import { getDb } from "@/core/db/client";
 
 import { assertExpertAnswerInvariant } from "./community.policy";
+import { generateOwnerToken, hashOwnerToken } from "./community.owner";
 import { pickAvailableSlug, slugify } from "./community.slug";
 
 export type CommunityQuestionStatus = "pending" | "published" | "rejected";
@@ -44,6 +45,10 @@ export interface CommunityQuestionRow {
   created_at: number;
   updated_at: number;
   published_at: number | null;
+  // Ownership/withdrawal (migration 0036). owner_token_hash is admin/internal
+  // only — never mapped to a public response. Withdrawn = withdrawn_at set.
+  owner_token_hash: string | null;
+  withdrawn_at: number | null;
 }
 
 /** Question row joined with its category (for both public + admin lists). */
@@ -86,7 +91,7 @@ function isUniqueConstraintError(err: unknown): boolean {
 
 export async function createCommunityQuestion(
   input: CreateCommunityQuestionInput,
-): Promise<{ id: number; slug: string }> {
+): Promise<{ id: number; slug: string; ownerToken: string }> {
   let categoryId: number | null = null;
   if (input.category_slug) {
     const cat = await getDb()
@@ -97,13 +102,18 @@ export async function createCommunityQuestion(
   }
   const utmJson = input.utm ? JSON.stringify(input.utm) : null;
 
+  // Owner token: returned once so the submitter can withdraw from this browser.
+  // Only the hash is persisted.
+  const ownerToken = generateOwnerToken();
+  const ownerTokenHash = await hashOwnerToken(ownerToken);
+
   const insert = (slug: string) =>
     getDb()
       .prepare(
         `INSERT INTO community_questions(
            slug, title, body, category_id, author_name, author_email,
-           locale, ip, user_agent, utm_json, status, created_at, updated_at)
-         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', unixepoch(), unixepoch())
+           locale, ip, user_agent, utm_json, owner_token_hash, status, created_at, updated_at)
+         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', unixepoch(), unixepoch())
          RETURNING id`,
       )
       .bind(
@@ -117,6 +127,7 @@ export async function createCommunityQuestion(
         input.ip ?? null,
         input.user_agent ?? null,
         utmJson,
+        ownerTokenHash,
       )
       .first<{ id: number }>();
 
@@ -132,7 +143,34 @@ export async function createCommunityQuestion(
     row = await insert(slug);
   }
   if (!row) throw new Error("Failed to create community question");
-  return { id: row.id, slug };
+  return { id: row.id, slug, ownerToken };
+}
+
+/** Soft-withdraw a question the caller owns (proves ownership via the raw
+ *  token). Returns true only when the token matches an active (not already
+ *  withdrawn) question. Callers must NOT distinguish "not found" from "wrong
+ *  token" to avoid leaking which slugs exist / are owned. */
+export async function withdrawCommunityQuestion(
+  slug: string,
+  ownerToken: string,
+): Promise<boolean> {
+  const row = await getDb()
+    .prepare(
+      `SELECT id, owner_token_hash FROM community_questions
+       WHERE slug = ? AND withdrawn_at IS NULL LIMIT 1`,
+    )
+    .bind(slug)
+    .first<{ id: number; owner_token_hash: string | null }>();
+  if (!row?.owner_token_hash) return false;
+
+  const presented = await hashOwnerToken(ownerToken);
+  if (presented !== row.owner_token_hash) return false;
+
+  await getDb()
+    .prepare(`UPDATE community_questions SET withdrawn_at = unixepoch(), updated_at = unixepoch() WHERE id = ?`)
+    .bind(row.id)
+    .run();
+  return true;
 }
 
 const JOINED_SELECT = `
@@ -146,9 +184,9 @@ export async function listPublishedCommunityQuestions(filter?: {
 }): Promise<CommunityQuestionJoinedRow[]> {
   const limit = Math.min(filter?.limit ?? 50, 100);
   const sql = filter?.categorySlug
-    ? `${JOINED_SELECT} WHERE q.status = 'published' AND c.slug = ?
+    ? `${JOINED_SELECT} WHERE q.status = 'published' AND q.withdrawn_at IS NULL AND c.slug = ?
        ORDER BY q.published_at DESC LIMIT ?`
-    : `${JOINED_SELECT} WHERE q.status = 'published'
+    : `${JOINED_SELECT} WHERE q.status = 'published' AND q.withdrawn_at IS NULL
        ORDER BY q.published_at DESC LIMIT ?`;
   const stmt = filter?.categorySlug
     ? getDb().prepare(sql).bind(filter.categorySlug, limit)
@@ -161,7 +199,7 @@ export async function getPublishedCommunityQuestion(
   slug: string,
 ): Promise<CommunityQuestionJoinedRow | null> {
   return getDb()
-    .prepare(`${JOINED_SELECT} WHERE q.slug = ? AND q.status = 'published' LIMIT 1`)
+    .prepare(`${JOINED_SELECT} WHERE q.slug = ? AND q.status = 'published' AND q.withdrawn_at IS NULL LIMIT 1`)
     .bind(slug)
     .first<CommunityQuestionJoinedRow>();
 }
@@ -180,7 +218,7 @@ export async function addSameIssueReaction(
   ip: string,
 ): Promise<{ same_issue_count: number; deduped: boolean } | null> {
   const question = await getDb()
-    .prepare(`SELECT id FROM community_questions WHERE slug = ? AND status = 'published'`)
+    .prepare(`SELECT id FROM community_questions WHERE slug = ? AND status = 'published' AND withdrawn_at IS NULL`)
     .bind(slug)
     .first<{ id: number }>();
   if (!question) return null;
