@@ -72,6 +72,7 @@ import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/a
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
 import { Route as ApiV1publicApplicantCvIndexRouteImport } from './routes/api/v1/(public)/applicant-cv/index'
+import { Route as AdminContentCommunityReviewsIndexRouteImport } from './routes/admin/content/community/reviews/index'
 import { Route as ApiV1publicShippingRoutesSlugRouteImport } from './routes/api/v1/(public)/shipping-routes/$slug'
 import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(public)/pricing/$slug'
 import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
@@ -80,9 +81,12 @@ import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
+import { Route as ApiV1publicCommunityReviewsIndexRouteImport } from './routes/api/v1/(public)/community/reviews/index'
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
+import { Route as ApiV1publicCommunityReviewsSlugRouteImport } from './routes/api/v1/(public)/community/reviews/$slug'
 import { Route as ApiV1publicCommunityQuestionsSlugRouteImport } from './routes/api/v1/(public)/community/questions/$slug'
+import { Route as ApiV1publicCommunityReviewsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/reviews/$slug.withdraw'
 import { Route as ApiV1publicCommunityQuestionsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/questions/$slug.withdraw'
 import { Route as ApiV1publicCommunityQuestionsSlugSameIssueRouteImport } from './routes/api/v1/(public)/community/questions/$slug.same-issue'
 
@@ -438,6 +442,12 @@ const ApiV1publicApplicantCvIndexRoute =
     path: '/api/v1/applicant-cv/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminContentCommunityReviewsIndexRoute =
+  AdminContentCommunityReviewsIndexRouteImport.update({
+    id: '/admin/content/community/reviews/',
+    path: '/admin/content/community/reviews/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicShippingRoutesSlugRoute =
   ApiV1publicShippingRoutesSlugRouteImport.update({
     id: '/api/v1/(public)/shipping-routes/$slug',
@@ -480,6 +490,12 @@ const ApiV1adminMediaUploadRoute = ApiV1adminMediaUploadRouteImport.update({
   path: '/api/v1/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicCommunityReviewsIndexRoute =
+  ApiV1publicCommunityReviewsIndexRouteImport.update({
+    id: '/api/v1/(public)/community/reviews/',
+    path: '/api/v1/community/reviews/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicCommunityQuestionsIndexRoute =
   ApiV1publicCommunityQuestionsIndexRouteImport.update({
     id: '/api/v1/(public)/community/questions/',
@@ -492,11 +508,23 @@ const ApiV1publicCommunityCategoriesIndexRoute =
     path: '/api/v1/community/categories/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicCommunityReviewsSlugRoute =
+  ApiV1publicCommunityReviewsSlugRouteImport.update({
+    id: '/api/v1/(public)/community/reviews/$slug',
+    path: '/api/v1/community/reviews/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicCommunityQuestionsSlugRoute =
   ApiV1publicCommunityQuestionsSlugRouteImport.update({
     id: '/api/v1/(public)/community/questions/$slug',
     path: '/api/v1/community/questions/$slug',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1publicCommunityReviewsSlugWithdrawRoute =
+  ApiV1publicCommunityReviewsSlugWithdrawRouteImport.update({
+    id: '/withdraw',
+    path: '/withdraw',
+    getParentRoute: () => ApiV1publicCommunityReviewsSlugRoute,
   } as any)
 const ApiV1publicCommunityQuestionsSlugWithdrawRoute =
   ApiV1publicCommunityQuestionsSlugWithdrawRouteImport.update({
@@ -563,6 +591,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/admin/content/community/reviews/': typeof AdminContentCommunityReviewsIndexRoute
   '/api/v1/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
@@ -584,10 +613,13 @@ export interface FileRoutesByFullPath {
   '/api/v1/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations/': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
   '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
+  '/api/v1/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -638,6 +670,7 @@ export interface FileRoutesByTo {
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/admin/content/community/reviews': typeof AdminContentCommunityReviewsIndexRoute
   '/api/v1/applicant-cv': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
@@ -659,10 +692,13 @@ export interface FileRoutesByTo {
   '/api/v1/testimonials': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
   '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/community/reviews': typeof ApiV1publicCommunityReviewsIndexRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
+  '/api/v1/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -717,6 +753,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/(public)/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/(public)/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
+  '/admin/content/community/reviews/': typeof AdminContentCommunityReviewsIndexRoute
   '/api/v1/(public)/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
@@ -738,10 +775,13 @@ export interface FileRoutesById {
   '/api/v1/(public)/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/(public)/translations/': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/(public)/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  '/api/v1/(public)/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
   '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
+  '/api/v1/(public)/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
   '/api/v1/(public)/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/(public)/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
+  '/api/v1/(public)/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -797,6 +837,7 @@ export interface FileRouteTypes {
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
+    | '/admin/content/community/reviews/'
     | '/api/v1/applicant-cv/'
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
@@ -818,10 +859,13 @@ export interface FileRouteTypes {
     | '/api/v1/testimonials/'
     | '/api/v1/translations/'
     | '/api/v1/community/questions/$slug'
+    | '/api/v1/community/reviews/$slug'
     | '/api/v1/community/categories/'
     | '/api/v1/community/questions/'
+    | '/api/v1/community/reviews/'
     | '/api/v1/community/questions/$slug/same-issue'
     | '/api/v1/community/questions/$slug/withdraw'
+    | '/api/v1/community/reviews/$slug/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -872,6 +916,7 @@ export interface FileRouteTypes {
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
+    | '/admin/content/community/reviews'
     | '/api/v1/applicant-cv'
     | '/api/v1/applicants'
     | '/api/v1/blog'
@@ -893,10 +938,13 @@ export interface FileRouteTypes {
     | '/api/v1/testimonials'
     | '/api/v1/translations'
     | '/api/v1/community/questions/$slug'
+    | '/api/v1/community/reviews/$slug'
     | '/api/v1/community/categories'
     | '/api/v1/community/questions'
+    | '/api/v1/community/reviews'
     | '/api/v1/community/questions/$slug/same-issue'
     | '/api/v1/community/questions/$slug/withdraw'
+    | '/api/v1/community/reviews/$slug/withdraw'
   id:
     | '__root__'
     | '/'
@@ -950,6 +998,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/policies/$slug'
     | '/api/v1/(public)/pricing/$slug'
     | '/api/v1/(public)/shipping-routes/$slug'
+    | '/admin/content/community/reviews/'
     | '/api/v1/(public)/applicant-cv/'
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
@@ -971,10 +1020,13 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/testimonials/'
     | '/api/v1/(public)/translations/'
     | '/api/v1/(public)/community/questions/$slug'
+    | '/api/v1/(public)/community/reviews/$slug'
     | '/api/v1/(public)/community/categories/'
     | '/api/v1/(public)/community/questions/'
+    | '/api/v1/(public)/community/reviews/'
     | '/api/v1/(public)/community/questions/$slug/same-issue'
     | '/api/v1/(public)/community/questions/$slug/withdraw'
+    | '/api/v1/(public)/community/reviews/$slug/withdraw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1022,6 +1074,7 @@ export interface RootRouteChildren {
   ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
   ApiV1publicPricingSlugRoute: typeof ApiV1publicPricingSlugRoute
   ApiV1publicShippingRoutesSlugRoute: typeof ApiV1publicShippingRoutesSlugRoute
+  AdminContentCommunityReviewsIndexRoute: typeof AdminContentCommunityReviewsIndexRoute
   ApiV1publicApplicantCvIndexRoute: typeof ApiV1publicApplicantCvIndexRoute
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
@@ -1043,8 +1096,10 @@ export interface RootRouteChildren {
   ApiV1publicTestimonialsIndexRoute: typeof ApiV1publicTestimonialsIndexRoute
   ApiV1publicTranslationsIndexRoute: typeof ApiV1publicTranslationsIndexRoute
   ApiV1publicCommunityQuestionsSlugRoute: typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
+  ApiV1publicCommunityReviewsSlugRoute: typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
   ApiV1publicCommunityCategoriesIndexRoute: typeof ApiV1publicCommunityCategoriesIndexRoute
   ApiV1publicCommunityQuestionsIndexRoute: typeof ApiV1publicCommunityQuestionsIndexRoute
+  ApiV1publicCommunityReviewsIndexRoute: typeof ApiV1publicCommunityReviewsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1490,6 +1545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicApplicantCvIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/content/community/reviews/': {
+      id: '/admin/content/community/reviews/'
+      path: '/admin/content/community/reviews'
+      fullPath: '/admin/content/community/reviews/'
+      preLoaderRoute: typeof AdminContentCommunityReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/shipping-routes/$slug': {
       id: '/api/v1/(public)/shipping-routes/$slug'
       path: '/api/v1/shipping-routes/$slug'
@@ -1546,6 +1608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1adminMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/community/reviews/': {
+      id: '/api/v1/(public)/community/reviews/'
+      path: '/api/v1/community/reviews'
+      fullPath: '/api/v1/community/reviews/'
+      preLoaderRoute: typeof ApiV1publicCommunityReviewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/community/questions/': {
       id: '/api/v1/(public)/community/questions/'
       path: '/api/v1/community/questions'
@@ -1560,12 +1629,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicCommunityCategoriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/community/reviews/$slug': {
+      id: '/api/v1/(public)/community/reviews/$slug'
+      path: '/api/v1/community/reviews/$slug'
+      fullPath: '/api/v1/community/reviews/$slug'
+      preLoaderRoute: typeof ApiV1publicCommunityReviewsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/community/questions/$slug': {
       id: '/api/v1/(public)/community/questions/$slug'
       path: '/api/v1/community/questions/$slug'
       fullPath: '/api/v1/community/questions/$slug'
       preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/community/reviews/$slug/withdraw': {
+      id: '/api/v1/(public)/community/reviews/$slug/withdraw'
+      path: '/withdraw'
+      fullPath: '/api/v1/community/reviews/$slug/withdraw'
+      preLoaderRoute: typeof ApiV1publicCommunityReviewsSlugWithdrawRouteImport
+      parentRoute: typeof ApiV1publicCommunityReviewsSlugRoute
     }
     '/api/v1/(public)/community/questions/$slug/withdraw': {
       id: '/api/v1/(public)/community/questions/$slug/withdraw'
@@ -1652,6 +1735,21 @@ const ApiV1publicCommunityQuestionsSlugRouteWithChildren =
     ApiV1publicCommunityQuestionsSlugRouteChildren,
   )
 
+interface ApiV1publicCommunityReviewsSlugRouteChildren {
+  ApiV1publicCommunityReviewsSlugWithdrawRoute: typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
+}
+
+const ApiV1publicCommunityReviewsSlugRouteChildren: ApiV1publicCommunityReviewsSlugRouteChildren =
+  {
+    ApiV1publicCommunityReviewsSlugWithdrawRoute:
+      ApiV1publicCommunityReviewsSlugWithdrawRoute,
+  }
+
+const ApiV1publicCommunityReviewsSlugRouteWithChildren =
+  ApiV1publicCommunityReviewsSlugRoute._addFileChildren(
+    ApiV1publicCommunityReviewsSlugRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
@@ -1697,6 +1795,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,
   ApiV1publicPricingSlugRoute: ApiV1publicPricingSlugRoute,
   ApiV1publicShippingRoutesSlugRoute: ApiV1publicShippingRoutesSlugRoute,
+  AdminContentCommunityReviewsIndexRoute:
+    AdminContentCommunityReviewsIndexRoute,
   ApiV1publicApplicantCvIndexRoute: ApiV1publicApplicantCvIndexRoute,
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
@@ -1719,10 +1819,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicTranslationsIndexRoute: ApiV1publicTranslationsIndexRoute,
   ApiV1publicCommunityQuestionsSlugRoute:
     ApiV1publicCommunityQuestionsSlugRouteWithChildren,
+  ApiV1publicCommunityReviewsSlugRoute:
+    ApiV1publicCommunityReviewsSlugRouteWithChildren,
   ApiV1publicCommunityCategoriesIndexRoute:
     ApiV1publicCommunityCategoriesIndexRoute,
   ApiV1publicCommunityQuestionsIndexRoute:
     ApiV1publicCommunityQuestionsIndexRoute,
+  ApiV1publicCommunityReviewsIndexRoute: ApiV1publicCommunityReviewsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

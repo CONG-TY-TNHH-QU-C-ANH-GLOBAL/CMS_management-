@@ -28,6 +28,8 @@ import {
   communityCategoriesResponseSchema,
   communityQuestionResponseSchema,
   communityQuestionsResponseSchema,
+  communityReviewResponseSchema,
+  communityReviewsResponseSchema,
 } from "../src/features/community/community.schemas";
 import {
   contactLocationsResponseSchema,
@@ -54,6 +56,8 @@ import {
   communityCategoriesRouteConfig,
   communityQuestionRouteConfig,
   communityQuestionsRouteConfig,
+  communityReviewRouteConfig,
+  communityReviewsRouteConfig,
   contactLocationsRouteConfig,
   faqsRouteConfig,
   homepageRouteConfig,
@@ -177,6 +181,16 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/community/categories → 200",
     canonical: communityCategoriesResponseSchema,
     registered: communityCategoriesRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/community/reviews → 200",
+    canonical: communityReviewsResponseSchema,
+    registered: communityReviewsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/community/reviews/{slug} → 200",
+    canonical: communityReviewResponseSchema,
+    registered: communityReviewRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 

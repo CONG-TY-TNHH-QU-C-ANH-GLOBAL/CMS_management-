@@ -33,6 +33,8 @@ import {
   communityCategoriesResponseSchema,
   communityQuestionResponseSchema,
   communityQuestionsResponseSchema,
+  communityReviewResponseSchema,
+  communityReviewsResponseSchema,
 } from "@/features/community/community.schemas";
 import {
   contactLocationsResponseSchema,
@@ -733,3 +735,70 @@ export const communityCategoriesRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(communityCategoriesRouteConfig);
+
+// Mirrors community reviews list at
+// src/routes/api/v1/(public)/community/reviews/index.ts.
+// Published + verified reviews only; `indexable` is computed server-side
+// (published AND verified AND non-thin body — see community.policy.ts).
+// Submit / withdraw POSTs stay OUT of the contract, matching the questions
+// precedent. NOT localized in MVP — UGC is served as written.
+export const communityReviewsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/community/reviews",
+  summary: "List published community reviews",
+  description:
+    "Published reviews only — pending/rejected/withdrawn never leave the CMS. " +
+    "`indexable` is computed server-side (published AND verified AND non-thin " +
+    "body — see community.policy.ts); landing derives its noindex rule from it. " +
+    "Optional `category` filters by category slug.",
+  request: {
+    query: z.object({
+      category: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Published review summary list",
+      content: {
+        "application/json": { schema: communityReviewsResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityReviewsRouteConfig);
+
+// Mirrors community review detail at
+// src/routes/api/v1/(public)/community/reviews/$slug.ts.
+// Privacy: reviewer_email/ip/user_agent/utm_json and the private evidence/order
+// fields are admin-only and never appear on this wire shape.
+export const communityReviewRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/community/reviews/{slug}",
+  summary: "Get one published community review by slug",
+  description:
+    "404 unless the review status is `published` and not withdrawn. Includes " +
+    "the optional operator `public_summary`, `rating` and the computed " +
+    "`indexable` flag.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Published review detail",
+      content: {
+        "application/json": { schema: communityReviewResponseSchema },
+      },
+    },
+    404: {
+      description: "Review not found or not published",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityReviewRouteConfig);

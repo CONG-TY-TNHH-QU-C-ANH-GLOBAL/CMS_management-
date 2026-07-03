@@ -3,7 +3,8 @@
 // utm_json must never appear in any object built here (asserted by
 // community.test.ts).
 
-import { isIndexable } from "./community.policy";
+import { isIndexable, isReviewIndexable } from "./community.policy";
+import type { CommunityReviewJoinedRow } from "./community.reviews.service";
 import type { CommunityQuestionJoinedRow } from "./community.service";
 
 export function toExcerpt(body: string): string {
@@ -11,9 +12,10 @@ export function toExcerpt(body: string): string {
   return flat.length > 200 ? flat.slice(0, 200) + "…" : flat;
 }
 
-function toCategoryRef(q: CommunityQuestionJoinedRow) {
-  return q.category_slug && q.category_name
-    ? { slug: q.category_slug, name: q.category_name }
+/** Category ref is shared by questions and reviews (same joined columns). */
+function toCategoryRef(row: { category_slug: string | null; category_name: string | null }) {
+  return row.category_slug && row.category_name
+    ? { slug: row.category_slug, name: row.category_name }
     : null;
 }
 
@@ -46,5 +48,40 @@ export function toPublicDetail(q: CommunityQuestionJoinedRow) {
     indexable: isIndexable(q),
     same_issue_count: q.same_issue_count,
     published_at: q.published_at,
+  };
+}
+
+// ─── Verified Reviews (Sprint 4) ───────────────────────────────────────────
+// Same privacy boundary: reviewer_email, ip, user_agent, utm_json,
+// owner_token_hash, private_evidence_note and private_order_reference must
+// never appear in any object built here (asserted by community.reviews.test.ts).
+
+/** List-item projection (matches communityReviewSummarySchema). */
+export function toPublicReviewSummary(r: CommunityReviewJoinedRow) {
+  return {
+    slug: r.slug,
+    title: r.title,
+    excerpt: toExcerpt(r.body),
+    category: toCategoryRef(r),
+    rating: r.rating,
+    verified: r.verified === 1,
+    indexable: isReviewIndexable(r),
+    published_at: r.published_at,
+  };
+}
+
+/** Detail projection (matches communityReviewDetailSchema). */
+export function toPublicReviewDetail(r: CommunityReviewJoinedRow) {
+  return {
+    slug: r.slug,
+    title: r.title,
+    body: r.body,
+    category: toCategoryRef(r),
+    reviewer_name: r.reviewer_name,
+    rating: r.rating,
+    public_summary: r.public_summary,
+    verified: r.verified === 1,
+    indexable: isReviewIndexable(r),
+    published_at: r.published_at,
   };
 }
