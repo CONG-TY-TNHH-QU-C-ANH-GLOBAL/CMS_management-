@@ -83,6 +83,7 @@ import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admi
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
 import { Route as ApiV1publicCommunityQuestionsSlugRouteImport } from './routes/api/v1/(public)/community/questions/$slug'
+import { Route as ApiV1publicCommunityQuestionsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/questions/$slug.withdraw'
 import { Route as ApiV1publicCommunityQuestionsSlugSameIssueRouteImport } from './routes/api/v1/(public)/community/questions/$slug.same-issue'
 
 const LoginRoute = LoginRouteImport.update({
@@ -497,6 +498,12 @@ const ApiV1publicCommunityQuestionsSlugRoute =
     path: '/api/v1/community/questions/$slug',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicCommunityQuestionsSlugWithdrawRoute =
+  ApiV1publicCommunityQuestionsSlugWithdrawRouteImport.update({
+    id: '/withdraw',
+    path: '/withdraw',
+    getParentRoute: () => ApiV1publicCommunityQuestionsSlugRoute,
+  } as any)
 const ApiV1publicCommunityQuestionsSlugSameIssueRoute =
   ApiV1publicCommunityQuestionsSlugSameIssueRouteImport.update({
     id: '/same-issue',
@@ -580,6 +587,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
+  '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -654,6 +662,7 @@ export interface FileRoutesByTo {
   '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
+  '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -732,6 +741,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/(public)/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
+  '/api/v1/(public)/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -811,6 +821,7 @@ export interface FileRouteTypes {
     | '/api/v1/community/categories/'
     | '/api/v1/community/questions/'
     | '/api/v1/community/questions/$slug/same-issue'
+    | '/api/v1/community/questions/$slug/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -885,6 +896,7 @@ export interface FileRouteTypes {
     | '/api/v1/community/categories'
     | '/api/v1/community/questions'
     | '/api/v1/community/questions/$slug/same-issue'
+    | '/api/v1/community/questions/$slug/withdraw'
   id:
     | '__root__'
     | '/'
@@ -962,6 +974,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/community/categories/'
     | '/api/v1/(public)/community/questions/'
     | '/api/v1/(public)/community/questions/$slug/same-issue'
+    | '/api/v1/(public)/community/questions/$slug/withdraw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1554,6 +1567,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/community/questions/$slug/withdraw': {
+      id: '/api/v1/(public)/community/questions/$slug/withdraw'
+      path: '/withdraw'
+      fullPath: '/api/v1/community/questions/$slug/withdraw'
+      preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugWithdrawRouteImport
+      parentRoute: typeof ApiV1publicCommunityQuestionsSlugRoute
+    }
     '/api/v1/(public)/community/questions/$slug/same-issue': {
       id: '/api/v1/(public)/community/questions/$slug/same-issue'
       path: '/same-issue'
@@ -1616,12 +1636,15 @@ const AdminSalesPricingRouteRouteWithChildren =
 
 interface ApiV1publicCommunityQuestionsSlugRouteChildren {
   ApiV1publicCommunityQuestionsSlugSameIssueRoute: typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
+  ApiV1publicCommunityQuestionsSlugWithdrawRoute: typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
 }
 
 const ApiV1publicCommunityQuestionsSlugRouteChildren: ApiV1publicCommunityQuestionsSlugRouteChildren =
   {
     ApiV1publicCommunityQuestionsSlugSameIssueRoute:
       ApiV1publicCommunityQuestionsSlugSameIssueRoute,
+    ApiV1publicCommunityQuestionsSlugWithdrawRoute:
+      ApiV1publicCommunityQuestionsSlugWithdrawRoute,
   }
 
 const ApiV1publicCommunityQuestionsSlugRouteWithChildren =

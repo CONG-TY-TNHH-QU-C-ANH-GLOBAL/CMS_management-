@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
           return corsError(request, 403, "Turnstile verification failed");
         }
 
-        const { id, slug } = await createCommunityQuestion({
+        const { id, slug, ownerToken } = await createCommunityQuestion({
           title: data.title,
           body: data.body,
           category_slug: data.category_slug ?? null,
@@ -92,10 +92,12 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
         }
 
         // status echoed so landing can show the "pending moderation" state
-        // without guessing the server-side default.
+        // without guessing the server-side default. owner_token is returned
+        // ONCE here (never in list/detail) — the browser stores it to enable
+        // self-service withdrawal.
         return corsJson(
           request,
-          { ok: true, id, slug, status: "pending" },
+          { ok: true, id, slug, status: "pending", owner_token: ownerToken },
           { status: 201, headers: { "Cache-Control": "no-store" } },
         );
       },
