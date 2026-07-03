@@ -147,7 +147,10 @@ flowchart TD
 
 Boundary rules for this pipeline (agreed before any code):
 
+- AI **may assist**: moderation triage, risk scoring, duplicate detection,
+  evidence summarization, and ready-for-review recommendations.
+- AI **must never directly set `verified=true`**. "Verified by THG" is an
+  operator stamp, unless the business explicitly changes this policy later.
 - AI writes to its **own** tables/log — never mutates public shapes directly.
-- `verified` remains an operator (or operator-confirmed) stamp.
 - Every AI decision is logged with prompt/model version for audit.
 - The deterministic layer runs first; the LLM is never the only gate.

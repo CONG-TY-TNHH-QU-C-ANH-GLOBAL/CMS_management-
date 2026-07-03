@@ -50,7 +50,7 @@ Do **not** fold these into shared helpers or a generic "community entity":
 | Submit orchestration (validate → Turnstile → post → done) | `useCommunitySubmitDialog`, `resolveCommunitySubmitToken` (`communitySubmit.ts`) |
 | Form state | `useFormFields` (`src/hooks/useFormFields.ts`) |
 | Owner-token storage (namespaced) | `src/lib/communityOwner.ts` (`thg_community_owner_v1`, `reviewOwnerKey`) |
-| Withdraw button pattern | detail pages: show iff `getOwnerToken(...)`, forget on success |
+| Withdraw mechanics (token check → confirm → POST → forget → invalidate → redirect) | `useCommunityWithdraw` (`src/components/community/communityWithdraw.ts`) + `CommunityWithdrawButton` (`communityPageBits.tsx`); endpoint/copy/keys stay page-owned |
 | Public list queries, short staleTime | `useCommunity*` hooks in `useCmsContent.ts` (lists 15s, details 5m) |
 | SEO utilities | `SeoHead` noindex, `JsonLdQaPage`/`JsonLdReview`/`JsonLdBreadcrumb` (`src/components/seo/JsonLd.tsx`) |
 | i18n | `tr` helper + `useI18n` (`src/lib/i18n.tsx`), CMS-overridable keys |
