@@ -25,6 +25,11 @@ import {
   jobsResponseSchema,
 } from "../src/features/careers/careers.schemas";
 import {
+  communityCategoriesResponseSchema,
+  communityQuestionResponseSchema,
+  communityQuestionsResponseSchema,
+} from "../src/features/community/community.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
@@ -46,6 +51,9 @@ import { siteSettingsResponseSchema } from "../src/features/settings/settings.sc
 import {
   blogListRouteConfig,
   blogPostRouteConfig,
+  communityCategoriesRouteConfig,
+  communityQuestionRouteConfig,
+  communityQuestionsRouteConfig,
   contactLocationsRouteConfig,
   faqsRouteConfig,
   homepageRouteConfig,
@@ -154,6 +162,21 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/policies/{slug} → 200",
     canonical: policyResponseSchema,
     registered: policyRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/community/questions → 200",
+    canonical: communityQuestionsResponseSchema,
+    registered: communityQuestionsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/community/questions/{slug} → 200",
+    canonical: communityQuestionResponseSchema,
+    registered: communityQuestionRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/community/categories → 200",
+    canonical: communityCategoriesResponseSchema,
+    registered: communityCategoriesRouteConfig.responses[200].content["application/json"].schema,
   },
 ];
 

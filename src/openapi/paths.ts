@@ -30,6 +30,11 @@ import {
   jobsResponseSchema,
 } from "@/features/careers/careers.schemas";
 import {
+  communityCategoriesResponseSchema,
+  communityQuestionResponseSchema,
+  communityQuestionsResponseSchema,
+} from "@/features/community/community.schemas";
+import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
@@ -638,3 +643,93 @@ export const policyRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(policyRouteConfig);
+
+// ──────────────────────────────────────────────────────────────────────────
+// Community Hub MVP (Sprint 1) — public Q&A read endpoints.
+// POST endpoints (submit question, same-issue reaction) follow the
+// leads/applicants precedent and stay OUT of the OpenAPI contract.
+// ──────────────────────────────────────────────────────────────────────────
+
+// Mirrors community questions list at
+// src/routes/api/v1/(public)/community/questions/index.ts.
+// status='published' only (server-side filter). NOT localized in MVP —
+// UGC is served in the language it was written in (VI-canonical repo rule).
+export const communityQuestionsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/community/questions",
+  summary: "List published community questions",
+  description:
+    "Published questions only — pending/rejected never leave the CMS. " +
+    "`indexable` is computed server-side (published AND verified AND has " +
+    "expert answer — see community.policy.ts); landing derives its noindex " +
+    "rule from it. Optional `category` filters by category slug.",
+  request: {
+    query: z.object({
+      category: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Published question summary list",
+      content: {
+        "application/json": { schema: communityQuestionsResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityQuestionsRouteConfig);
+
+// Mirrors community question detail at
+// src/routes/api/v1/(public)/community/questions/$slug.ts.
+// Privacy: author_email/ip/user_agent/utm_json are admin-only and never
+// appear on this wire shape.
+export const communityQuestionRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/community/questions/{slug}",
+  summary: "Get one published community question by slug",
+  description:
+    "404 unless the question status is `published`. Includes the THG " +
+    "expert answer (nullable) and the computed `indexable` flag.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Published question detail",
+      content: {
+        "application/json": { schema: communityQuestionResponseSchema },
+      },
+    },
+    404: {
+      description: "Question not found or not published",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityQuestionRouteConfig);
+
+// Mirrors community categories at
+// src/routes/api/v1/(public)/community/categories/index.ts.
+// Not localized; sorted by position.
+export const communityCategoriesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/community/categories",
+  summary: "List community categories",
+  description: "Ordered category list used for filtering and the ask-question form.",
+  responses: {
+    200: {
+      description: "Category list",
+      content: {
+        "application/json": { schema: communityCategoriesResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityCategoriesRouteConfig);
