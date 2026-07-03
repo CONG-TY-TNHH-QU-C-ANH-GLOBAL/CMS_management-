@@ -42,6 +42,26 @@ visibility (moderation-first). Server functions in `*.actions.ts` validate
 with Zod and require an editor session. Shared admin UI chrome lives in
 `src/components/cms/`; do not build a generic admin CRUD builder.
 
+### Admin UI kit (use these, don't re-roll)
+
+| Need | Component |
+|---|---|
+| Page content wrapper | `PageContainer` (`cms/ui.tsx`) |
+| Card + card header with title/hint/action | `Card`, `CardHeader` (`cms/ui.tsx`) |
+| Status / risk pills | `StatusBadge`, `RiskBadge` (`cms/ui.tsx`) |
+| Empty state | `cms/EmptyState.tsx` |
+| Locale switcher / secondary tabs | `cms/LocaleTabs.tsx`, `cms/SubTabs.tsx` |
+| Save bar for long forms | `cms/StickySaveBar.tsx` |
+| Destructive confirm | `cms/ConfirmDialog.tsx` |
+| Inline field editing | `cms/InlineEdit.tsx` |
+| Moderation queues (tabs, counts, status select, meta row, verified badge, time format) | `cms/moderation.tsx` |
+| Shell (sidebar, topbar, command palette) | `src/components/app-shell/` |
+
+Admin pages are operator tools, not marketing surfaces: prioritize
+scannability and predictable layout over visual flourish. A new module's
+admin page should compose this kit and keep only its domain-specific editor
+body custom (the community Q&A vs Reviews pages are the reference pattern).
+
 ## OpenAPI convention
 
 - **GET endpoints are the contract**: registered in `src/openapi/paths.ts`
