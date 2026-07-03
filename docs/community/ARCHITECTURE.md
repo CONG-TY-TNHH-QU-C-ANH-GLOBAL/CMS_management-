@@ -52,6 +52,9 @@ copy a mechanic into a domain file.
 ## Owner-token browser ownership model
 
 There are no user accounts. Ownership = possession of a one-time token.
+This is **browser ownership, not authentication**: the token proves "same
+browser that submitted", grants exactly one capability (withdraw that one
+item), and must never be treated as an identity or session mechanism.
 
 - Submit → CMS mints a 256-bit random token, stores only its SHA-256 hash
   (`owner_token_hash`), returns the raw token once in the POST response.
