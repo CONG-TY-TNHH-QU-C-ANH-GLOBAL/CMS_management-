@@ -36,7 +36,7 @@ export const communityQuestionSummarySchema = z.object({
   has_expert_answer: z.boolean(),
   verified: z.boolean(),
   // Landing derives noindex from this: computed server-side as
-  // published AND (verified OR expert answer present).
+  // published AND verified AND expert answer (community.policy.ts).
   indexable: z.boolean(),
   same_issue_count: z.number().int(),
   published_at: z.number().int().nullable(),

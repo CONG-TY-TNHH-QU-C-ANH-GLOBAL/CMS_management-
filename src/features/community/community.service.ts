@@ -1,9 +1,8 @@
 // Community Hub service — seller Q&A (Sprint 1 MVP).
 //
 // Moderation-first: submissions land as status='pending' and only operators
-// publish them. `indexable` is computed here (single source of truth) —
-// published AND (verified OR has an expert answer) — and the landing page
-// derives its noindex rules from it.
+// publish them. The indexing gate lives in community.policy.ts (published AND
+// verified AND expert answer); landing derives its noindex rules from it.
 //
 // VI-canonical, not localized in MVP: questions are served as submitted.
 // Expert answer is a column pair on the question row (one curated THG answer
@@ -11,6 +10,9 @@
 // answers are in scope.
 
 import { getDb } from "@/core/db/client";
+
+import { assertExpertAnswerInvariant } from "./community.policy";
+import { pickAvailableSlug, slugify } from "./community.slug";
 
 export type CommunityQuestionStatus = "pending" | "published" | "rejected";
 export type CommunityLocale = "en" | "vi" | "zh";
@@ -62,12 +64,6 @@ export interface CreateCommunityQuestionInput {
   utm?: Record<string, string> | null;
 }
 
-/** Indexing rule (Business Plan §4): only published content with expert
- *  quality signal may be indexed. Everything else is noindex on landing. */
-export function isIndexable(row: Pick<CommunityQuestionRow, "status" | "verified" | "expert_answer">): boolean {
-  return row.status === "published" && (row.verified === 1 || Boolean(row.expert_answer?.trim()));
-}
-
 export async function listCommunityCategories(): Promise<CommunityCategoryRow[]> {
   const result = await getDb()
     .prepare(`SELECT id, slug, name, position FROM community_categories ORDER BY position ASC, id ASC`)
@@ -75,40 +71,22 @@ export async function listCommunityCategories(): Promise<CommunityCategoryRow[]>
   return result.results ?? [];
 }
 
-/** Vietnamese-safe slugifier: strips diacritics (đ→d), keeps [a-z0-9-]. */
-function slugify(title: string): string {
-  const base = title
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
-    .replace(/-+$/g, "");
-  return base || "cau-hoi";
-}
-
-async function uniqueSlug(title: string): Promise<string> {
+async function findAvailableSlug(title: string): Promise<string> {
   const base = slugify(title);
-  // ponytail: SELECT-then-pick has a submit race; UNIQUE(slug) is the backstop
-  // and D1 volume at MVP makes retries a non-issue.
   const taken = await getDb()
     .prepare(`SELECT slug FROM community_questions WHERE slug = ? OR slug LIKE ?`)
     .bind(base, `${base}-%`)
     .all<{ slug: string }>();
-  const existing = new Set((taken.results ?? []).map((r) => r.slug));
-  if (!existing.has(base)) return base;
-  for (let n = 2; n < 100; n++) {
-    if (!existing.has(`${base}-${n}`)) return `${base}-${n}`;
-  }
-  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+  return pickAvailableSlug(base, new Set((taken.results ?? []).map((r) => r.slug)));
+}
+
+function isUniqueConstraintError(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("UNIQUE constraint failed");
 }
 
 export async function createCommunityQuestion(
   input: CreateCommunityQuestionInput,
 ): Promise<{ id: number; slug: string }> {
-  const slug = await uniqueSlug(input.title);
   let categoryId: number | null = null;
   if (input.category_slug) {
     const cat = await getDb()
@@ -118,27 +96,41 @@ export async function createCommunityQuestion(
     categoryId = cat?.id ?? null;
   }
   const utmJson = input.utm ? JSON.stringify(input.utm) : null;
-  const row = await getDb()
-    .prepare(
-      `INSERT INTO community_questions(
-         slug, title, body, category_id, author_name, author_email,
-         locale, ip, user_agent, utm_json, status, created_at, updated_at)
-       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', unixepoch(), unixepoch())
-       RETURNING id`,
-    )
-    .bind(
-      slug,
-      input.title.trim(),
-      input.body.trim(),
-      categoryId,
-      input.author_name.trim(),
-      input.author_email.toLowerCase().trim(),
-      input.locale ?? null,
-      input.ip ?? null,
-      input.user_agent ?? null,
-      utmJson,
-    )
-    .first<{ id: number }>();
+
+  const insert = (slug: string) =>
+    getDb()
+      .prepare(
+        `INSERT INTO community_questions(
+           slug, title, body, category_id, author_name, author_email,
+           locale, ip, user_agent, utm_json, status, created_at, updated_at)
+         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', unixepoch(), unixepoch())
+         RETURNING id`,
+      )
+      .bind(
+        slug,
+        input.title.trim(),
+        input.body.trim(),
+        categoryId,
+        input.author_name.trim(),
+        input.author_email.toLowerCase().trim(),
+        input.locale ?? null,
+        input.ip ?? null,
+        input.user_agent ?? null,
+        utmJson,
+      )
+      .first<{ id: number }>();
+
+  let slug = await findAvailableSlug(input.title);
+  let row: { id: number } | null;
+  try {
+    row = await insert(slug);
+  } catch (err) {
+    // Concurrent submit picked the same slug between our SELECT and INSERT —
+    // retry once with a random suffix (collision odds are then negligible).
+    if (!isUniqueConstraintError(err)) throw err;
+    slug = `${slugify(input.title)}-${crypto.randomUUID().slice(0, 8)}`;
+    row = await insert(slug);
+  }
   if (!row) throw new Error("Failed to create community question");
   return { id: row.id, slug };
 }
@@ -180,10 +172,12 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 /** Records a "Same issue" reaction, deduped per (question, hashed IP).
+ *  Callers must pass an identified client IP — the route rejects requests
+ *  whose IP cannot be determined (no shared "unknown" dedupe bucket).
  *  Returns null when the slug doesn't resolve to a published question. */
 export async function addSameIssueReaction(
   slug: string,
-  ip: string | null,
+  ip: string,
 ): Promise<{ same_issue_count: number; deduped: boolean } | null> {
   const question = await getDb()
     .prepare(`SELECT id FROM community_questions WHERE slug = ? AND status = 'published'`)
@@ -191,7 +185,7 @@ export async function addSameIssueReaction(
     .first<{ id: number }>();
   if (!question) return null;
 
-  const ipHash = await sha256Hex(ip ?? "unknown");
+  const ipHash = await sha256Hex(ip);
   const insert = await getDb()
     .prepare(
       `INSERT OR IGNORE INTO community_reactions(question_id, kind, ip_hash, created_at)
@@ -254,6 +248,7 @@ export async function saveCommunityExpertAnswer(
   expertAnswer: string | null,
   verified: boolean,
 ): Promise<void> {
+  assertExpertAnswerInvariant(expertAnswer, verified);
   await getDb()
     .prepare(
       `UPDATE community_questions

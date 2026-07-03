@@ -6,8 +6,8 @@
 --   * Expert answer lives as columns on the question row — one curated THG
 --     answer per question. A separate answers table is deferred until
 --     community-authored answers are in scope.
---   * indexable is a COMPUTED property in the service layer:
---     status='published' AND (verified=1 OR expert_answer present).
+--   * indexable is a COMPUTED property (src/features/community/community.policy.ts):
+--     status='published' AND verified=1 AND expert_answer present.
 --   * community_reactions dedupes "Same issue" by hashed IP (raw IP is only
 --     kept on the question row itself, admin-only, mirroring leads).
 --

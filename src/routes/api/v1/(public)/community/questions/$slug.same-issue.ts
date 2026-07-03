@@ -10,9 +10,15 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/$slug
       OPTIONS: ({ request }) => corsOptions(request),
       POST: async ({ request, params }) => {
         const ip = getClientIp(request);
+        // No Turnstile on a one-click reaction (UX), so the hashed IP is the
+        // only dedupe identity — refuse rather than pool every unidentified
+        // client into one shared "unknown" bucket. Behind Cloudflare,
+        // cf-connecting-ip is always present; this only fires on direct
+        // origin hits (curl to the worker, misconfigured proxy).
+        if (ip === "unknown") {
+          return corsError(request, 400, "Không xác định được client — vui lòng thử lại.");
+        }
 
-        // No Turnstile on a one-click reaction (UX): abuse control is the
-        // per-IP rate limit + per-(question, hashed-IP) dedupe in the service.
         const rl = await rateLimit("community-react", ip, { max: 30, windowSeconds: 3600 });
         if (!rl.allowed) {
           return corsError(request, 429, "Quá nhiều yêu cầu. Thử lại sau 1 giờ.");

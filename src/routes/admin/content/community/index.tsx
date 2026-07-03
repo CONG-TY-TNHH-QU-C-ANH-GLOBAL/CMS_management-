@@ -187,7 +187,7 @@ function CommunityModerationPage() {
                                 checked={draftVerified}
                                 onChange={(e) => setDraftVerified(e.target.checked)}
                               />
-                              Đánh dấu "Verified by THG" (cho phép Google index)
+                              Đánh dấu "Verified by THG" — bắt buộc có câu trả lời chuyên gia; chỉ khi đó trang mới được Google index
                             </label>
                             <div className="flex gap-2">
                               <button

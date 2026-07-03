@@ -5,9 +5,8 @@ import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import {
   createCommunityQuestion,
-  isIndexable,
   listPublishedCommunityQuestions,
-  type CommunityQuestionJoinedRow,
+  toPublicSummary,
 } from "@/features/community";
 import { dispatchEvent } from "@/features/telegram";
 
@@ -22,25 +21,6 @@ const submitSchema = z.object({
   turnstile_token: z.string().min(1, "Missing Turnstile token"),
 });
 
-function toExcerpt(body: string): string {
-  const flat = body.replace(/\s+/g, " ").trim();
-  return flat.length > 200 ? flat.slice(0, 200) + "…" : flat;
-}
-
-function toSummary(q: CommunityQuestionJoinedRow) {
-  return {
-    slug: q.slug,
-    title: q.title,
-    excerpt: toExcerpt(q.body),
-    category: q.category_slug && q.category_name ? { slug: q.category_slug, name: q.category_name } : null,
-    has_expert_answer: Boolean(q.expert_answer?.trim()),
-    verified: q.verified === 1,
-    indexable: isIndexable(q),
-    same_issue_count: q.same_issue_count,
-    published_at: q.published_at,
-  };
-}
-
 export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
   server: {
     handlers: {
@@ -49,7 +29,7 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
         const url = new URL(request.url);
         const category = url.searchParams.get("category") ?? undefined;
         const questions = await listPublishedCommunityQuestions({ categorySlug: category });
-        return corsJson(request, { questions: questions.map(toSummary) });
+        return corsJson(request, { questions: questions.map(toPublicSummary) });
       },
       POST: async ({ request }) => {
         const ip = getClientIp(request);

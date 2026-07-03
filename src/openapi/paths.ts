@@ -660,9 +660,9 @@ export const communityQuestionsRouteConfig = {
   summary: "List published community questions",
   description:
     "Published questions only — pending/rejected never leave the CMS. " +
-    "`indexable` is computed server-side (published AND (verified OR has " +
-    "expert answer)); landing derives its noindex rule from it. Optional " +
-    "`category` filters by category slug.",
+    "`indexable` is computed server-side (published AND verified AND has " +
+    "expert answer — see community.policy.ts); landing derives its noindex " +
+    "rule from it. Optional `category` filters by category slug.",
   request: {
     query: z.object({
       category: z.string().optional(),
