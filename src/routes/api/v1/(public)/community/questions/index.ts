@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
+import { corsJson, corsOptions } from "@/core/middlewares/cors";
+import { guardCommunitySubmit, handleCommunityList } from "@/features/community/community.http";
 import {
   createCommunityQuestion,
   listPublishedCommunityQuestions,
@@ -25,39 +25,13 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
-      GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const category = url.searchParams.get("category") ?? undefined;
-        const questions = await listPublishedCommunityQuestions({ categorySlug: category });
-        return corsJson(request, { questions: questions.map(toPublicSummary) });
-      },
+      GET: ({ request }) =>
+        handleCommunityList(request, "questions", listPublishedCommunityQuestions, toPublicSummary),
       POST: async ({ request }) => {
-        const ip = getClientIp(request);
-
-        // Rate limit: 5 question submissions per IP per hour.
-        const rl = await rateLimit("community-questions", ip, { max: 5, windowSeconds: 3600 });
-        if (!rl.allowed) {
-          return corsError(request, 429, "Quá nhiều yêu cầu. Thử lại sau 1 giờ.");
-        }
-
-        let body: unknown;
-        try {
-          body = await request.json();
-        } catch {
-          return corsError(request, 400, "Body phải là JSON hợp lệ");
-        }
-
-        const parsed = submitSchema.safeParse(body);
-        if (!parsed.success) {
-          const first = parsed.error.errors[0];
-          return corsError(request, 400, first?.message ?? "Validation failed");
-        }
-
-        const data = parsed.data;
-        const ok = await verifyTurnstile(data.turnstile_token, ip);
-        if (!ok) {
-          return corsError(request, 403, "Turnstile verification failed");
-        }
+        // Rate limit (5/hr), JSON, schema + Turnstile — shared guard.
+        const guard = await guardCommunitySubmit(request, "community-questions", submitSchema);
+        if (guard instanceof Response) return guard;
+        const { ip, data } = guard;
 
         const { id, slug, ownerToken } = await createCommunityQuestion({
           title: data.title,

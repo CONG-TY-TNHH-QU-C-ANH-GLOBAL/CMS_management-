@@ -1,12 +1,12 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { FileLock2, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { Card, PageContainer } from "@/components/cms/ui";
 import {
-  MODERATION_STATUS_META,
   ModerationEmpty,
   ModerationMetaRow,
   ModerationStatusBadge,
@@ -17,38 +17,38 @@ import {
   type ModerationStatus,
 } from "@/components/cms/moderation";
 import {
-  listCommunityQuestionsFn,
-  saveCommunityExpertAnswerFn,
-  updateCommunityQuestionStatusFn,
-  type CommunityQuestionJoinedRow,
+  listCommunityReviewsFn,
+  saveCommunityReviewModerationFn,
+  updateCommunityReviewStatusFn,
+  type CommunityReviewJoinedRow,
 } from "@/features/community/community.actions";
 
-export const Route = createFileRoute("/admin/content/community/")({
-  head: () => ({ meta: [{ title: "Cộng đồng (Q&A) — THG Content OS" }] }),
-  loader: () => listCommunityQuestionsFn(),
-  component: CommunityModerationPage,
+export const Route = createFileRoute("/admin/content/community/reviews/")({
+  head: () => ({ meta: [{ title: "Cộng đồng (Đánh giá) — THG Content OS" }] }),
+  loader: () => listCommunityReviewsFn(),
+  component: CommunityReviewsModerationPage,
 });
 
-function CommunityModerationPage() {
+function CommunityReviewsModerationPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  const updateStatus = useServerFn(updateCommunityQuestionStatusFn);
-  const saveAnswer = useServerFn(saveCommunityExpertAnswerFn);
+  const updateStatus = useServerFn(updateCommunityReviewStatusFn);
+  const saveModeration = useServerFn(saveCommunityReviewModerationFn);
   const [filter, setFilter] = useState<"all" | ModerationStatus>("pending");
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [draftAnswer, setDraftAnswer] = useState("");
+  const [draftSummary, setDraftSummary] = useState("");
   const [draftVerified, setDraftVerified] = useState(false);
 
-  const all = data.questions as CommunityQuestionJoinedRow[];
+  const all = data.reviews as CommunityReviewJoinedRow[];
   const counts = useMemo(() => tallyStatuses(all), [all]);
-  const filtered = filter === "all" ? all : all.filter((q) => q.status === filter);
+  const filtered = filter === "all" ? all : all.filter((r) => r.status === filter);
 
   async function setStatus(id: number, status: ModerationStatus) {
     setPendingId(id);
     try {
       await updateStatus({ data: { id, status } });
-      toast.success(`Đã đổi trạng thái → ${MODERATION_STATUS_META[status].label}`);
+      toast.success("Đã đổi trạng thái");
       await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Đổi trạng thái thất bại");
@@ -57,19 +57,19 @@ function CommunityModerationPage() {
     }
   }
 
-  function openAnswerEditor(q: CommunityQuestionJoinedRow) {
-    setEditingId(q.id);
-    setDraftAnswer(q.expert_answer ?? "");
-    setDraftVerified(q.verified === 1);
+  function openModerationEditor(r: CommunityReviewJoinedRow) {
+    setEditingId(r.id);
+    setDraftSummary(r.public_summary ?? "");
+    setDraftVerified(r.verified === 1);
   }
 
-  async function submitAnswer(id: number) {
+  async function submitModeration(id: number) {
     setPendingId(id);
     try {
-      await saveAnswer({
-        data: { id, expert_answer: draftAnswer.trim() || null, verified: draftVerified },
+      await saveModeration({
+        data: { id, public_summary: draftSummary.trim() || null, verified: draftVerified },
       });
-      toast.success("Đã lưu câu trả lời chuyên gia");
+      toast.success("Đã lưu kiểm duyệt đánh giá");
       setEditingId(null);
       await router.invalidate();
     } catch (err) {
@@ -82,7 +82,7 @@ function CommunityModerationPage() {
   return (
     <>
       <CmsTopbar
-        title="Cộng đồng (Q&A) — kiểm duyệt"
+        title="Cộng đồng (Đánh giá) — kiểm duyệt"
         subtitle={`${counts.all} tổng · ${counts.pending} chờ duyệt`}
       />
       <PageContainer>
@@ -90,40 +90,59 @@ function CommunityModerationPage() {
 
         <Card>
           {filtered.length === 0 ? (
-            <ModerationEmpty title="Không có câu hỏi nào ở filter này">
-              Câu hỏi mới xuất hiện khi seller submit trên landing (POST
-              /api/v1/community/questions) — mặc định "Chờ duyệt".
+            <ModerationEmpty title="Không có đánh giá nào ở filter này">
+              Đánh giá mới xuất hiện khi seller submit trên landing (POST
+              /api/v1/community/reviews) — mặc định "Chờ duyệt". Chỉ hiển thị
+              công khai khi Đã đăng + "Verified by THG".
             </ModerationEmpty>
           ) : (
             <ul className="divide-y divide-border">
-              {filtered.map((q) => (
-                <li key={q.id} className="p-4 hover:bg-surface-muted transition">
+              {filtered.map((r) => (
+                <li key={r.id} className="p-4 hover:bg-surface-muted transition">
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold">{q.title}</span>
-                        <ModerationStatusBadge status={q.status} />
-                        {q.verified === 1 && <VerifiedBadge />}
+                        <span className="font-semibold">{r.title}</span>
+                        <ModerationStatusBadge status={r.status} />
+                        {r.verified === 1 && <VerifiedBadge />}
+                        {r.rating != null && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {r.rating}/5
+                          </span>
+                        )}
                       </div>
                       <ModerationMetaRow
-                        name={q.author_name}
-                        email={q.author_email}
-                        categoryName={q.category_name}
-                        createdAt={q.created_at}
-                      >
-                        <span>👥 {q.same_issue_count} same issue</span>
-                      </ModerationMetaRow>
+                        name={r.reviewer_name}
+                        email={r.reviewer_email}
+                        categoryName={r.category_name}
+                        createdAt={r.created_at}
+                      />
                       <div className="mt-2 text-sm text-foreground/80 leading-relaxed border-l-2 border-border pl-3 whitespace-pre-wrap">
-                        {q.body}
+                        {r.body}
                       </div>
 
-                      {editingId === q.id ? (
+                      {/* Admin-only private evidence — NEVER sent to the public API. */}
+                      {(r.private_evidence_note || r.private_order_reference) && (
+                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 p-2 text-xs text-amber-900">
+                          <span className="inline-flex items-center gap-1 font-semibold text-[10px] uppercase tracking-wide">
+                            <FileLock2 className="w-3 h-3" /> Riêng tư (chỉ admin)
+                          </span>
+                          {r.private_order_reference && (
+                            <div className="mt-1">Mã đơn: {r.private_order_reference}</div>
+                          )}
+                          {r.private_evidence_note && (
+                            <div className="mt-1 whitespace-pre-wrap">{r.private_evidence_note}</div>
+                          )}
+                        </div>
+                      )}
+
+                      {editingId === r.id ? (
                         <div className="mt-3 space-y-2">
                           <textarea
-                            value={draftAnswer}
-                            onChange={(e) => setDraftAnswer(e.target.value)}
-                            rows={5}
-                            placeholder="Câu trả lời chính thức của chuyên gia THG (markdown)…"
+                            value={draftSummary}
+                            onChange={(e) => setDraftSummary(e.target.value)}
+                            rows={3}
+                            placeholder="Tóm tắt công khai (tuỳ chọn) — hiển thị phía trên nội dung đánh giá…"
                             className="w-full text-sm rounded-md border border-border bg-background p-2"
                           />
                           <label className="flex items-center gap-2 text-xs">
@@ -133,13 +152,13 @@ function CommunityModerationPage() {
                               onChange={(e) => setDraftVerified(e.target.checked)}
                             />
                             <span>
-                              Đánh dấu "Verified by THG" — bắt buộc có câu trả lời chuyên gia; chỉ khi đó trang mới được Google index
+                              Đánh dấu "Verified by THG" — chỉ khi Đã đăng + Verified thì trang mới được Google index
                             </span>
                           </label>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => submitAnswer(q.id)}
-                              disabled={pendingId === q.id}
+                              onClick={() => submitModeration(r.id)}
+                              disabled={pendingId === r.id}
                               className="h-8 px-3 text-xs font-medium rounded-md bg-foreground text-background disabled:opacity-50"
                             >
                               Lưu
@@ -153,28 +172,28 @@ function CommunityModerationPage() {
                           </div>
                         </div>
                       ) : (
-                        q.expert_answer && (
+                        r.public_summary && (
                           <div className="mt-2 text-sm leading-relaxed border-l-2 border-emerald-400 pl-3 whitespace-pre-wrap">
                             <span className="text-[10px] font-semibold text-emerald-700 block mb-1">
-                              THG EXPERT ANSWER
+                              TÓM TẮT CÔNG KHAI
                             </span>
-                            {q.expert_answer}
+                            {r.public_summary}
                           </div>
                         )
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       <ModerationStatusSelect
-                        value={q.status}
-                        disabled={pendingId === q.id}
-                        onChange={(s) => setStatus(q.id, s)}
+                        value={r.status}
+                        disabled={pendingId === r.id}
+                        onChange={(s) => setStatus(r.id, s)}
                       />
-                      {editingId !== q.id && (
+                      {editingId !== r.id && (
                         <button
-                          onClick={() => openAnswerEditor(q)}
+                          onClick={() => openModerationEditor(r)}
                           className="h-8 px-2 text-xs rounded-md border border-border hover:bg-surface-muted"
                         >
-                          {q.expert_answer ? "Sửa trả lời" : "Trả lời (Expert)"}
+                          Kiểm duyệt
                         </button>
                       )}
                     </div>

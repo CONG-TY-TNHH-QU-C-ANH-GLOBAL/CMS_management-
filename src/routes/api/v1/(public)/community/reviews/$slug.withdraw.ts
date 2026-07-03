@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { corsOptions } from "@/core/middlewares/cors";
 import { handleCommunityWithdraw } from "@/features/community/community.http";
-import { withdrawCommunityQuestion } from "@/features/community";
+import { withdrawCommunityReview } from "@/features/community";
 
-export const Route = createFileRoute("/api/v1/(public)/community/questions/$slug/withdraw")({
+export const Route = createFileRoute("/api/v1/(public)/community/reviews/$slug/withdraw")({
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
@@ -12,9 +12,9 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/$slug
         handleCommunityWithdraw(
           request,
           params.slug,
-          "community-withdraw",
-          withdrawCommunityQuestion,
-          "Không thể rút câu hỏi này.",
+          "community-review-withdraw",
+          withdrawCommunityReview,
+          "Không thể rút đánh giá này.",
         ),
     },
   },

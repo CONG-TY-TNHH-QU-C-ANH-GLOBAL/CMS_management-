@@ -12,8 +12,15 @@
 import { getDb } from "@/core/db/client";
 
 import { assertExpertAnswerInvariant } from "./community.policy";
-import { generateOwnerToken, hashOwnerToken } from "./community.owner";
-import { pickAvailableSlug, slugify } from "./community.slug";
+import {
+  getPublishedJoinedBySlug,
+  insertWithUniqueSlug,
+  listAdminJoined,
+  listPublishedJoined,
+  prepareCommunitySubmission,
+  setStatusById,
+  withdrawOwnedBySlug,
+} from "./community.repo";
 
 export type CommunityQuestionStatus = "pending" | "published" | "rejected";
 export type CommunityLocale = "en" | "vi" | "zh";
@@ -76,38 +83,12 @@ export async function listCommunityCategories(): Promise<CommunityCategoryRow[]>
   return result.results ?? [];
 }
 
-async function findAvailableSlug(title: string): Promise<string> {
-  const base = slugify(title);
-  const taken = await getDb()
-    .prepare(`SELECT slug FROM community_questions WHERE slug = ? OR slug LIKE ?`)
-    .bind(base, `${base}-%`)
-    .all<{ slug: string }>();
-  return pickAvailableSlug(base, new Set((taken.results ?? []).map((r) => r.slug)));
-}
-
-function isUniqueConstraintError(err: unknown): boolean {
-  return err instanceof Error && err.message.includes("UNIQUE constraint failed");
-}
-
 export async function createCommunityQuestion(
   input: CreateCommunityQuestionInput,
 ): Promise<{ id: number; slug: string; ownerToken: string }> {
-  let categoryId: number | null = null;
-  if (input.category_slug) {
-    const cat = await getDb()
-      .prepare(`SELECT id FROM community_categories WHERE slug = ?`)
-      .bind(input.category_slug)
-      .first<{ id: number }>();
-    categoryId = cat?.id ?? null;
-  }
-  const utmJson = input.utm ? JSON.stringify(input.utm) : null;
+  const { categoryId, utmJson, ownerToken, ownerTokenHash } = await prepareCommunitySubmission(input);
 
-  // Owner token: returned once so the submitter can withdraw from this browser.
-  // Only the hash is persisted.
-  const ownerToken = generateOwnerToken();
-  const ownerTokenHash = await hashOwnerToken(ownerToken);
-
-  const insert = (slug: string) =>
+  const { id, slug } = await insertWithUniqueSlug("community_questions", input.title, (s) =>
     getDb()
       .prepare(
         `INSERT INTO community_questions(
@@ -117,7 +98,7 @@ export async function createCommunityQuestion(
          RETURNING id`,
       )
       .bind(
-        slug,
+        s,
         input.title.trim(),
         input.body.trim(),
         categoryId,
@@ -129,79 +110,30 @@ export async function createCommunityQuestion(
         utmJson,
         ownerTokenHash,
       )
-      .first<{ id: number }>();
-
-  let slug = await findAvailableSlug(input.title);
-  let row: { id: number } | null;
-  try {
-    row = await insert(slug);
-  } catch (err) {
-    // Concurrent submit picked the same slug between our SELECT and INSERT —
-    // retry once with a random suffix (collision odds are then negligible).
-    if (!isUniqueConstraintError(err)) throw err;
-    slug = `${slugify(input.title)}-${crypto.randomUUID().slice(0, 8)}`;
-    row = await insert(slug);
-  }
-  if (!row) throw new Error("Failed to create community question");
-  return { id: row.id, slug, ownerToken };
+      .first<{ id: number }>(),
+  );
+  return { id, slug, ownerToken };
 }
 
 /** Soft-withdraw a question the caller owns (proves ownership via the raw
  *  token). Returns true only when the token matches an active (not already
  *  withdrawn) question. Callers must NOT distinguish "not found" from "wrong
  *  token" to avoid leaking which slugs exist / are owned. */
-export async function withdrawCommunityQuestion(
-  slug: string,
-  ownerToken: string,
-): Promise<boolean> {
-  const row = await getDb()
-    .prepare(
-      `SELECT id, owner_token_hash FROM community_questions
-       WHERE slug = ? AND withdrawn_at IS NULL LIMIT 1`,
-    )
-    .bind(slug)
-    .first<{ id: number; owner_token_hash: string | null }>();
-  if (!row?.owner_token_hash) return false;
-
-  const presented = await hashOwnerToken(ownerToken);
-  if (presented !== row.owner_token_hash) return false;
-
-  await getDb()
-    .prepare(`UPDATE community_questions SET withdrawn_at = unixepoch(), updated_at = unixepoch() WHERE id = ?`)
-    .bind(row.id)
-    .run();
-  return true;
+export function withdrawCommunityQuestion(slug: string, ownerToken: string): Promise<boolean> {
+  return withdrawOwnedBySlug("community_questions", slug, ownerToken);
 }
 
-const JOINED_SELECT = `
-  SELECT q.*, c.slug AS category_slug, c.name AS category_name
-  FROM community_questions q
-  LEFT JOIN community_categories c ON c.id = q.category_id`;
-
-export async function listPublishedCommunityQuestions(filter?: {
+export function listPublishedCommunityQuestions(filter?: {
   categorySlug?: string;
   limit?: number;
 }): Promise<CommunityQuestionJoinedRow[]> {
-  const limit = Math.min(filter?.limit ?? 50, 100);
-  const sql = filter?.categorySlug
-    ? `${JOINED_SELECT} WHERE q.status = 'published' AND q.withdrawn_at IS NULL AND c.slug = ?
-       ORDER BY q.published_at DESC LIMIT ?`
-    : `${JOINED_SELECT} WHERE q.status = 'published' AND q.withdrawn_at IS NULL
-       ORDER BY q.published_at DESC LIMIT ?`;
-  const stmt = filter?.categorySlug
-    ? getDb().prepare(sql).bind(filter.categorySlug, limit)
-    : getDb().prepare(sql).bind(limit);
-  const result = await stmt.all<CommunityQuestionJoinedRow>();
-  return result.results ?? [];
+  return listPublishedJoined<CommunityQuestionJoinedRow>("community_questions", filter);
 }
 
-export async function getPublishedCommunityQuestion(
+export function getPublishedCommunityQuestion(
   slug: string,
 ): Promise<CommunityQuestionJoinedRow | null> {
-  return getDb()
-    .prepare(`${JOINED_SELECT} WHERE q.slug = ? AND q.status = 'published' AND q.withdrawn_at IS NULL LIMIT 1`)
-    .bind(slug)
-    .first<CommunityQuestionJoinedRow>();
+  return getPublishedJoinedBySlug<CommunityQuestionJoinedRow>("community_questions", slug);
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -247,38 +179,18 @@ export async function addSameIssueReaction(
 
 // ─── Admin (CMS) queries — never exposed through the public API ────────────
 
-export async function listCommunityQuestionsAdmin(filter?: {
+export function listCommunityQuestionsAdmin(filter?: {
   status?: CommunityQuestionStatus;
   limit?: number;
 }): Promise<CommunityQuestionJoinedRow[]> {
-  const limit = Math.min(filter?.limit ?? 200, 500);
-  const sql = filter?.status
-    ? `${JOINED_SELECT} WHERE q.status = ? ORDER BY q.created_at DESC LIMIT ?`
-    : `${JOINED_SELECT} ORDER BY q.created_at DESC LIMIT ?`;
-  const stmt = filter?.status
-    ? getDb().prepare(sql).bind(filter.status, limit)
-    : getDb().prepare(sql).bind(limit);
-  const result = await stmt.all<CommunityQuestionJoinedRow>();
-  return result.results ?? [];
+  return listAdminJoined<CommunityQuestionJoinedRow>("community_questions", filter);
 }
 
-export async function setCommunityQuestionStatus(
+export function setCommunityQuestionStatus(
   id: number,
   status: CommunityQuestionStatus,
 ): Promise<void> {
-  await getDb()
-    .prepare(
-      `UPDATE community_questions
-       SET status = ?,
-           updated_at = unixepoch(),
-           published_at = CASE
-             WHEN ? = 'published' AND published_at IS NULL THEN unixepoch()
-             ELSE published_at
-           END
-       WHERE id = ?`,
-    )
-    .bind(status, status, id)
-    .run();
+  return setStatusById("community_questions", id, status);
 }
 
 export async function saveCommunityExpertAnswer(

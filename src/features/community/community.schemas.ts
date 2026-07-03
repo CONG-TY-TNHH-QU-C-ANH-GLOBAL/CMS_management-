@@ -65,3 +65,44 @@ export const communityQuestionResponseSchema = z.object({
   question: communityQuestionDetailSchema,
 });
 export type CommunityQuestionResponse = z.infer<typeof communityQuestionResponseSchema>;
+
+// ─── Verified Reviews (Sprint 4) ───────────────────────────────────────────
+// Privacy: reviewer_email, ip, user_agent, utm_json, owner_token_hash and the
+// private_evidence_note / private_order_reference moderation fields are
+// intentionally ABSENT — they live only on admin server functions.
+
+export const communityReviewSummarySchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  excerpt: z.string(),
+  category: communityCategoryRefSchema,
+  rating: z.number().int().min(1).max(5).nullable(),
+  verified: z.boolean(),
+  // Landing derives noindex from this: computed server-side as published AND
+  // verified AND non-thin body (community.policy.ts).
+  indexable: z.boolean(),
+  published_at: z.number().int().nullable(),
+});
+
+export const communityReviewsResponseSchema = z.object({
+  reviews: z.array(communityReviewSummarySchema),
+});
+export type CommunityReviewsResponse = z.infer<typeof communityReviewsResponseSchema>;
+
+export const communityReviewDetailSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  body: z.string(),
+  category: communityCategoryRefSchema,
+  reviewer_name: z.string(),
+  rating: z.number().int().min(1).max(5).nullable(),
+  public_summary: z.string().nullable(),
+  verified: z.boolean(),
+  indexable: z.boolean(),
+  published_at: z.number().int().nullable(),
+});
+
+export const communityReviewResponseSchema = z.object({
+  review: communityReviewDetailSchema,
+});
+export type CommunityReviewResponse = z.infer<typeof communityReviewResponseSchema>;

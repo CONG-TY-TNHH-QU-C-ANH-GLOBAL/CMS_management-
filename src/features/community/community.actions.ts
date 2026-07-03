@@ -4,6 +4,8 @@ import { z } from "zod";
 export type {
   CommunityQuestionJoinedRow,
   CommunityQuestionStatus,
+  CommunityReviewJoinedRow,
+  CommunityReviewStatus,
 } from "@/features/community";
 
 const STATUSES = z.enum(["pending", "published", "rejected"]);
@@ -44,5 +46,41 @@ export const saveCommunityExpertAnswerFn = createServerFn({ method: "POST" })
     await requireSession("editor");
     const answer = data.expert_answer && data.expert_answer.length > 0 ? data.expert_answer : null;
     await saveCommunityExpertAnswer(data.id, answer, data.verified);
+    return { ok: true as const };
+  });
+
+// ─── Verified Reviews (Sprint 4) — admin moderation ─────────────────────────
+
+export const listCommunityReviewsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { listCommunityReviewsAdmin } = await import("@/features/community");
+  await requireSession("editor");
+  return { reviews: await listCommunityReviewsAdmin({ limit: 200 }) };
+});
+
+export const updateCommunityReviewStatusFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => updateStatusSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { setCommunityReviewStatus } = await import("@/features/community");
+    await requireSession("editor");
+    await setCommunityReviewStatus(data.id, data.status);
+    return { ok: true as const };
+  });
+
+const reviewModerationSchema = z.object({
+  id: z.number().int().positive(),
+  public_summary: z.string().trim().max(2000).nullable(),
+  verified: z.boolean(),
+});
+
+export const saveCommunityReviewModerationFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => reviewModerationSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { saveCommunityReviewModeration } = await import("@/features/community");
+    await requireSession("editor");
+    const summary = data.public_summary && data.public_summary.length > 0 ? data.public_summary : null;
+    await saveCommunityReviewModeration(data.id, summary, data.verified);
     return { ok: true as const };
   });

@@ -17,6 +17,31 @@ export function isIndexable(row: {
   );
 }
 
+/** Minimum body length for a review to be considered non-thin enough to index.
+ *  Above the 20-char submit floor so one-liner reviews stay out of SEO even
+ *  once an operator verifies them (thin-content prevention). */
+export const MIN_INDEXABLE_REVIEW_BODY = 60;
+
+/** Strict indexing gate for a verified review: published AND "Verified by THG"
+ *  AND still active (not withdrawn) AND carrying meaningful, non-thin content.
+ *  Landing derives its noindex rule from this — everything else is noindex and
+ *  absent from sitemap/prerender. */
+export function isReviewIndexable(row: {
+  status: string;
+  verified: number;
+  title: string;
+  body: string;
+  withdrawn_at?: number | null;
+}): boolean {
+  return (
+    row.status === "published" &&
+    row.verified === 1 &&
+    !row.withdrawn_at &&
+    Boolean(row.title.trim()) &&
+    row.body.trim().length >= MIN_INDEXABLE_REVIEW_BODY
+  );
+}
+
 /** Invariant: "Verified by THG" is a quality stamp on an expert answer —
  *  it must never be set while no answer exists. */
 export function assertExpertAnswerInvariant(
