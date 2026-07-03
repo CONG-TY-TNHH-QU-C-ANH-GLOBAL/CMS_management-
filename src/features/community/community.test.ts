@@ -37,6 +37,17 @@ describe("community.slug", () => {
   });
   test("slugify never returns empty", () => {
     expect(slugify("???")).toBe("cau-hoi");
+    expect(slugify("")).toBe("cau-hoi");
+  });
+  test("slugify collapses separator runs and trims edges", () => {
+    expect(slugify("  a --  b__c  ")).toBe("a-b-c");
+    expect(slugify("!!!abc???")).toBe("abc");
+  });
+  test("slugify caps at 80 chars without trailing dash", () => {
+    const long = slugify(`${"x".repeat(79)} y z`);
+    expect(long.length).toBeLessThanOrEqual(80);
+    expect(long.endsWith("-")).toBe(false);
+    expect(slugify("x".repeat(200))).toHaveLength(80);
   });
   test("pickAvailableSlug suffixes on collision", () => {
     expect(pickAvailableSlug("a", new Set())).toBe("a");
