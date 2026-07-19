@@ -9,7 +9,11 @@ BASE_URL=http://localhost:8080
 OAUTH_REDIRECT_BASE=http://localhost:8080
 CORS_ORIGIN=http://localhost:5173,http://localhost:8080
 
-# Get these from Google Cloud Console:
+# REQUIRED for admin login. Without a non-empty GOOGLE_CLIENT_ID the app now fails clearly
+# to /login?error=oauth_not_configured instead of redirecting to a broken Google request.
+# Production: set BOTH via `bunx wrangler secret put GOOGLE_CLIENT_ID` and
+# `... GOOGLE_CLIENT_SECRET` (Cloudflare Worker RUNTIME secrets — not build-time, not sent to
+# the browser). Get them from Google Cloud Console:
 #   1. Go to https://console.cloud.google.com/apis/credentials
 #   2. Create OAuth 2.0 Client ID (Application type: Web application)
 #   3. Authorized redirect URIs:

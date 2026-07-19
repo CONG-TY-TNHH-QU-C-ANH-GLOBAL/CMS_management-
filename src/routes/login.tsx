@@ -11,6 +11,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   missing_code_or_state: "Quy trình đăng nhập bị gián đoạn. Thử lại.",
   token_exchange_failed: "Không kết nối được với Google. Thử lại sau ít phút.",
   access_denied: "Bạn đã từ chối cấp quyền cho Google.",
+  oauth_not_configured:
+    "Đăng nhập Google chưa được cấu hình trên máy chủ. Liên hệ quản trị viên.",
 };
 
 export const Route = createFileRoute("/login")({

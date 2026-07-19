@@ -11,6 +11,7 @@ export type { ActiveSession, Role, SessionUser } from "./auth.session";
 export {
   OAUTH_REDIRECT_COOKIE,
   OAUTH_STATE_COOKIE,
+  OAuthConfigError,
   buildGoogleAuthUrl,
   exchangeCodeForTokens,
   fetchGoogleUserInfo,

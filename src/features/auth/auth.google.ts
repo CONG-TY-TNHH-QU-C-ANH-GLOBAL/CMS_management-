@@ -18,6 +18,23 @@ export interface GoogleUserInfo {
 export const OAUTH_STATE_COOKIE = "thg_oauth_state";
 export const OAUTH_REDIRECT_COOKIE = "thg_oauth_redirect";
 
+/** Raised when a required Google OAuth binding is absent, so callers fail loud with an
+ *  actionable server-side message instead of building a broken Google request (an empty
+ *  `client_id` makes accounts.google.com return "Missing required parameter: client_id").
+ *  The message names the missing variable only — never the value (it is a secret). */
+export class OAuthConfigError extends Error {
+  constructor(varName: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET") {
+    super(`Google OAuth is not configured: ${varName} is missing`);
+    this.name = "OAuthConfigError";
+  }
+}
+
+function requireOAuthEnv(varName: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET"): string {
+  const value = env[varName];
+  if (!value || value.trim() === "") throw new OAuthConfigError(varName);
+  return value;
+}
+
 export function getRedirectUri(): string {
   return `${env.OAUTH_REDIRECT_BASE}/api/auth/google/callback`;
 }
@@ -29,7 +46,7 @@ export function generateStateToken(): string {
 
 export function buildGoogleAuthUrl(state: string): string {
   const params = new URLSearchParams({
-    client_id: env.GOOGLE_CLIENT_ID,
+    client_id: requireOAuthEnv("GOOGLE_CLIENT_ID"),
     redirect_uri: getRedirectUri(),
     response_type: "code",
     scope: "openid email profile",
@@ -45,8 +62,8 @@ export async function exchangeCodeForTokens(
 ): Promise<{ access_token: string; id_token?: string }> {
   const body = new URLSearchParams({
     code,
-    client_id: env.GOOGLE_CLIENT_ID,
-    client_secret: env.GOOGLE_CLIENT_SECRET,
+    client_id: requireOAuthEnv("GOOGLE_CLIENT_ID"),
+    client_secret: requireOAuthEnv("GOOGLE_CLIENT_SECRET"),
     redirect_uri: getRedirectUri(),
     grant_type: "authorization_code",
   });
