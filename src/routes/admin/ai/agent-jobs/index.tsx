@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Edit3, Info, Pause, Play, Plus, Trash2 } from "lucide-react";
+import { Bot, Edit3, Info, Loader2, Pause, Play, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import {
   createBotCampaignFn,
   deleteBotCampaignFn,
   listBotCampaignsFn,
+  runBotCampaignNowFn,
   updateBotCampaignFn,
   type BlogBotCampaignRow,
   type BlogBotRunRow,
@@ -59,10 +60,31 @@ function AgentJobsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BlogBotCampaignRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BlogBotCampaignRow | null>(null);
+  const [runningId, setRunningId] = useState<number | null>(null);
 
   const create = useServerFn(createBotCampaignFn);
   const update = useServerFn(updateBotCampaignFn);
   const remove = useServerFn(deleteBotCampaignFn);
+  const runNow = useServerFn(runBotCampaignNowFn);
+
+  async function handleRunNow(c: BlogBotCampaignRow) {
+    setRunningId(c.id);
+    try {
+      const { run } = await runNow({ data: { id: c.id } });
+      if (run.status === "needs_review") {
+        toast.success(`Đã tạo bản nháp "${run.blog_slug}" — vào Bài viết để duyệt & đăng.`);
+      } else if (run.status === "skipped") {
+        toast.warning(run.error ?? "Đã bỏ qua lần chạy này.");
+      } else {
+        toast.error(run.error ?? "Sinh bài thất bại.");
+      }
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Chạy bot thất bại");
+    } finally {
+      setRunningId(null);
+    }
+  }
 
   async function handleToggleEnabled(c: BlogBotCampaignRow) {
     try {
@@ -90,15 +112,17 @@ function AgentJobsPage() {
     <>
       <CmsTopbar title="Blog Auto-Bot" subtitle="Bot tự động soạn & đăng bài blog theo lịch/lệnh" />
       <PageContainer>
-        {/* Phase-0 honesty banner: config only, no generation engine wired yet. */}
+        {/* Phase-1 banner: manual generation live; scheduler + verifier later. */}
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4 text-sm">
           <Info className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-semibold text-sky-900">Phase 0 — cấu hình rule</div>
+            <div className="font-semibold text-sky-900">Phase 1 — sinh bài thủ công</div>
             <div className="text-sky-900/80 mt-0.5">
-              Trang này lưu cấu hình bot. Engine sinh bài + kiểm duyệt sẽ được bật ở phase kế tiếp —
-              hiện tại lưu campaign chưa tạo ra bài viết nào. Mặc định bot ghi bài ở trạng thái{" "}
-              <strong>Chờ duyệt</strong>; bật "Tự động đăng" là opt-in và vẫn qua cổng kiểm duyệt.
+              Bấm <strong>"Chạy ngay"</strong> để bot sinh 1 bài và lưu vào mục{" "}
+              <strong>Bài viết</strong> ở trạng thái <strong>Chờ duyệt</strong> — bạn vào đó kiểm
+              tra rồi bấm đăng. Lịch chạy tự động, tìm ảnh và bot kiểm duyệt sẽ bật ở các phase kế
+              tiếp (hiện chưa auto-đăng dù bật "Tự động"). Cần{" "}
+              <code className="font-mono">OPENAI_API_KEY</code> trên Worker.
             </div>
           </div>
         </div>
@@ -173,8 +197,22 @@ function AgentJobsPage() {
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <button
+                              onClick={() => handleRunNow(c)}
+                              disabled={runningId !== null}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-foreground text-background text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                              title="Sinh 1 bài ngay (lưu Chờ duyệt)"
+                            >
+                              {runningId === c.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="w-3.5 h-3.5" />
+                              )}
+                              {runningId === c.id ? "Đang chạy…" : "Chạy ngay"}
+                            </button>
+                            <button
                               onClick={() => handleToggleEnabled(c)}
-                              className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-muted-foreground hover:text-foreground"
+                              disabled={runningId !== null}
+                              className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-muted-foreground hover:text-foreground disabled:opacity-50"
                               title={c.enabled ? "Tạm dừng" : "Bật"}
                             >
                               {c.enabled ? (
@@ -213,10 +251,7 @@ function AgentJobsPage() {
 
         {/* Run history */}
         <Card className="mt-5">
-          <CardHeader
-            title="Lịch sử chạy"
-            hint="Mỗi lần bot sinh bài sẽ hiện ở đây (sẽ hoạt động từ phase kế tiếp)."
-          />
+          <CardHeader title="Lịch sử chạy" hint="Mỗi lần bot sinh bài (thủ công hoặc theo lịch)." />
           <div className="p-5">
             {data.runs.length === 0 ? (
               <div className="text-sm text-muted-foreground">Chưa có lần chạy nào.</div>
@@ -229,15 +264,23 @@ function AgentJobsPage() {
                       <th className="text-left font-medium px-3 py-2.5">Chủ đề</th>
                       <th className="text-left font-medium px-3 py-2.5">Trạng thái</th>
                       <th className="text-left font-medium px-3 py-2.5">Bài viết</th>
+                      <th className="text-right font-medium px-5 py-2.5">Chi phí</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {data.runs.map((r) => (
                       <tr key={r.id}>
-                        <td className="px-5 py-3 text-xs text-muted-foreground">
+                        <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(r.created_at * 1000).toLocaleString("vi-VN")}
                         </td>
-                        <td className="px-3 py-3">{r.topic ?? "—"}</td>
+                        <td className="px-3 py-3 max-w-md">
+                          <div className="line-clamp-2">{r.topic ?? "—"}</div>
+                          {r.error ? (
+                            <div className="text-xs text-red-600 mt-0.5 line-clamp-2">
+                              {r.error}
+                            </div>
+                          ) : null}
+                        </td>
                         <td className="px-3 py-3">
                           <RunStatusPill status={r.status} />
                         </td>
@@ -252,6 +295,9 @@ function AgentJobsPage() {
                           ) : (
                             "—"
                           )}
+                        </td>
+                        <td className="px-5 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
+                          {r.cost_usd > 0 ? `$${r.cost_usd.toFixed(4)}` : "—"}
                         </td>
                       </tr>
                     ))}
