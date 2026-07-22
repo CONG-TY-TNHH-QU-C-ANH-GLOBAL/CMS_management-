@@ -88,3 +88,22 @@ export const deleteBotCampaignFn = createServerFn({ method: "POST" })
     await deleteCampaign(me.id, data.id);
     return { ok: true as const };
   });
+
+// "Run now" — generate one draft article for a campaign synchronously and
+// return the resulting run. Saves as a review draft (never publishes). Editor
+// session; the operator's id becomes the blog post author.
+export const runBotCampaignNowFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.number().int().positive() }).parse(data))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { getCampaign } = await import("@/features/blog-bot/blog-bot.service");
+    const { runCampaignOnce } = await import("@/features/blog-bot/blog-bot.engine");
+    const { env } = await import("cloudflare:workers");
+    const me = await requireSession("editor");
+    const campaign = await getCampaign(data.id);
+    if (!campaign) {
+      throw Object.assign(new Error("Campaign không tồn tại"), { statusCode: 404 });
+    }
+    const run = await runCampaignOnce(env, campaign, "manual", me.id);
+    return { run };
+  });

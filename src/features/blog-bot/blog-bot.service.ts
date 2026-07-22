@@ -218,3 +218,108 @@ export async function deleteCampaign(actorId: number, id: number): Promise<void>
   await getDb().prepare(`DELETE FROM blog_bot_campaigns WHERE id = ?`).bind(id).run();
   await auditLog(actorId, "delete", "blog_bot_campaign", id, before, null);
 }
+
+export async function touchCampaignRun(id: number, nextRunAt: number | null): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE blog_bot_campaigns SET last_run_at = unixepoch(), next_run_at = ?, updated_at = unixepoch() WHERE id = ?`,
+    )
+    .bind(nextRunAt, id)
+    .run();
+}
+
+// ─────────────── runs ───────────────
+
+export async function getRun(id: number): Promise<BlogBotRunRow | null> {
+  return await getDb()
+    .prepare(`SELECT * FROM blog_bot_runs WHERE id = ? LIMIT 1`)
+    .bind(id)
+    .first<BlogBotRunRow>();
+}
+
+export async function createRun(
+  campaignId: number,
+  trigger: "schedule" | "manual",
+  topic: string | null,
+): Promise<BlogBotRunRow> {
+  const row = await getDb()
+    .prepare(
+      `INSERT INTO blog_bot_runs (campaign_id, status, trigger, topic)
+       VALUES (?, 'pending', ?, ?) RETURNING *`,
+    )
+    .bind(campaignId, trigger, topic)
+    .first<BlogBotRunRow>();
+  if (!row) throw new Error("createRun: insert returned no row");
+  return row;
+}
+
+export interface RunPatch {
+  status?: RunStatus;
+  topic?: string | null;
+  blog_post_id?: number | null;
+  blog_slug?: string | null;
+  verdict_json?: string | null;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost_usd?: number;
+  error?: string | null;
+  in_flight_until?: number | null;
+  attempts?: number;
+}
+
+export async function updateRun(id: number, patch: RunPatch): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    fields.push(`${key} = ?`);
+    values.push(value);
+  }
+  if (fields.length === 0) return;
+  fields.push("updated_at = unixepoch()");
+  await getDb()
+    .prepare(`UPDATE blog_bot_runs SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...values, id)
+    .run();
+}
+
+/** Recent blog post titles (VI source rows) — handed to the model so it avoids
+ *  regenerating an existing article. */
+export async function getRecentBlogTitles(limit = 40): Promise<string[]> {
+  const res = await getDb()
+    .prepare(`SELECT title FROM blog_posts WHERE locale = 'vi' ORDER BY updated_at DESC LIMIT ?`)
+    .bind(Math.min(Math.max(limit, 1), 200))
+    .all<{ title: string }>();
+  return (res.results ?? []).map((r) => r.title);
+}
+
+export async function slugExists(slug: string): Promise<boolean> {
+  const row = await getDb()
+    .prepare(`SELECT 1 AS n FROM blog_posts WHERE slug = ? LIMIT 1`)
+    .bind(slug)
+    .first<{ n: number }>();
+  return !!row;
+}
+
+/** Topics already consumed by prior runs of a campaign — used to rotate through
+ *  a seed_list without repeating. */
+export async function getUsedTopics(campaignId: number): Promise<string[]> {
+  const res = await getDb()
+    .prepare(`SELECT DISTINCT topic FROM blog_bot_runs WHERE campaign_id = ? AND topic IS NOT NULL`)
+    .bind(campaignId)
+    .all<{ topic: string }>();
+  return (res.results ?? []).map((r) => r.topic);
+}
+
+/** How many runs a campaign already created today (unixepoch day bucket in
+ *  UTC — good enough for a per-day quota guard). */
+export async function countRunsSince(campaignId: number, sinceEpoch: number): Promise<number> {
+  const row = await getDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM blog_bot_runs
+        WHERE campaign_id = ? AND created_at >= ? AND status NOT IN ('skipped', 'failed')`,
+    )
+    .bind(campaignId, sinceEpoch)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
