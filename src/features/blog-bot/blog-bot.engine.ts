@@ -21,6 +21,8 @@ import {
 } from "@/features/blog-bot/blog-bot.service";
 import { generateArticle } from "@/features/blog-bot/blog-bot.openai";
 import { resolveImages } from "@/features/blog-bot/blog-bot.images";
+import { verifyArticle } from "@/features/blog-bot/blog-bot.verify";
+import { isCampaignDue, localParts } from "@/features/blog-bot/blog-bot.schedule";
 
 export interface EngineEnv {
   OPENAI_API_KEY?: string;
@@ -109,6 +111,12 @@ export async function processRun(
     return { ...run, status: "failed", error: result.error };
   }
 
+  // Verify (moderation + LLM judge). Advisory in P3 — the draft is saved for a
+  // human either way; the verdict is stored and becomes the auto-publish gate
+  // in P4. Never throws (fail-closed verdict on error).
+  await updateRun(run.id, { status: "verifying" });
+  const verdict = await verifyArticle(env, campaign, result.article);
+
   // Save as a REVIEW draft via the normal blog write path (auto-translate +
   // landing-rebuild coalescing come for free; review status keeps it off the
   // public API until an operator publishes).
@@ -175,16 +183,44 @@ export async function processRun(
     }
   }
 
+  // Merge any verifier note into the soft warning shown on the run.
+  if (verdict.error) warning = (warning ? `${warning} | ` : "") + verdict.error;
+
+  // Auto-publish gate (P4): flip the draft to 'live' ONLY when the campaign
+  // opted in AND the verifier passed (moderation clean + judge safe + score).
+  // Otherwise it stays 'review' for a human. Images are already attached above,
+  // so a published post is never public without its photo. A publish failure
+  // is non-fatal — the draft is preserved and surfaced for review.
+  const shouldPublish = campaign.autopublish === 1 && verdict.passed;
+  let runStatus: "published" | "needs_review" = "needs_review";
+  if (shouldPublish) {
+    try {
+      const today = localParts(campaign.timezone || "Asia/Ho_Chi_Minh", Date.now()).date;
+      await upsertBlogPost(actorId, {
+        slug,
+        locale: campaign.locale,
+        title: a.title,
+        status: "live",
+        published_date: today,
+      });
+      runStatus = "published";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      warning = (warning ? `${warning} | ` : "") + `Auto-đăng thất bại (giữ Chờ duyệt): ${msg}`;
+    }
+  }
+
   await updateRun(run.id, {
-    status: "needs_review",
+    status: runStatus,
     blog_post_id: blogPostId,
     blog_slug: slug,
+    verdict_json: JSON.stringify(verdict),
     tokens_in: result.tokensIn,
     tokens_out: result.tokensOut,
-    cost_usd: result.costUsd + imageCost,
-    error: warning, // soft image warning; status stays needs_review
+    cost_usd: result.costUsd + imageCost + verdict.costUsd,
+    error: warning,
   });
-  return { ...run, status: "needs_review", blog_post_id: blogPostId, blog_slug: slug };
+  return { ...run, status: runStatus, blog_post_id: blogPostId, blog_slug: slug };
 }
 
 const DAY_SECONDS = 86_400;
@@ -224,4 +260,37 @@ export async function runCampaignOnce(
   const done = await processRun(env, campaign, run, actorId);
   await touchCampaignRun(campaign.id, null);
   return done;
+}
+
+// Process at most this many due campaigns per cron tick. Keeps a single
+// scheduled() invocation bounded to ~one generation; remaining due campaigns
+// are picked up on the next minute's tick (each still runs at/after its
+// run_time that day). One generation is minutes of I/O-bound work, so we never
+// let the blog bot dominate the shared cron invocation.
+const MAX_CAMPAIGNS_PER_TICK = 1;
+
+/** Cron entry point (added as an isolated task in src/server.ts scheduled()).
+ *  Runs any enabled campaign that is due (local run_time reached, not yet run
+ *  today) — at most MAX_CAMPAIGNS_PER_TICK per tick. Returns how many it
+ *  processed. Isolated: each campaign is wrapped so one failure cannot affect
+ *  another, and the caller further guards the whole task. */
+export async function runBlogBotScheduler(env: EngineEnv, maxMs = 50_000): Promise<number> {
+  const { listEnabledCampaigns } = await import("@/features/blog-bot/blog-bot.service");
+  const deadline = Date.now() + maxMs;
+  const enabled = await listEnabledCampaigns();
+  const nowMs = Date.now();
+  const due = enabled.filter((c) => isCampaignDue(c, nowMs));
+
+  let processed = 0;
+  for (const campaign of due) {
+    if (processed >= MAX_CAMPAIGNS_PER_TICK || Date.now() > deadline) break;
+    const actorId = campaign.created_by ?? 0; // system actor (mirrors translation engine)
+    try {
+      await runCampaignOnce(env, campaign, "schedule", actorId);
+      processed++;
+    } catch (err) {
+      console.error("[blog-bot] scheduled run failed for campaign", campaign.id, err);
+    }
+  }
+  return processed;
 }

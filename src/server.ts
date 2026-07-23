@@ -16,7 +16,7 @@ let serverEntryPromise: Promise<ServerEntry> | undefined;
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => ((m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry)),
+      (m) => (m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry),
     );
   }
   return serverEntryPromise;
@@ -90,12 +90,15 @@ export default {
   // work after the scheduled callback returns.
   async scheduled(
     _controller: unknown,
-    env: { OPENAI_API_KEY?: string; OPENAI_BASE_URL?: string },
+    env: {
+      OPENAI_API_KEY?: string;
+      OPENAI_BASE_URL?: string;
+      PEXELS_API_KEY?: string;
+      UNSPLASH_ACCESS_KEY?: string;
+    },
     ctx: { waitUntil(promise: Promise<unknown>): void },
   ) {
-    const { runTranslationJobs } = await import(
-      "./features/translations/translation-jobs.engine"
-    );
+    const { runTranslationJobs } = await import("./features/translations/translation-jobs.engine");
     // C3: flush a pending landing rebuild (coalesced dirty flag → one
     // repository_dispatch). Independent of translation work.
     const { flushLandingRebuild } = await import("./features/careers/landing-rebuild");
@@ -103,11 +106,25 @@ export default {
     // permanent failures). Inline-kick from dispatchEvent handles the happy
     // path; this is the durability backstop for transient/queued rows.
     const { flushTelegramOutbox } = await import("./features/telegram");
+    // Blog Auto-Bot scheduler (P4). FULLY ISOLATED from the three tasks above:
+    // wrapped in its own try/catch async so a failed import or throw here can
+    // never affect translation / landing / telegram. It also self-bounds to one
+    // generation per tick. The other tasks complete their work in their own
+    // budgets and resolve regardless of how long the bot task takes.
+    const blogBotTask = (async () => {
+      try {
+        const { runBlogBotScheduler } = await import("./features/blog-bot/blog-bot.engine");
+        await runBlogBotScheduler(env, 50_000);
+      } catch (err) {
+        console.error("[scheduled] blog-bot scheduler failed", err);
+      }
+    })();
     ctx.waitUntil(
       Promise.allSettled([
         runTranslationJobs(env, 60_000),
         flushLandingRebuild(),
         flushTelegramOutbox(60_000),
+        blogBotTask,
       ]).then((results) => {
         for (const r of results) {
           if (r.status === "rejected") console.error("[scheduled] task failed", r.reason);
