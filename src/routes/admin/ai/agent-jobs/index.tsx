@@ -117,9 +117,12 @@ function AgentJobsPage() {
     setRunningId(c.id);
     try {
       const { run } = await runNow({ data: { id: c.id } });
-      if (run.status === "needs_review") {
+      if (run.status === "published") {
+        toast.success(`Đã tự động ĐĂNG bài "${run.blog_slug}" (verifier đạt).`);
+        if (run.error) toast.warning(run.error);
+      } else if (run.status === "needs_review") {
         toast.success(`Đã tạo bản nháp "${run.blog_slug}" — vào Bài viết để duyệt & đăng.`);
-        if (run.error) toast.warning(`Lưu ý về ảnh: ${run.error}`);
+        if (run.error) toast.warning(`Lưu ý: ${run.error}`);
       } else if (run.status === "skipped") {
         toast.warning(run.error ?? "Đã bỏ qua lần chạy này.");
       } else {
@@ -163,13 +166,15 @@ function AgentJobsPage() {
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4 text-sm">
           <Info className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-semibold text-sky-900">Phase 3 — sinh bài + ảnh + kiểm duyệt</div>
+            <div className="font-semibold text-sky-900">Phase 4 — tự động chạy theo lịch</div>
             <div className="text-sky-900/80 mt-0.5">
-              Bấm <strong>"Chạy ngay"</strong>: bot viết bài (OpenAI) → tìm ảnh liên quan (Pexels) →
-              <strong> bot kiểm duyệt nội dung</strong> (Moderation + chấm điểm theo guidelines) →
-              lưu <strong>Chờ duyệt</strong> vào mục <strong>Bài viết</strong>. Cột{" "}
-              <strong>Kiểm duyệt</strong> hiện kết quả (di chuột để xem lý do). Bài vẫn luôn cần
-              người bấm đăng — verdict sẽ là cổng cho tự-động-đăng ở phase kế tiếp.
+              Bot <strong>tự chạy hằng ngày</strong> đúng giờ đã đặt (bật bot + đặt "Giờ chạy"). Mỗi
+              lần: viết bài → tìm ảnh → kiểm duyệt →{" "}
+              <strong>
+                nếu bật "Tự động đăng" VÀ verifier đạt thì đăng live, ngược lại lưu Chờ duyệt
+              </strong>
+              . Bạn vẫn bấm <strong>"Chạy ngay"</strong> để chạy thủ công. Cột{" "}
+              <strong>Kiểm duyệt</strong> hiện verdict (di chuột xem lý do).
             </div>
           </div>
         </div>

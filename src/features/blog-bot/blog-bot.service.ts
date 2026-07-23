@@ -84,6 +84,14 @@ export async function getCampaign(id: number): Promise<BlogBotCampaignRow | null
     .first<BlogBotCampaignRow>();
 }
 
+/** Enabled campaigns only — the cron scheduler's candidate set. */
+export async function listEnabledCampaigns(): Promise<BlogBotCampaignRow[]> {
+  const res = await getDb()
+    .prepare(`SELECT * FROM blog_bot_campaigns WHERE enabled = 1 ORDER BY id`)
+    .all<BlogBotCampaignRow>();
+  return res.results ?? [];
+}
+
 export async function listRuns(campaignId: number | null, limit = 50): Promise<BlogBotRunRow[]> {
   const capped = Math.min(Math.max(limit, 1), 200);
   const res = campaignId
