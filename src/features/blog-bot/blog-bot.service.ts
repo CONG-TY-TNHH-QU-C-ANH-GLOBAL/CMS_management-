@@ -14,6 +14,15 @@ import { auditLog } from "@/core/db/mutations";
 export type BotLocale = "en" | "vi" | "zh";
 export type TopicSource = "instruction" | "seed_list";
 export type ImageMode = "none" | "ai_generate" | "stock";
+export type ArticleType =
+  | "general"
+  | "listicle"
+  | "news"
+  | "review"
+  | "knowledge"
+  | "product_service";
+export type ArticleLength = "short" | "medium" | "long";
+export type ArticleDepth = "basic" | "professional" | "expert";
 export type RunStatus =
   | "pending"
   | "generating"
@@ -37,6 +46,9 @@ export interface BlogBotCampaignRow {
   instruction_md: string | null;
   seed_topics_json: string | null;
   guidelines_md: string | null;
+  article_type: ArticleType;
+  length: ArticleLength;
+  depth: ArticleDepth;
   image_mode: ImageMode;
   image_style: string | null;
   autopublish: number; // 0 | 1
@@ -123,6 +135,9 @@ export interface CampaignInput {
   instruction_md?: string | null;
   seed_topics_json?: string | null;
   guidelines_md?: string | null;
+  article_type?: ArticleType;
+  length?: ArticleLength;
+  depth?: ArticleDepth;
   image_mode?: ImageMode;
   image_style?: string | null;
   autopublish?: boolean;
@@ -145,6 +160,9 @@ const UPDATABLE: Array<{ key: keyof CampaignInput; bool?: boolean }> = [
   { key: "instruction_md" },
   { key: "seed_topics_json" },
   { key: "guidelines_md" },
+  { key: "article_type" },
+  { key: "length" },
+  { key: "depth" },
   { key: "image_mode" },
   { key: "image_style" },
   { key: "autopublish", bool: true },
@@ -162,9 +180,10 @@ export async function createCampaign(
       `INSERT INTO blog_bot_campaigns
          (name, enabled, run_time, timezone, locale, category, tone,
           topic_source, instruction_md, seed_topics_json, guidelines_md,
+          article_type, length, depth,
           image_mode, image_style, autopublish, autoapprove_translations,
           model, max_per_day, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
     )
     .bind(
@@ -179,6 +198,9 @@ export async function createCampaign(
       input.instruction_md ?? null,
       input.seed_topics_json ?? null,
       input.guidelines_md ?? null,
+      input.article_type ?? "general",
+      input.length ?? "medium",
+      input.depth ?? "professional",
       input.image_mode ?? "none",
       input.image_style ?? null,
       input.autopublish ? 1 : 0,

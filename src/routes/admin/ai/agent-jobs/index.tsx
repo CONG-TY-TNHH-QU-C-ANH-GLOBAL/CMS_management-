@@ -414,6 +414,9 @@ interface CampaignPayload {
   instruction_md: string | null;
   seed_topics_json: string | null;
   guidelines_md: string | null;
+  article_type: "general" | "listicle" | "news" | "review" | "knowledge" | "product_service";
+  length: "short" | "medium" | "long";
+  depth: "basic" | "professional" | "expert";
   image_mode: "none" | "ai_generate" | "stock";
   image_style: string | null;
   autopublish: boolean;
@@ -463,6 +466,11 @@ function CampaignDialog({
     }
   });
   const [guidelines, setGuidelines] = useState(campaign?.guidelines_md ?? "");
+  const [articleType, setArticleType] = useState<CampaignPayload["article_type"]>(
+    campaign?.article_type ?? "general",
+  );
+  const [length, setLength] = useState<CampaignPayload["length"]>(campaign?.length ?? "medium");
+  const [depth, setDepth] = useState<CampaignPayload["depth"]>(campaign?.depth ?? "professional");
   const [imageMode, setImageMode] = useState<CampaignPayload["image_mode"]>(
     campaign?.image_mode ?? "none",
   );
@@ -505,6 +513,9 @@ function CampaignDialog({
         instruction_md: nullify(instruction),
         seed_topics_json: seedJson,
         guidelines_md: nullify(guidelines),
+        article_type: articleType,
+        length,
+        depth,
         image_mode: imageMode,
         image_style: nullify(imageStyle),
         autopublish,
@@ -589,6 +600,53 @@ function CampaignDialog({
               placeholder="vd. thân thiện, chuyên gia, ngắn gọn"
               className={inputCls}
             />
+          </label>
+
+          <label className="block col-span-2">
+            <span className={labelCls}>Loại bài viết</span>
+            <select
+              value={articleType}
+              onChange={(e) => setArticleType(e.target.value as CampaignPayload["article_type"])}
+              className={inputCls}
+            >
+              <option value="general">Chuẩn (general)</option>
+              <option value="listicle">Danh sách (listicle — "Top N…")</option>
+              <option value="news">Tin tức (news — tự cào tin liên quan + trích nguồn)</option>
+              <option value="review">Đánh giá / Review</option>
+              <option value="knowledge">Chia sẻ kiến thức (how-to)</option>
+              <option value="product_service">Sản phẩm & dịch vụ</option>
+            </select>
+            {articleType === "news" ? (
+              <span className="block text-xs text-muted-foreground mt-1">
+                Bot lấy tiêu đề tin gần đây (Google News, theo Category/chủ đề) rồi viết tổng hợp
+                nguyên gốc + mục "Nguồn tham khảo" có link. Không cần API key.
+              </span>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className={labelCls}>Độ dài</span>
+            <select
+              value={length}
+              onChange={(e) => setLength(e.target.value as CampaignPayload["length"])}
+              className={inputCls}
+            >
+              <option value="short">Ngắn (~400–600 từ)</option>
+              <option value="medium">Vừa (~700–1100 từ)</option>
+              <option value="long">Dài (~1300–2000 từ)</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className={labelCls}>Độ chuyên sâu</span>
+            <select
+              value={depth}
+              onChange={(e) => setDepth(e.target.value as CampaignPayload["depth"])}
+              className={inputCls}
+            >
+              <option value="basic">Cơ bản (dễ hiểu)</option>
+              <option value="professional">Chuyên nghiệp</option>
+              <option value="expert">Chuyên sâu (expert)</option>
+            </select>
           </label>
 
           <label className="block col-span-2">

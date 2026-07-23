@@ -13,6 +13,16 @@ export type {
 const LOCALE = z.enum(["en", "vi", "zh"]);
 const TOPIC_SOURCE = z.enum(["instruction", "seed_list"]);
 const IMAGE_MODE = z.enum(["none", "ai_generate", "stock"]);
+const ARTICLE_TYPE = z.enum([
+  "general",
+  "listicle",
+  "news",
+  "review",
+  "knowledge",
+  "product_service",
+]);
+const ARTICLE_LENGTH = z.enum(["short", "medium", "long"]);
+const ARTICLE_DEPTH = z.enum(["basic", "professional", "expert"]);
 // gpt-4o = higher quality prose; gpt-4o-mini = cheaper. Mirrors the model
 // allow-list the translation pricing table already supports.
 const MODEL = z.enum(["gpt-4o", "gpt-4o-mini"]);
@@ -31,6 +41,9 @@ const campaignFields = {
   instruction_md: z.string().max(8000).nullable().optional(),
   seed_topics_json: z.string().max(8000).nullable().optional(),
   guidelines_md: z.string().max(8000).nullable().optional(),
+  article_type: ARTICLE_TYPE.optional(),
+  length: ARTICLE_LENGTH.optional(),
+  depth: ARTICLE_DEPTH.optional(),
   image_mode: IMAGE_MODE.optional(),
   image_style: z.string().max(200).nullable().optional(),
   autopublish: z.boolean().optional(),
