@@ -73,6 +73,7 @@ function AgentJobsPage() {
       const { run } = await runNow({ data: { id: c.id } });
       if (run.status === "needs_review") {
         toast.success(`Đã tạo bản nháp "${run.blog_slug}" — vào Bài viết để duyệt & đăng.`);
+        if (run.error) toast.warning(`Lưu ý về ảnh: ${run.error}`);
       } else if (run.status === "skipped") {
         toast.warning(run.error ?? "Đã bỏ qua lần chạy này.");
       } else {
@@ -116,13 +117,14 @@ function AgentJobsPage() {
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4 text-sm">
           <Info className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-semibold text-sky-900">Phase 1 — sinh bài thủ công</div>
+            <div className="font-semibold text-sky-900">Phase 2 — sinh bài + ảnh</div>
             <div className="text-sky-900/80 mt-0.5">
-              Bấm <strong>"Chạy ngay"</strong> để bot sinh 1 bài và lưu vào mục{" "}
-              <strong>Bài viết</strong> ở trạng thái <strong>Chờ duyệt</strong> — bạn vào đó kiểm
-              tra rồi bấm đăng. Lịch chạy tự động, tìm ảnh và bot kiểm duyệt sẽ bật ở các phase kế
-              tiếp (hiện chưa auto-đăng dù bật "Tự động"). Cần{" "}
-              <code className="font-mono">OPENAI_API_KEY</code> trên Worker.
+              Bấm <strong>"Chạy ngay"</strong> để bot sinh 1 bài kèm ảnh (theo chế độ ảnh của bot)
+              và lưu vào mục <strong>Bài viết</strong> ở trạng thái <strong>Chờ duyệt</strong> — bạn
+              vào đó kiểm tra rồi bấm đăng. Ảnh <strong>Stock</strong> lấy từ Pexels/Unsplash (cần{" "}
+              <code className="font-mono">PEXELS_API_KEY</code>), <strong>AI</strong> dùng OpenAI —
+              ảnh được tải về R2 và bám từ khóa nội dung bài. Lịch tự động + bot kiểm duyệt ở phase
+              kế tiếp (chưa auto-đăng dù bật "Tự động").
             </div>
           </div>
         </div>
