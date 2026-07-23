@@ -20,10 +20,13 @@ import {
   updateRun,
 } from "@/features/blog-bot/blog-bot.service";
 import { generateArticle } from "@/features/blog-bot/blog-bot.openai";
+import { resolveImages } from "@/features/blog-bot/blog-bot.images";
 
 export interface EngineEnv {
   OPENAI_API_KEY?: string;
   OPENAI_BASE_URL?: string;
+  PEXELS_API_KEY?: string;
+  UNSPLASH_ACCESS_KEY?: string;
 }
 
 export class BotConfigError extends Error {}
@@ -138,14 +141,48 @@ export async function processRun(
     return { ...run, status: "failed", error: msg };
   }
 
+  // Images (best-effort): fetch a relevant hero photo (+ slides) and attach.
+  // A failure here never fails the run — the article draft is already saved;
+  // we surface the reason as a soft warning on the needs_review run.
+  let imageCost = 0;
+  let warning: string | null = null;
+  if (campaign.image_mode !== "none") {
+    await updateRun(run.id, { status: "imaging" });
+    const img = await resolveImages(env, campaign, result.article, actorId);
+    imageCost = img.costUsd;
+    warning = img.warning;
+    try {
+      if (img.thumbnail) {
+        const { setBlogThumbnailFromUrl } = await import("@/features/blog");
+        await setBlogThumbnailFromUrl(actorId, {
+          slug,
+          locale: campaign.locale,
+          url: img.thumbnail.url,
+          alt_text: img.thumbnail.alt,
+        });
+      }
+      if (img.slides.length > 0) {
+        const { replaceBlogSlides } = await import("@/features/blog");
+        await replaceBlogSlides(actorId, {
+          slug,
+          locale: campaign.locale,
+          slides: img.slides.map((s) => ({ url: s.url, alt_text: s.alt })),
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      warning = (warning ? `${warning} | ` : "") + `Gắn ảnh thất bại: ${msg}`;
+    }
+  }
+
   await updateRun(run.id, {
     status: "needs_review",
     blog_post_id: blogPostId,
     blog_slug: slug,
     tokens_in: result.tokensIn,
     tokens_out: result.tokensOut,
-    cost_usd: result.costUsd,
-    error: null,
+    cost_usd: result.costUsd + imageCost,
+    error: warning, // soft image warning; status stays needs_review
   });
   return { ...run, status: "needs_review", blog_post_id: blogPostId, blog_slug: slug };
 }

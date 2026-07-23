@@ -39,6 +39,9 @@ const articleSchema = z.object({
   category: z.string().max(100).nullable().default(null),
   seo_title: z.string().max(200).nullable().default(null),
   seo_description: z.string().max(500).nullable().default(null),
+  // English keyword phrases describing an ideal hero photo for THIS article —
+  // used to fetch a relevant stock/AI image. Tolerant: missing → [].
+  image_keywords: z.array(z.string().max(80)).max(6).default([]),
 });
 
 export type GeneratedArticle = z.infer<typeof articleSchema>;
@@ -95,7 +98,8 @@ JSON schema to return:
   "body_md": string (Markdown article body),
   "category": string,
   "seo_title": string (<= 60 chars),
-  "seo_description": string (<= 155 chars)
+  "seo_description": string (<= 155 chars),
+  "image_keywords": string[] (2-4 SHORT English phrases describing an ideal, on-topic hero photo for THIS specific article — concrete, photographable subjects, e.g. "warehouse fulfillment workers", "print on demand t-shirt". Avoid brand names, text, logos.)
 }`;
 
   const user =
