@@ -166,15 +166,13 @@ function AgentJobsPage() {
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4 text-sm">
           <Info className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-semibold text-sky-900">Phase 4 — tự động chạy theo lịch</div>
+            <div className="font-semibold text-sky-900">Blog Auto-Bot — đầy đủ</div>
             <div className="text-sky-900/80 mt-0.5">
-              Bot <strong>tự chạy hằng ngày</strong> đúng giờ đã đặt (bật bot + đặt "Giờ chạy"). Mỗi
-              lần: viết bài → tìm ảnh → kiểm duyệt →{" "}
-              <strong>
-                nếu bật "Tự động đăng" VÀ verifier đạt thì đăng live, ngược lại lưu Chờ duyệt
-              </strong>
-              . Bạn vẫn bấm <strong>"Chạy ngay"</strong> để chạy thủ công. Cột{" "}
-              <strong>Kiểm duyệt</strong> hiện verdict (di chuột xem lý do).
+              Bot <strong>tự chạy hằng ngày</strong> đúng giờ: viết bài → tìm ảnh → kiểm duyệt →{" "}
+              <strong>nếu bật "Tự động đăng" VÀ verifier đạt thì đăng live</strong> (kèm tùy chọn tự
+              duyệt bản dịch EN/ZH), ngược lại lưu <strong>Chờ duyệt</strong>. Bạn vẫn bấm{" "}
+              <strong>"Chạy ngay"</strong> để chạy thủ công. Cột <strong>Kiểm duyệt</strong> hiện
+              verdict (di chuột xem lý do).
             </div>
           </div>
         </div>
@@ -419,6 +417,7 @@ interface CampaignPayload {
   image_mode: "none" | "ai_generate" | "stock";
   image_style: string | null;
   autopublish: boolean;
+  autoapprove_translations: boolean;
   model: "gpt-4o" | "gpt-4o-mini";
   max_per_day: number;
 }
@@ -469,6 +468,9 @@ function CampaignDialog({
   );
   const [imageStyle, setImageStyle] = useState(campaign?.image_style ?? "");
   const [autopublish, setAutopublish] = useState(campaign ? campaign.autopublish === 1 : false);
+  const [autoApproveTranslations, setAutoApproveTranslations] = useState(
+    campaign ? campaign.autoapprove_translations === 1 : false,
+  );
   const [model, setModel] = useState<CampaignPayload["model"]>(
     (campaign?.model as CampaignPayload["model"]) ?? "gpt-4o",
   );
@@ -506,6 +508,7 @@ function CampaignDialog({
         image_mode: imageMode,
         image_style: nullify(imageStyle),
         autopublish,
+        autoapprove_translations: autoApproveTranslations,
         model,
         max_per_day: maxPerDay,
       });
@@ -696,6 +699,25 @@ function CampaignDialog({
             <span className="block text-xs text-amber-900/80 mt-1">
               Khi bật, bài đạt kiểm duyệt an toàn sẽ tự lên "live". Nếu tắt (khuyến nghị), bot chỉ
               tạo bản nháp <strong>Chờ duyệt</strong> để người vào bấm đăng.
+            </span>
+          </label>
+
+          <label className="block col-span-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-amber-900">
+              <input
+                type="checkbox"
+                checked={autoApproveTranslations}
+                onChange={(e) => setAutoApproveTranslations(e.target.checked)}
+                disabled={!autopublish}
+                className="accent-amber-700 w-4 h-4"
+              />
+              Tự duyệt bản dịch EN + ZH khi tự động đăng
+            </span>
+            <span className="block text-xs text-amber-900/80 mt-1">
+              Chỉ có tác dụng khi bật "Tự động đăng". Khi bật, bản dịch EN/ZH (do pipeline tạo) sẽ
+              tự được duyệt để bài công khai đủ 3 ngôn ngữ. Lưu ý: bản dịch <strong>không</strong>{" "}
+              chạy lại verifier — rủi ro còn lại là sai dịch (chất lượng), không phải an toàn. Tắt
+              (khuyến nghị) nếu muốn tự soát bản dịch.
             </span>
           </label>
         </div>

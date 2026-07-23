@@ -40,6 +40,7 @@ export interface BlogBotCampaignRow {
   image_mode: ImageMode;
   image_style: string | null;
   autopublish: number; // 0 | 1
+  autoapprove_translations: number; // 0 | 1 — auto-approve EN/ZH on publish
   model: string;
   max_per_day: number;
   last_run_at: number | null;
@@ -125,6 +126,7 @@ export interface CampaignInput {
   image_mode?: ImageMode;
   image_style?: string | null;
   autopublish?: boolean;
+  autoapprove_translations?: boolean;
   model?: string;
   max_per_day?: number;
 }
@@ -146,6 +148,7 @@ const UPDATABLE: Array<{ key: keyof CampaignInput; bool?: boolean }> = [
   { key: "image_mode" },
   { key: "image_style" },
   { key: "autopublish", bool: true },
+  { key: "autoapprove_translations", bool: true },
   { key: "model" },
   { key: "max_per_day" },
 ];
@@ -159,8 +162,9 @@ export async function createCampaign(
       `INSERT INTO blog_bot_campaigns
          (name, enabled, run_time, timezone, locale, category, tone,
           topic_source, instruction_md, seed_topics_json, guidelines_md,
-          image_mode, image_style, autopublish, model, max_per_day, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          image_mode, image_style, autopublish, autoapprove_translations,
+          model, max_per_day, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
     )
     .bind(
@@ -178,6 +182,7 @@ export async function createCampaign(
       input.image_mode ?? "none",
       input.image_style ?? null,
       input.autopublish ? 1 : 0,
+      input.autoapprove_translations ? 1 : 0,
       input.model ?? "gpt-4o",
       input.max_per_day ?? 1,
       actorId,

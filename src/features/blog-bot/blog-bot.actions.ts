@@ -34,6 +34,7 @@ const campaignFields = {
   image_mode: IMAGE_MODE.optional(),
   image_style: z.string().max(200).nullable().optional(),
   autopublish: z.boolean().optional(),
+  autoapprove_translations: z.boolean().optional(),
   model: MODEL.optional(),
   max_per_day: z.number().int().min(1).max(20).optional(),
 };

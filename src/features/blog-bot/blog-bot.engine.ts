@@ -69,6 +69,39 @@ async function uniqueSlug(base: string): Promise<string> {
   return `${base}-${Math.floor(Date.now() / 1000)}`.slice(0, 200);
 }
 
+/** Auto-approve the EN/ZH DRAFT translations that the blog pipeline created for
+ *  a just-published post (flips draft → reviewed so they become public).
+ *  Skips non-draft rows (e.g. 'failed'). Best-effort: returns a short note when
+ *  something was off, or null on clean success. Never throws. */
+async function approveDraftTranslations(
+  actorId: number,
+  blogPostId: number,
+): Promise<string | null> {
+  try {
+    const { listBlogPostTranslationsForId, approveBlogPostTranslation } =
+      await import("@/features/translations/blog-post.translation.service");
+    const rows = await listBlogPostTranslationsForId(blogPostId);
+    const drafts = rows.filter((r) => r.status === "draft");
+    const failed = rows.filter((r) => r.status === "failed");
+    let approved = 0;
+    for (const r of drafts) {
+      try {
+        await approveBlogPostTranslation(actorId, r.id);
+        approved++;
+      } catch {
+        /* skip a row that won't transition */
+      }
+    }
+    const parts: string[] = [];
+    if (approved > 0) parts.push(`Đã tự duyệt ${approved} bản dịch`);
+    if (failed.length > 0) parts.push(`${failed.length} bản dịch lỗi (cần soát tay)`);
+    if (drafts.length === 0 && failed.length === 0) return null; // nothing to do
+    return parts.join(", ") || null;
+  } catch (err) {
+    return `Tự duyệt dịch thất bại: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
 /** Generate + save a draft for an already-created run row. Updates the run
  *  through generating → needs_review / failed. Never throws for expected
  *  failures — records them on the run. */
@@ -207,6 +240,14 @@ export async function processRun(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       warning = (warning ? `${warning} | ` : "") + `Auto-đăng thất bại (giữ Chờ duyệt): ${msg}`;
+    }
+
+    // P5: optionally auto-approve the EN/ZH draft translations the blog pipeline
+    // already created, so the published post is public in all 3 languages.
+    // Best-effort — a failure never unpublishes the VI post.
+    if (runStatus === "published" && campaign.autoapprove_translations === 1) {
+      const note = await approveDraftTranslations(actorId, blogPostId);
+      if (note) warning = (warning ? `${warning} | ` : "") + note;
     }
   }
 

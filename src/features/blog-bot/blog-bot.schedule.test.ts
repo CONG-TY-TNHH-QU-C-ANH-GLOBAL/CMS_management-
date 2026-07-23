@@ -26,6 +26,7 @@ function campaign(overrides: Partial<BlogBotCampaignRow>): BlogBotCampaignRow {
     image_mode: "none",
     image_style: null,
     autopublish: 0,
+    autoapprove_translations: 0,
     model: "gpt-4o",
     max_per_day: 1,
     last_run_at: null,
