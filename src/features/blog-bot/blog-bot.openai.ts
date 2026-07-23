@@ -52,6 +52,8 @@ export interface GenerateResult {
   tokensOut: number;
   costUsd: number;
   error: string | null;
+  /** Soft, non-fatal note (e.g. news sources unavailable). */
+  warning: string | null;
   rawResponse: string;
 }
 
@@ -61,12 +63,45 @@ const LOCALE_LABEL: Record<string, string> = {
   zh: "Simplified Chinese (简体中文)",
 };
 
+const LENGTH_WORDS: Record<string, string> = {
+  short: "400–600 words",
+  medium: "700–1100 words",
+  long: "1300–2000 words",
+};
+
+const DEPTH_INSTRUCTIONS: Record<string, string> = {
+  basic:
+    "Audience: beginners. Use simple, friendly language; explain any jargon; keep it approachable.",
+  professional:
+    "Audience: online sellers. Clear, credible, and practical; use industry terms but keep them accessible.",
+  expert:
+    "Audience: experienced operators. Go in-depth and nuanced; use precise terminology and advanced insight — WITHOUT fabricating data or numbers.",
+};
+
+const TYPE_PRESETS: Record<string, string> = {
+  general:
+    "Format: a standard informative article — clear intro, well-structured ## sections, short conclusion.",
+  listicle:
+    'Format: a LISTICLE. The title starts with a number (e.g. "7 …"). Body is a numbered list where each item has its own ## heading and 1–3 explanatory paragraphs. Add a short intro and a closing takeaway.',
+  news: 'Format: a NEWS ROUNDUP. Synthesize the recent developments from the RECENT NEWS SOURCES below IN YOUR OWN WORDS — never copy sentences. Attribute points to their source inline, and end with a "## Nguồn tham khảo" section listing each source as a Markdown link. Keep claims aligned with the headlines; defer specifics to the linked sources instead of inventing details.',
+  review:
+    "Format: an evaluative REVIEW. Establish clear criteria, weigh pros and cons in ## sections, stay balanced and honest, end with a verdict. Do not fabricate specific numbers or claims.",
+  knowledge:
+    "Format: an educational HOW-TO / knowledge guide. Use clear ## steps or concepts, actionable advice, and practical examples. Teach the reader something genuinely useful.",
+  product_service:
+    "Format: a SERVICE-CATEGORY explainer. Educate the reader on the benefits, use-cases, and considerations of this service category in GENERAL terms. Do NOT invent specific THG prices, SLAs, or numbers.",
+};
+
 function buildMessages(
   campaign: BlogBotCampaignRow,
   topic: string,
   existingTitles: string[],
+  newsContext: string | null,
 ): PromptMessage[] {
   const localeLabel = LOCALE_LABEL[campaign.locale] ?? campaign.locale;
+  const typePreset = TYPE_PRESETS[campaign.article_type] ?? TYPE_PRESETS.general;
+  const depth = DEPTH_INSTRUCTIONS[campaign.depth] ?? DEPTH_INSTRUCTIONS.professional;
+  const lengthWords = LENGTH_WORDS[campaign.length] ?? LENGTH_WORDS.medium;
   const avoid =
     existingTitles.length > 0
       ? `\nAVOID duplicating these already-published articles (pick a distinct angle / title / slug):\n${existingTitles
@@ -74,20 +109,26 @@ function buildMessages(
           .map((t) => `  - ${t}`)
           .join("\n")}`
       : "";
+  const newsBlock = newsContext
+    ? `\nRECENT NEWS SOURCES (base the roundup on these; cite each with its link):\n${newsContext}`
+    : "";
 
   const system = `You are a content writer for THG Fulfill — a cross-border fulfillment / print-on-demand (POD) & dropshipping service connecting Vietnam, China, and the USA. You write blog articles for the company's website aimed at Vietnamese online sellers.
 
 Write the article in ${localeLabel}.
 ${campaign.tone ? `Tone / style: ${campaign.tone}.` : ""}
 ${campaign.category ? `Content category: ${campaign.category}.` : ""}
+${typePreset}
+${depth}
 
 HARD RULES (safety / brand):
 - Output STRICT JSON only. No prose, no markdown fences. Start with { end with }.
 - Do NOT fabricate specific THG service details, prices, delivery guarantees, or statistics. Speak generally; never invent numbers about THG.
 - No sensitive, political, adult, or defamatory content. Do not name or disparage competitors.
-- body_md is Markdown (headings ##, lists, bold). 600–1200 words. Do NOT embed images.
+- body_md is Markdown (headings ##, lists, bold). Target length: ${lengthWords}. Do NOT embed images.
 - slug: lowercase a-z, 0-9 and hyphens only, derived from the title, max ~80 chars.
 ${campaign.guidelines_md ? `\nADDITIONAL OPERATOR GUIDELINES:\n${campaign.guidelines_md}` : ""}
+${newsBlock}
 ${avoid}
 
 JSON schema to return:
@@ -113,6 +154,14 @@ JSON schema to return:
   ];
 }
 
+/** Build the news search query for a 'news' campaign: prefer the category, else
+ *  a trimmed topic. */
+function newsQuery(campaign: BlogBotCampaignRow, topic: string): string {
+  const cat = campaign.category?.trim();
+  if (cat) return cat;
+  return topic.slice(0, 80);
+}
+
 /** Generate one draft article for a campaign. `topic` is the seed topic (seed
  *  list) or the natural-language instruction (instruction mode). Never throws
  *  for API/parse failures — returns error in the result. */
@@ -123,7 +172,18 @@ export async function generateArticle(
   topic: string,
   existingTitles: string[],
 ): Promise<GenerateResult> {
-  const messages = buildMessages(campaign, topic, existingTitles);
+  // 'news' type: pull recent headlines to ground the roundup (best-effort — a
+  // failure just means the model writes without fresh sources).
+  let newsContext: string | null = null;
+  let warning: string | null = null;
+  if (campaign.article_type === "news") {
+    const { fetchNews, formatNewsContext } = await import("@/features/blog-bot/blog-bot.news");
+    const news = await fetchNews(newsQuery(campaign, topic), campaign.locale, 8);
+    if (news.items.length > 0) newsContext = formatNewsContext(news.items);
+    else warning = `Tin tức: ${news.error ?? "không có nguồn"} — viết không có nguồn mới.`;
+  }
+
+  const messages = buildMessages(campaign, topic, existingTitles, newsContext);
   const res = await callOpenAiWithJsonRecovery(apiKey, campaign.model, messages, baseUrl);
 
   const cost = estimateCostUsd(campaign.model, res.tokensIn, res.tokensOut);
@@ -135,6 +195,7 @@ export async function generateArticle(
       tokensOut: res.tokensOut,
       costUsd: cost,
       error: res.apiError.message,
+      warning,
       rawResponse: res.rawResponse,
     };
   }
@@ -145,6 +206,7 @@ export async function generateArticle(
       tokensOut: res.tokensOut,
       costUsd: cost,
       error: "OpenAI trả JSON không hợp lệ (parse thất bại sau 2 lần).",
+      warning,
       rawResponse: res.rawResponse,
     };
   }
@@ -157,6 +219,7 @@ export async function generateArticle(
       tokensOut: res.tokensOut,
       costUsd: cost,
       error: `Bài sinh ra không đúng cấu trúc: ${parsed.error.issues.map((i) => i.path.join(".") + " " + i.message).join("; ")}`,
+      warning,
       rawResponse: res.rawResponse,
     };
   }
@@ -167,6 +230,7 @@ export async function generateArticle(
     tokensOut: res.tokensOut,
     costUsd: cost,
     error: null,
+    warning,
     rawResponse: res.rawResponse,
   };
 }

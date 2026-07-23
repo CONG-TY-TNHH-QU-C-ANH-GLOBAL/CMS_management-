@@ -186,7 +186,7 @@ export async function processRun(
   // A failure here never fails the run — the article draft is already saved;
   // we surface the reason as a soft warning on the needs_review run.
   let imageCost = 0;
-  let warning: string | null = null;
+  let warning: string | null = result.warning; // carry any news-fetch note
   if (campaign.image_mode !== "none") {
     await updateRun(run.id, { status: "imaging" });
     const img = await resolveImages(env, campaign, result.article, actorId);
