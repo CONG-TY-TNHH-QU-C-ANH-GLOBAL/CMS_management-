@@ -21,6 +21,7 @@ import {
 } from "@/features/blog-bot/blog-bot.service";
 import { generateArticle } from "@/features/blog-bot/blog-bot.openai";
 import { resolveImages } from "@/features/blog-bot/blog-bot.images";
+import { verifyArticle } from "@/features/blog-bot/blog-bot.verify";
 
 export interface EngineEnv {
   OPENAI_API_KEY?: string;
@@ -109,6 +110,12 @@ export async function processRun(
     return { ...run, status: "failed", error: result.error };
   }
 
+  // Verify (moderation + LLM judge). Advisory in P3 — the draft is saved for a
+  // human either way; the verdict is stored and becomes the auto-publish gate
+  // in P4. Never throws (fail-closed verdict on error).
+  await updateRun(run.id, { status: "verifying" });
+  const verdict = await verifyArticle(env, campaign, result.article);
+
   // Save as a REVIEW draft via the normal blog write path (auto-translate +
   // landing-rebuild coalescing come for free; review status keeps it off the
   // public API until an operator publishes).
@@ -175,14 +182,18 @@ export async function processRun(
     }
   }
 
+  // Merge any verifier note into the soft warning shown on the run.
+  if (verdict.error) warning = (warning ? `${warning} | ` : "") + verdict.error;
+
   await updateRun(run.id, {
     status: "needs_review",
     blog_post_id: blogPostId,
     blog_slug: slug,
+    verdict_json: JSON.stringify(verdict),
     tokens_in: result.tokensIn,
     tokens_out: result.tokensOut,
-    cost_usd: result.costUsd + imageCost,
-    error: warning, // soft image warning; status stays needs_review
+    cost_usd: result.costUsd + imageCost + verdict.costUsd,
+    error: warning, // soft warning; status stays needs_review (human decides)
   });
   return { ...run, status: "needs_review", blog_post_id: blogPostId, blog_slug: slug };
 }

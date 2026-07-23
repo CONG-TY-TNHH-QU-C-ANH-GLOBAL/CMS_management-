@@ -53,6 +53,52 @@ function RunStatusPill({ status }: { status: string }) {
   );
 }
 
+interface ParsedVerdict {
+  passed?: boolean;
+  moderation?: { flagged?: boolean; categories?: string[] };
+  judge?: {
+    safe?: boolean;
+    score?: number;
+    summary?: string;
+    issues?: { severity: string; message: string }[];
+  };
+  error?: string | null;
+}
+
+// Content-verifier badge: green when the article passed moderation + judge,
+// red otherwise. Hover shows the judge summary + issues.
+function VerdictBadge({ json }: { json: string | null }) {
+  if (!json) return <span className="text-xs text-muted-foreground">—</span>;
+  let v: ParsedVerdict;
+  try {
+    v = JSON.parse(json) as ParsedVerdict;
+  } catch {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const score = v.judge?.score;
+  const issues = v.judge?.issues ?? [];
+  const tip = [
+    v.judge?.summary,
+    v.moderation?.flagged ? `⚠ Moderation: ${(v.moderation.categories ?? []).join(", ")}` : "",
+    ...issues.map((i) => `[${i.severity}] ${i.message}`),
+    v.error ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const cls = v.passed
+    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+    : "bg-red-100 text-red-800 border-red-300";
+  const label = `${v.passed ? "An toàn" : "Cần soát"}${score !== undefined ? ` ${score}` : ""}`;
+  return (
+    <span
+      title={tip || undefined}
+      className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border cursor-help ${cls}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function AgentJobsPage() {
   const data = Route.useLoaderData() as LoaderData;
   const router = useRouter();
@@ -117,14 +163,13 @@ function AgentJobsPage() {
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-sky-300 bg-sky-50 p-4 text-sm">
           <Info className="w-5 h-5 text-sky-700 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <div className="font-semibold text-sky-900">Phase 2 — sinh bài + ảnh</div>
+            <div className="font-semibold text-sky-900">Phase 3 — sinh bài + ảnh + kiểm duyệt</div>
             <div className="text-sky-900/80 mt-0.5">
-              Bấm <strong>"Chạy ngay"</strong> để bot sinh 1 bài kèm ảnh (theo chế độ ảnh của bot)
-              và lưu vào mục <strong>Bài viết</strong> ở trạng thái <strong>Chờ duyệt</strong> — bạn
-              vào đó kiểm tra rồi bấm đăng. Ảnh <strong>Stock</strong> lấy từ Pexels/Unsplash (cần{" "}
-              <code className="font-mono">PEXELS_API_KEY</code>), <strong>AI</strong> dùng OpenAI —
-              ảnh được tải về R2 và bám từ khóa nội dung bài. Lịch tự động + bot kiểm duyệt ở phase
-              kế tiếp (chưa auto-đăng dù bật "Tự động").
+              Bấm <strong>"Chạy ngay"</strong>: bot viết bài (OpenAI) → tìm ảnh liên quan (Pexels) →
+              <strong> bot kiểm duyệt nội dung</strong> (Moderation + chấm điểm theo guidelines) →
+              lưu <strong>Chờ duyệt</strong> vào mục <strong>Bài viết</strong>. Cột{" "}
+              <strong>Kiểm duyệt</strong> hiện kết quả (di chuột để xem lý do). Bài vẫn luôn cần
+              người bấm đăng — verdict sẽ là cổng cho tự-động-đăng ở phase kế tiếp.
             </div>
           </div>
         </div>
@@ -265,6 +310,7 @@ function AgentJobsPage() {
                       <th className="text-left font-medium px-5 py-2.5">Thời gian</th>
                       <th className="text-left font-medium px-3 py-2.5">Chủ đề</th>
                       <th className="text-left font-medium px-3 py-2.5">Trạng thái</th>
+                      <th className="text-left font-medium px-3 py-2.5">Kiểm duyệt</th>
                       <th className="text-left font-medium px-3 py-2.5">Bài viết</th>
                       <th className="text-right font-medium px-5 py-2.5">Chi phí</th>
                     </tr>
@@ -285,6 +331,9 @@ function AgentJobsPage() {
                         </td>
                         <td className="px-3 py-3">
                           <RunStatusPill status={r.status} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <VerdictBadge json={r.verdict_json} />
                         </td>
                         <td className="px-3 py-3 text-xs">
                           {r.blog_slug ? (
