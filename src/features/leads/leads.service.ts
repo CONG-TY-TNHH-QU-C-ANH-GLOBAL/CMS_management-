@@ -16,6 +16,11 @@ export interface LeadRow {
   ip: string | null;
   user_agent: string | null;
   utm_json: string | null;
+  // Multi-intent columns (migration 0041); NULL for legacy/unclassified leads.
+  primary_service: string | null;
+  surface: string | null;
+  service_interests_json: string | null;
+  service_details_json: string | null;
   status: LeadStatus;
   created_at: number;
 }
@@ -30,14 +35,24 @@ export interface CreateLeadInput {
   ip?: string | null;
   user_agent?: string | null;
   utm?: Record<string, string> | null;
+  // Multi-intent fields owned by lead-request.ts. Absent (null/empty) for legacy submissions.
+  primary_service?: string | null;
+  surface?: string | null;
+  service_interests?: string[] | null;
+  service_details?: Record<string, unknown> | null;
 }
 
 export async function createLead(input: CreateLeadInput): Promise<{ id: number }> {
   const utmJson = input.utm ? JSON.stringify(input.utm) : null;
+  const interestsJson =
+    input.service_interests && input.service_interests.length > 0
+      ? JSON.stringify(input.service_interests)
+      : null;
+  const detailsJson = input.service_details ? JSON.stringify(input.service_details) : null;
   const row = await getDb()
     .prepare(
-      `INSERT INTO leads(name, email, phone, message, source_page, locale, ip, user_agent, utm_json, status, created_at)
-       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', unixepoch())
+      `INSERT INTO leads(name, email, phone, message, source_page, locale, ip, user_agent, utm_json, primary_service, surface, service_interests_json, service_details_json, status, created_at)
+       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', unixepoch())
        RETURNING id`,
     )
     .bind(
@@ -50,13 +65,20 @@ export async function createLead(input: CreateLeadInput): Promise<{ id: number }
       input.ip ?? null,
       input.user_agent ?? null,
       utmJson,
+      input.primary_service ?? null,
+      input.surface ?? null,
+      interestsJson,
+      detailsJson,
     )
     .first<{ id: number }>();
   if (!row) throw new Error("Failed to create lead");
   return { id: row.id };
 }
 
-export async function listLeads(filter?: { status?: LeadStatus; limit?: number }): Promise<LeadRow[]> {
+export async function listLeads(filter?: {
+  status?: LeadStatus;
+  limit?: number;
+}): Promise<LeadRow[]> {
   const limit = Math.min(filter?.limit ?? 100, 500);
   const sql = filter?.status
     ? `SELECT * FROM leads WHERE status = ? ORDER BY created_at DESC LIMIT ?`

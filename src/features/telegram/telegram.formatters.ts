@@ -30,11 +30,14 @@ function clampBody(body: string): string {
 
 export function formatLead(p: LeadReceivedPayload): string {
   const lines = [
-    `🔔 <b>Lead mới #${p.id}</b>`,
+    `🔔 <b>Lead mới #${p.id}</b>${p.primary_service ? ` · <b>${esc(p.primary_service)}</b>` : ""}`,
     `👤 ${esc(p.name)}`,
     `📧 ${esc(p.email)}`,
   ];
   if (p.phone) lines.push(`📞 ${esc(p.phone)}`);
+  // Adjacent interests (land-and-expand) — everything selected beyond the primary.
+  const adjacent = p.service_interests.filter((s) => s !== p.primary_service);
+  if (adjacent.length > 0) lines.push(`➕ ${esc(adjacent.join(", "))}`);
   if (p.source_page) lines.push(`📍 ${esc(p.source_page)}`);
   if (p.locale) lines.push(`🌐 ${esc(p.locale)}`);
   if (p.message) lines.push("", `<i>${esc(truncate(p.message, 1200))}</i>`);

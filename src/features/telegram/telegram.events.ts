@@ -77,6 +77,11 @@ export interface LeadReceivedPayload {
   message: string | null;
   source_page: string | null;
   locale: string | null;
+  // Multi-intent (migration 0041); null/[] for legacy leads. All services share the one ops
+  // destination — the event/formatter carry the FULL intent set (primary + adjacent interests) so
+  // sales can qualify land-and-expand opportunities. Per-service channels stay a config decision.
+  primary_service: string | null;
+  service_interests: string[];
 }
 
 export interface ApplicantReceivedPayload {
@@ -127,9 +132,33 @@ export interface DraftPendingReviewPayload {
 
 export type DispatchInput =
   | { event_type: "lead_received"; payload: LeadReceivedPayload; idempotency_key?: string }
-  | { event_type: "applicant_received"; payload: ApplicantReceivedPayload; idempotency_key?: string }
-  | { event_type: "community_question_received"; payload: CommunityQuestionReceivedPayload; idempotency_key?: string }
-  | { event_type: "shipping_sync_failed"; payload: ShippingSyncFailedPayload; idempotency_key?: string }
-  | { event_type: "translation_failed"; payload: TranslationFailedPayload; idempotency_key?: string }
-  | { event_type: "provider_breaker_tripped"; payload: ProviderBreakerTrippedPayload; idempotency_key?: string }
-  | { event_type: "draft_pending_review"; payload: DraftPendingReviewPayload; idempotency_key?: string };
+  | {
+      event_type: "applicant_received";
+      payload: ApplicantReceivedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "community_question_received";
+      payload: CommunityQuestionReceivedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "shipping_sync_failed";
+      payload: ShippingSyncFailedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "translation_failed";
+      payload: TranslationFailedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "provider_breaker_tripped";
+      payload: ProviderBreakerTrippedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "draft_pending_review";
+      payload: DraftPendingReviewPayload;
+      idempotency_key?: string;
+    };
