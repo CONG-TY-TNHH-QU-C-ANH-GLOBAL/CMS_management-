@@ -29,8 +29,9 @@ function clampBody(body: string): string {
 }
 
 export function formatLead(p: LeadReceivedPayload): string {
+  const primaryTag = p.primary_service ? ` · <b>${esc(p.primary_service)}</b>` : "";
   const lines = [
-    `🔔 <b>Lead mới #${p.id}</b>${p.primary_service ? ` · <b>${esc(p.primary_service)}</b>` : ""}`,
+    `🔔 <b>Lead mới #${p.id}</b>${primaryTag}`,
     `👤 ${esc(p.name)}`,
     `📧 ${esc(p.email)}`,
   ];

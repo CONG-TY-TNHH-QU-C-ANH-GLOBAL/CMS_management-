@@ -90,7 +90,69 @@ export type ParseLeadResult =
   | { ok: true; value: NormalizedLeadRequest }
   | { ok: false; message: string };
 
+/** Internal helper outcome — a validated value or the first user-safe rejection message. */
+type Validated<T> = { ok: true; value: T } | { ok: false; message: string };
+
+/** Reject duplicates, require the primary to belong to the interests, and return the deterministic
+ *  persisted order: primary first (when present), then the remaining services in canonical registry
+ *  order. Never depends on client checkbox/submission order. */
+function normalizeServiceInterests(
+  primary: ServiceKey | null,
+  interests: ServiceKey[],
+): Validated<ServiceKey[]> {
+  if (new Set(interests).size !== interests.length) {
+    return { ok: false, message: "service_interests must not contain duplicates" };
+  }
+  if (primary !== null && !interests.includes(primary)) {
+    return { ok: false, message: "primary_service must be included in service_interests" };
+  }
+  const ordered: ServiceKey[] = [
+    ...(primary ? [primary] : []),
+    ...SERVICE_KEYS.filter((k) => interests.includes(k) && k !== primary),
+  ];
+  return { ok: true, value: ordered };
+}
+
+/** Validate each present details entry against the matching strict service schema. Detail keys must
+ *  be a subset of the selected interests; unknown services and unknown detail keys are rejected;
+ *  empty per-service objects are dropped; null when no meaningful details remain. */
+function normalizeServiceDetails(
+  details: Record<string, Record<string, unknown>> | null | undefined,
+  interests: readonly ServiceKey[],
+): Validated<Record<string, Record<string, unknown>> | null> {
+  if (!details) return { ok: true, value: null };
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (!isServiceKey(key)) {
+      return { ok: false, message: `Unknown service in service_details: "${key}"` };
+    }
+    if (!interests.includes(key)) {
+      return {
+        ok: false,
+        message: `service_details for "${key}" is not a selected service interest`,
+      };
+    }
+    const parsed = SERVICE_DETAILS_SCHEMAS[key].safeParse(value);
+    if (!parsed.success) {
+      const issue = parsed.error.errors[0];
+      const path = issue?.path.join(".");
+      const detailPathSuffix = path ? ` (${path})` : "";
+      const validationReason = issue?.message ?? "validation failed";
+      return {
+        ok: false,
+        message: `Invalid details for service "${key}"${detailPathSuffix}: ${validationReason}`,
+      };
+    }
+    // Drop empty per-service objects — a selected interest with no captured detail carries none.
+    if (Object.keys(parsed.data as object).length > 0) {
+      out[key] = parsed.data as Record<string, unknown>;
+    }
+  }
+  return { ok: true, value: Object.keys(out).length > 0 ? out : null };
+}
+
 /** Validate a raw POST /leads body into a normalized multi-intent request — or a 400 message.
+ *  Orchestration only: base parse → focused normalizers (first failure wins) → assemble.
  *  Turnstile verification, rate limiting and persistence are the caller's responsibility. */
 export function parseLeadRequest(body: unknown): ParseLeadResult {
   const base = leadRequestBaseSchema.safeParse(body);
@@ -98,55 +160,13 @@ export function parseLeadRequest(body: unknown): ParseLeadResult {
     return { ok: false, message: base.error.errors[0]?.message ?? "Validation failed" };
   }
   const b = base.data;
-
-  const interests = b.service_interests ?? [];
-  if (new Set(interests).size !== interests.length) {
-    return { ok: false, message: "service_interests must not contain duplicates" };
-  }
-
   const primary = b.primary_service ?? null;
-  if (primary !== null && !interests.includes(primary)) {
-    return { ok: false, message: "primary_service must be included in service_interests" };
-  }
 
-  // Deterministic persisted order — primary first (when present), then the remaining interests in
-  // canonical registry order. Never depends on client checkbox/submission order.
-  const orderedInterests: ServiceKey[] = [
-    ...(primary ? [primary] : []),
-    ...SERVICE_KEYS.filter((k) => interests.includes(k) && k !== primary),
-  ];
+  const interests = normalizeServiceInterests(primary, b.service_interests ?? []);
+  if (!interests.ok) return { ok: false, message: interests.message };
 
-  // Validate each present details entry against its service schema. Detail keys must be a subset
-  // of the selected interests, and unknown detail keys are rejected (.strict()).
-  let normalizedDetails: Record<string, Record<string, unknown>> | null = null;
-  if (b.service_details) {
-    const out: Record<string, Record<string, unknown>> = {};
-    for (const [key, value] of Object.entries(b.service_details)) {
-      if (!isServiceKey(key)) {
-        return { ok: false, message: `Unknown service in service_details: "${key}"` };
-      }
-      if (!interests.includes(key)) {
-        return {
-          ok: false,
-          message: `service_details for "${key}" is not a selected service interest`,
-        };
-      }
-      const parsed = SERVICE_DETAILS_SCHEMAS[key].safeParse(value);
-      if (!parsed.success) {
-        const issue = parsed.error.errors[0];
-        const path = issue?.path.join(".");
-        return {
-          ok: false,
-          message: `Invalid details for service "${key}"${path ? ` (${path})` : ""}: ${issue?.message ?? "validation failed"}`,
-        };
-      }
-      // Drop empty per-service objects — a selected interest with no captured detail carries none.
-      if (Object.keys(parsed.data as object).length > 0) {
-        out[key] = parsed.data as Record<string, unknown>;
-      }
-    }
-    normalizedDetails = Object.keys(out).length > 0 ? out : null;
-  }
+  const details = normalizeServiceDetails(b.service_details, interests.value);
+  if (!details.ok) return { ok: false, message: details.message };
 
   return {
     ok: true,
@@ -159,8 +179,8 @@ export function parseLeadRequest(body: unknown): ParseLeadResult {
       locale: b.locale ?? null,
       utm: b.utm ?? null,
       primary_service: primary,
-      service_interests: orderedInterests,
-      service_details: normalizedDetails,
+      service_interests: interests.value,
+      service_details: details.value,
       surface: b.surface ?? null,
       turnstile_token: b.turnstile_token,
     },

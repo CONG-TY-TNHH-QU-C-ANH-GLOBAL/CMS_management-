@@ -176,6 +176,42 @@ rejected(
   assert.equal(v.service_details, null);
 }
 
+// 12b. Every current service's details schema: an empty details object is accepted (and dropped —
+// no verified fields yet), and an unexpected detail key is rejected. No business fields fabricated.
+for (const svc of ["express", "warehouse", "dropship"] as const) {
+  const inlineSurface = `${svc}-inline` as const;
+  const accepted = ok({
+    ...base,
+    primary_service: svc,
+    service_interests: [svc],
+    service_details: { [svc]: {} },
+    surface: inlineSurface,
+  });
+  assert.equal(accepted.service_details, null, `${svc}: empty details dropped`);
+  rejected(
+    {
+      ...base,
+      primary_service: svc,
+      service_interests: [svc],
+      service_details: { [svc]: { unexpected: 1 } },
+      surface: inlineSurface,
+    },
+    `${svc}: unexpected detail key`,
+  );
+}
+
+// 12c. An unknown service key inside service_details is rejected.
+rejected(
+  {
+    ...base,
+    primary_service: "fulfill",
+    service_interests: ["fulfill"],
+    service_details: { spaceship: {} },
+    surface: "fulfill-inline",
+  },
+  "unknown service key in service_details",
+);
+
 // 13. Turnstile + common fields remain mandatory.
 rejected({ name: "Jane", email: "jane@example.com" }, "missing turnstile_token");
 rejected({ email: "jane@example.com", turnstile_token: "tok" }, "missing name");
@@ -237,7 +273,21 @@ rejected({ ...base, email: "not-an-email" }, "invalid email");
   assert.ok(!/console\./.test(src), "lead-request.ts must not log");
 }
 
-assert.ok(SURFACE_KEYS.length >= 5);
+// 17. Public-contract snapshot — the canonical ordered key sets are governance-locked. Adding a
+// service or surface intentionally requires a coordinated update here (contract governance, not a
+// permanent architectural limit).
+assert.deepEqual([...SERVICE_KEYS], ["fulfill", "express", "warehouse", "dropship"]);
+assert.deepEqual(
+  [...SURFACE_KEYS],
+  [
+    "global-services-dialog",
+    "fulfill-inline",
+    "express-inline",
+    "warehouse-inline",
+    "dropship-inline",
+    "home-conversion-inline",
+  ],
+);
 console.log(
   `✓ leads-contract self-check passed (${SERVICE_KEYS.length} services, ${SURFACE_KEYS.length} surfaces, multi-intent)`,
 );
