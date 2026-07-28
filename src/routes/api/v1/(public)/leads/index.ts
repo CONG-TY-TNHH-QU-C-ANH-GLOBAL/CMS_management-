@@ -1,21 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
-import { createLead } from "@/features/leads";
+import { createLead, parseLeadRequest } from "@/features/leads";
 import { dispatchEvent } from "@/features/telegram";
-
-const leadSchema = z.object({
-  name: z.string().trim().min(1, "Tên không được rỗng").max(120),
-  email: z.string().trim().email("Email không hợp lệ").max(254),
-  phone: z.string().trim().max(40).optional().nullable(),
-  message: z.string().trim().max(2000).optional().nullable(),
-  source_page: z.string().trim().max(500).optional().nullable(),
-  locale: z.enum(["en", "vi", "zh"]).optional().nullable(),
-  utm: z.record(z.string()).optional().nullable(),
-  turnstile_token: z.string().min(1, "Missing Turnstile token"),
-});
 
 export const Route = createFileRoute("/api/v1/(public)/leads/")({
   server: {
@@ -37,13 +25,12 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           return corsError(request, 400, "Body phải là JSON hợp lệ");
         }
 
-        const parsed = leadSchema.safeParse(body);
-        if (!parsed.success) {
-          const first = parsed.error.errors[0];
-          return corsError(request, 400, first?.message ?? "Validation failed");
+        const parsed = parseLeadRequest(body);
+        if (!parsed.ok) {
+          return corsError(request, 400, parsed.message);
         }
 
-        const data = parsed.data;
+        const data = parsed.value;
         const ok = await verifyTurnstile(data.turnstile_token, ip);
         if (!ok) {
           return corsError(request, 403, "Turnstile verification failed");
@@ -53,13 +40,17 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
         const { id } = await createLead({
           name: data.name,
           email: data.email,
-          phone: data.phone ?? null,
-          message: data.message ?? null,
-          source_page: data.source_page ?? null,
-          locale: data.locale ?? null,
+          phone: data.phone,
+          message: data.message,
+          source_page: data.source_page,
+          locale: data.locale,
           ip,
           user_agent: userAgent,
-          utm: data.utm ?? null,
+          utm: data.utm,
+          primary_service: data.primary_service,
+          surface: data.surface,
+          service_interests: data.service_interests,
+          service_details: data.service_details,
         });
 
         // Route to subscribed Telegram channels via durable outbox.
@@ -80,10 +71,12 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
               id,
               name: data.name,
               email: data.email,
-              phone: data.phone ?? null,
-              message: data.message ?? null,
-              source_page: data.source_page ?? null,
-              locale: data.locale ?? null,
+              phone: data.phone,
+              message: data.message,
+              source_page: data.source_page,
+              locale: data.locale,
+              primary_service: data.primary_service,
+              service_interests: data.service_interests,
             },
           });
           console.log(`[telegram] lead_received#${id} enqueued ${enqueued} row(s)`);
