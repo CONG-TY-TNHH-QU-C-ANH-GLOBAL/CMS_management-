@@ -17,13 +17,23 @@
 -- created against stale copy (source_hash = canonical computeSourceHash; the public endpoint only
 -- exposes status='reviewed').
 --
--- SELF-CHECKING: preflight aborts (non-zero) BEFORE any write if a managed identity is already
--- duplicated; postflight aborts after writes if the managed shape is wrong. Both use a CHECK
--- constraint so wrangler stops the rollout.
+-- SELF-CHECKING + ATOMIC: preflight aborts (non-zero) BEFORE any write if a managed identity is
+-- already duplicated; postflight aborts after writes if the managed shape is wrong. Both use a
+-- CHECK constraint so wrangler stops the rollout. `wrangler d1 execute --file` runs this whole
+-- file as ONE atomic D1 transaction (verified: a mid-file failure rolls back every domain write
+-- AND the staging tables) — a failed preflight/postflight leaves the database exactly as before.
 --
--- ROLLOUT (serial, single operator — concurrency is OPERATIONAL, not DB-enforced: there is no
--- unique index on (page_slug,kind,payload.key) and adding one is an unjustified cross-page schema
--- change). Run exactly one copy at a time:
+-- SERIALIZATION — read before running:
+--   • EN/ZH translations are DB-enforced unique: service_block_translations UNIQUE(service_block_id,
+--     locale) makes a duplicate impossible.
+--   • VI-row uniqueness is OPERATIONALLY protected, NOT database-enforced: service_blocks has no
+--     unique index on (page_slug, kind, payload.key), and adding a cross-page expression index is
+--     an unjustified schema change for this bootstrap batch.
+--   • Therefore: run this seed ONCE, by ONE designated operator. Concurrent execution is PROHIBITED
+--     (two truly-parallel runs could each pass the anti-join before either commits a VI row).
+--   • The duplicate preflight and the postflight assertions remain MANDATORY — do not strip them.
+--   No CI workflow runs seed files today (db-migrate.yml is workflow_dispatch for MIGRATIONS only,
+--   with no concurrency group / environment approval); apply manually, serially:
 --   bunx wrangler d1 execute thg-cms --remote --file=db/seeds/fulfill-service-blocks.sql
 -- ============================================================================================
 
