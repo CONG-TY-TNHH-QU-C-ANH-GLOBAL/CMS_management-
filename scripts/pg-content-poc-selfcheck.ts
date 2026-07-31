@@ -508,7 +508,7 @@ async function main(): Promise<void> {
     const vi = await getPublishedBlocks(exec, "thg-fulfill", "vi");
     await runCheck("manifest: section_copy title/NULL description preserved", () => {
       const heading = vi.find((b) => b.block_key === "consult-heading");
-      assert.ok(heading && heading.title === "Mở hồ sơ vận hành." && heading.description === null);
+      assert.ok(heading?.title === "Mở hồ sơ vận hành." && heading?.description === null);
     });
     await runCheck("manifest: every DTO carries payload.key = block_key", () =>
       assert.ok(vi.every((b) => toPublicDto(b).payload.key === b.block_key)),

@@ -121,14 +121,12 @@ export function createRequestPgScope(
       throw new ContentError("db_unavailable", "request database scope is already closed");
     if (exec) return exec;
     const cs = connectionStringOf(env); // throws db_unavailable when no binding/URL is configured
-    if (!sqlPromise) {
-      // Store the in-flight promise BEFORE awaiting so concurrent getExec() calls share one attempt;
-      // clear it on failure so the request-local state is not left poisoned.
-      sqlPromise = connect(cs).catch((err) => {
-        sqlPromise = null;
-        throw err;
-      });
-    }
+    // Store the in-flight promise BEFORE awaiting so concurrent getExec() calls share one attempt; the
+    // catch clears it on failure so a REJECTED connection is never cached (the next call retries).
+    sqlPromise ??= connect(cs).catch((err) => {
+      sqlPromise = null;
+      throw err;
+    });
     const sql = await sqlPromise;
     exec ??= postgresExec(sql);
     return exec;
