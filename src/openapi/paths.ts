@@ -77,7 +77,6 @@ import {
   MALFORMED_JSON,
   SLUG_PARAM,
   TURNSTILE_FAILED,
-  errorBodySchema,
   errorResponse,
   jsonBody,
   jsonResponse,
