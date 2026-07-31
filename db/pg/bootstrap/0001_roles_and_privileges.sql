@@ -26,30 +26,41 @@ REVOKE ALL ON ALL TABLES IN SCHEMA content FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA content FROM PUBLIC;
 -- (Intentionally NO GRANT … TO anon, authenticated, service_role — do not expose via PostgREST.)
 
--- ── Runtime role (the Worker): read everything; write structure + revisions + publication pointer.
---    Crucially: NO UPDATE and NO DELETE on revisions → published history is immutable by privilege
---    (the trigger in the migration is defense-in-depth). Structural removal is a soft-delete (UPDATE
---    is_active); there is no hard DELETE grant for the runtime. ─────────────────────────────────────
+-- ── Runtime role (the Worker): read everything; write structure via COLUMN-LEVEL grants so business
+--    identity is not mutable, append revisions, and publish ONLY through content.publish_revision.
+--    • Revisions: INSERT only (no UPDATE/DELETE) → history immutable by privilege (trigger = defense).
+--    • Publications: NO direct INSERT/UPDATE/DELETE — EXECUTE on the function is the only path, so
+--      reviewed-only + ownership + optimistic concurrency are enforced in the DB.
+--    • Identity columns (page slug; block page_id/kind/block_key; localization block_id/locale) are
+--      omitted from every UPDATE grant, so the runtime cannot rewrite them. ─────────────────────────
 GRANT USAGE ON SCHEMA content TO thg_cms_runtime;
 GRANT SELECT ON ALL TABLES IN SCHEMA content TO thg_cms_runtime;
-GRANT INSERT, UPDATE ON content.service_content_pages TO thg_cms_runtime;
-GRANT INSERT, UPDATE ON content.service_content_blocks TO thg_cms_runtime;
-GRANT INSERT ON content.service_content_localizations TO thg_cms_runtime;
-GRANT INSERT ON content.service_content_revisions TO thg_cms_runtime;          -- append only (no UPDATE/DELETE)
-GRANT INSERT, UPDATE ON content.service_content_publications TO thg_cms_runtime;
+GRANT INSERT ON content.service_content_pages TO thg_cms_runtime;
+GRANT UPDATE (status, updated_at) ON content.service_content_pages TO thg_cms_runtime;           -- NOT slug (stable identity)
+GRANT INSERT ON content.service_content_blocks TO thg_cms_runtime;
+GRANT UPDATE (position, icon, core_config, is_active, version, updated_at)
+  ON content.service_content_blocks TO thg_cms_runtime;                                          -- NOT page_id/kind/block_key
+GRANT INSERT ON content.service_content_localizations TO thg_cms_runtime;                        -- no UPDATE: block_id/locale are identity
+GRANT INSERT ON content.service_content_revisions TO thg_cms_runtime;                            -- append only (no UPDATE/DELETE)
+-- (Intentionally NO INSERT/UPDATE/DELETE on service_content_publications for the runtime.)
+GRANT EXECUTE ON FUNCTION content.publish_revision(bigint, bigint, bigint, bigint) TO thg_cms_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA content TO thg_cms_runtime;
 ALTER ROLE thg_cms_runtime SET search_path = content;  -- pinned; unqualified names resolve to content
 
 -- ── Importer role (manifest import): same write surface as runtime + locale governance INSERTs.
---    Still append-only for revisions. ─────────────────────────────────────────────────────────────
+--    Identical identity protection (column-level UPDATE) and single publication path (function only);
+--    still append-only for revisions. ─────────────────────────────────────────────────────────────
 GRANT USAGE ON SCHEMA content TO thg_content_importer;
 GRANT SELECT ON ALL TABLES IN SCHEMA content TO thg_content_importer;
-GRANT INSERT, UPDATE ON content.content_locales TO thg_content_importer;
-GRANT INSERT, UPDATE ON content.service_content_pages TO thg_content_importer;
-GRANT INSERT, UPDATE ON content.service_content_blocks TO thg_content_importer;
+GRANT INSERT, UPDATE ON content.content_locales TO thg_content_importer;                          -- locale governance
+GRANT INSERT ON content.service_content_pages TO thg_content_importer;
+GRANT UPDATE (status, updated_at) ON content.service_content_pages TO thg_content_importer;       -- NOT slug
+GRANT INSERT ON content.service_content_blocks TO thg_content_importer;
+GRANT UPDATE (position, icon, core_config, is_active, version, updated_at)
+  ON content.service_content_blocks TO thg_content_importer;                                       -- NOT page_id/kind/block_key
 GRANT INSERT ON content.service_content_localizations TO thg_content_importer;
 GRANT INSERT ON content.service_content_revisions TO thg_content_importer;
-GRANT INSERT, UPDATE ON content.service_content_publications TO thg_content_importer;
+GRANT EXECUTE ON FUNCTION content.publish_revision(bigint, bigint, bigint, bigint) TO thg_content_importer;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA content TO thg_content_importer;
 ALTER ROLE thg_content_importer SET search_path = content;
 

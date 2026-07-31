@@ -11,7 +11,7 @@
 //
 // Run:  SMOKE_DATABASE_URL="postgres://…preview…" bun scripts/pg-runtime-smoke.ts
 import { createRuntimeExec, healthCheck } from "../src/features/content-pg/pg-adapter";
-import { createBlock } from "../src/features/content-pg/content.repo";
+import { createPage, createBlock, upsertLocalization, createRevision, publish } from "../src/features/content-pg/content.repo";
 import { ContentError } from "../src/features/content-pg/content.errors";
 
 const url = process.env.SMOKE_DATABASE_URL;
@@ -41,21 +41,33 @@ async function main(): Promise<void> {
     const rows = await exec.tx(async (tx) => tx.query<{ two: number }>("SELECT $1::int + $1::int AS two", [1]));
     ok(rows[0]?.two === 2, "transaction + prepared parameterized query round-trip");
 
-    // Error MAPPING through the repo: a duplicate-identity insert surfaces as a typed ContentError
-    // (not a raw driver throw), and no credential/connection string leaks into the message.
+    // A disposable page/block/localization for the write-path checks (unique slug per run).
+    const pageId = await createPage(exec, `smoke-${Date.now()}`);
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 1, coreConfig: {} });
+    const locId = await upsertLocalization(exec, blockId, "en");
+    const reviewed = await createRevision(exec, "capability", { localizationId: locId, title: "ok", description: "d", reviewStatus: "reviewed" });
+    const draft = await createRevision(exec, "capability", { localizationId: locId, title: "wip", description: "d", reviewStatus: "draft" });
+
+    // Publication APPROVAL through content.publish_revision (reviewed passes).
+    await publish(exec, locId, reviewed);
+    ok(true, "publication approval: reviewed revision published via content.publish_revision");
+
+    // Publication REJECTION (draft) surfaces as a typed ContentError; no credential leaks in the message.
     try {
-      const pageId = await exec.tx(async (tx) =>
-        (await tx.query<{ id: number }>(
-          "INSERT INTO service_content_pages (slug) VALUES ($1) ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug RETURNING id",
-          [`smoke-${Date.now()}`],
-        ))[0].id);
-      await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 1, coreConfig: {} });
-      await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 1, coreConfig: {} });
-      ok(false, "expected duplicate-identity error on second insert");
+      await publish(exec, locId, draft);
+      ok(false, "expected draft publish to be rejected");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      ok(e instanceof ContentError, "duplicate insert maps to a typed ContentError");
+      ok(e instanceof ContentError && e.code === "not_publishable", "publication rejection: draft rejected as typed ContentError");
       ok(!msg.includes("@") && !msg.includes(url!), "error message carries no credential/connection string");
+    }
+
+    // Error MAPPING: a duplicate-identity insert surfaces as a typed ContentError, not a raw throw.
+    try {
+      await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 2, coreConfig: {} });
+      ok(false, "expected duplicate-identity error on second insert");
+    } catch (e) {
+      ok(e instanceof ContentError, "duplicate insert maps to a typed ContentError");
     }
   }
   console.log(`\n${failed === 0 ? "smoke PASSED" : "smoke FAILED"} (${failed} failed)`);

@@ -53,6 +53,14 @@ function mapDbError(err: unknown): ContentError {
       "a block with this (page, kind, block_key) already exists",
     );
   }
+  // content.publish_revision guards. Pointer-moved (optimistic concurrency) → conflict; every other
+  // "publish rejected" (non-reviewed status, missing/cross-localization revision) → not_publishable.
+  if (code === "40001" || /pointer moved/.test(msg)) {
+    return new ContentError("conflict", "publication pointer moved; retry with the current revision");
+  }
+  if (/publish rejected/.test(msg)) {
+    return new ContentError("not_publishable", "revision is not eligible to be published");
+  }
   return new ContentError("db_unavailable", "content store write failed");
 }
 
@@ -134,16 +142,26 @@ export async function createRevision(exec: PgExec, kind: Kind, r: NewRevision): 
 }
 
 /** Atomically move the published pointer for a localization to a specific revision. */
+/** Move the published pointer via the DB function content.publish_revision — the ONLY publication path.
+ *  The runtime role has no direct write on the publication table, only EXECUTE on this function, which
+ *  enforces ownership + review_status='reviewed' + optional optimistic concurrency in the DB. Passing
+ *  expectedRevisionId guards against a lost update (the pointer must still hold that revision). */
 export async function publish(
   exec: PgExec,
   localizationId: number,
   revisionId: number,
+  expectedRevisionId?: number,
 ): Promise<void> {
-  await exec.query(
-    `INSERT INTO service_content_publications (localization_id, revision_id) VALUES ($1, $2)
-     ON CONFLICT (localization_id) DO UPDATE SET revision_id = EXCLUDED.revision_id, published_at = now()`,
-    [localizationId, revisionId],
-  );
+  try {
+    await exec.query("SELECT content.publish_revision($1, $2, $3, $4)", [
+      localizationId,
+      revisionId,
+      null,
+      expectedRevisionId ?? null,
+    ]);
+  } catch (err) {
+    throw mapDbError(err);
+  }
 }
 
 /** Published, locale-resolved blocks for a page — active blocks whose requested locale has a published

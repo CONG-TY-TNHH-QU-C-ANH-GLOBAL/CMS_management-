@@ -6,6 +6,7 @@ export type ContentErrorCode =
   | "invalid_payload"
   | "invalid_text"
   | "duplicate_identity"
+  | "not_publishable"
   | "not_found"
   | "conflict"
   | "db_unavailable";

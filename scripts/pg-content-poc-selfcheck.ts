@@ -24,6 +24,8 @@ import {
   type ContentManifest,
 } from "../src/features/content-pg/manifests/fulfill.content";
 
+type NewRevisionStatus = "draft" | "reviewed" | "stale" | "failed";
+
 let passed = 0;
 let failed = 0;
 function ok(cond: boolean, label: string): void {
@@ -76,6 +78,21 @@ async function freshDb(): Promise<PgExec> {
   await upsertLocale(exec, { code: "en", nativeName: "English", isActive: true, isSource: false });
   await upsertLocale(exec, { code: "zh", nativeName: "中文", isActive: true, isSource: false });
   return exec;
+}
+
+/** Like freshDb but ALSO applies the real role/privilege bootstrap and returns the raw PGlite handle
+ *  so tests can `SET ROLE thg_cms_runtime` and prove least-privilege. PGlite enforces column-level
+ *  GRANTs and SET ROLE (verified), so these are real privilege checks, not simulations. */
+async function freshDbWithRoles(): Promise<{ db: PGlite; exec: PgExec }> {
+  const db = new PGlite();
+  const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
+  await db.exec(read("../db/pg/migrations/0001_service_content.sql"));
+  await db.exec(read("../db/pg/bootstrap/0001_roles_and_privileges.sql"));
+  await db.exec("SET search_path TO content, public;"); // session path persists across SET ROLE
+  const exec = pgliteExec(db);
+  await upsertLocale(exec, { code: "vi", nativeName: "Tiếng Việt", isActive: true, isSource: true });
+  await upsertLocale(exec, { code: "en", nativeName: "English", isActive: true, isSource: false });
+  return { db, exec };
 }
 
 /** Generic manifest importer (sketch of the future importer): validate-by-kind is enforced in the repo;
@@ -162,8 +179,10 @@ async function main(): Promise<void> {
       "reviewed revision without publish pointer is NOT served",
     );
 
-    // §7: a NEW draft does not alter published content until publish moves the pointer atomically.
-    const rev2 = await createRevision(exec, "journey_step", {
+    // §7: a NEW draft does not alter published content, and (§2) publishing a draft is rejected by the
+    // DB function — review_status is fixed at creation (revisions are immutable), so approval is a new
+    // reviewed revision, not an in-place status flip.
+    const rev2draft = await createRevision(exec, "journey_step", {
       localizationId: locId,
       title: "Design Input EDITED",
       description: "v2 desc",
@@ -173,10 +192,25 @@ async function main(): Promise<void> {
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input",
       "new draft does NOT change published content",
     );
-    await publish(exec, locId, rev2);
+    await expectContentError(
+      () => publish(exec, locId, rev2draft),
+      "not_publishable",
+      "publishing a draft revision is rejected by content.publish_revision",
+    );
+    ok(
+      (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input",
+      "rejected publish leaves the current published revision unchanged",
+    );
+    const rev2 = await createRevision(exec, "journey_step", {
+      localizationId: locId,
+      title: "Design Input EDITED",
+      description: "v2 desc",
+      reviewStatus: "reviewed",
+    });
+    await publish(exec, locId, rev2, revId); // optimistic: expect the pointer still holds revId
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input EDITED",
-      "publish atomically moves the pointer to the new revision",
+      "publish atomically moves the pointer to the new reviewed revision",
     );
     ok(revId !== rev2, "revisions are append-only (distinct ids)");
   }
@@ -394,6 +428,120 @@ async function main(): Promise<void> {
       /append-only|immutable/i,
       "DELETE of a revision is rejected (immutable history)",
     );
+  }
+
+  // ── §2 Publication eligibility enforced by content.publish_revision (not service code) ──────────
+  {
+    const exec = await freshDb();
+    const pageId = await createPage(exec, "thg-fulfill");
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const locId = await upsertLocalization(exec, blockId, "vi");
+    const mkRev = (status: NewRevisionStatus) =>
+      createRevision(exec, "capability", { localizationId: locId, title: `t-${status}`, description: "d", reviewStatus: status });
+
+    // reviewed → publishes; establishes the baseline pointer.
+    const reviewed = await mkRev("reviewed");
+    await publish(exec, locId, reviewed);
+    ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed", "reviewed revision publishes");
+
+    // every non-reviewed state is rejected, and the baseline pointer never moves.
+    for (const bad of ["draft", "stale", "failed"] as const) {
+      const rev = await mkRev(bad);
+      await expectContentError(() => publish(exec, locId, rev), "not_publishable", `${bad} revision is rejected`);
+      ok(
+        (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed",
+        `published pointer unchanged after rejected ${bad} publish`,
+      );
+    }
+
+    // cross-localization publish stays rejected through the function too (ownership re-checked).
+    const enLoc = await upsertLocalization(exec, blockId, "en");
+    await expectContentError(() => publish(exec, enLoc, reviewed), "not_publishable", "cross-localization publish rejected by function");
+
+    // approved move is atomic: pointer flips to the new reviewed revision in one call.
+    const reviewed2 = await mkRev("reviewed");
+    await publish(exec, locId, reviewed2, reviewed);
+    ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed", "atomic move: pointer now on reviewed2");
+    // optimistic concurrency: a stale expected-pointer is rejected as a conflict.
+    await expectContentError(() => publish(exec, locId, reviewed2, reviewed), "conflict", "stale optimistic token rejected");
+  }
+
+  // ── §3 Deletion / history semantics — RESTRICT boundaries, soft-delete + archive lifecycle ──────
+  {
+    const exec = await freshDb();
+    const pageId = await createPage(exec, "thg-fulfill");
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const locId = await upsertLocalization(exec, blockId, "vi");
+    await publish(
+      exec,
+      locId,
+      await createRevision(exec, "capability", { localizationId: locId, title: "keep", description: "d", reviewStatus: "reviewed" }),
+    );
+    // Historical boundaries reject hard delete PREDICTABLY (FK RESTRICT → 23503), not via the trigger.
+    await expectThrows(
+      () => exec.query("DELETE FROM service_content_blocks WHERE id = $1", [blockId]),
+      /foreign key|violates|23503/i,
+      "deleting a block that has localizations/revisions is rejected (RESTRICT)",
+    );
+    await expectThrows(
+      () => exec.query("DELETE FROM service_content_pages WHERE id = $1", [pageId]),
+      /foreign key|violates|23503/i,
+      "deleting a page that owns blocks is rejected (RESTRICT)",
+    );
+    // Supported lifecycle: disable the block, archive the page — history stays intact.
+    await exec.query("UPDATE service_content_blocks SET is_active = false WHERE id = $1", [blockId]);
+    await exec.query("UPDATE service_content_pages SET status = 'archived' WHERE id = $1", [pageId]);
+    ok((await getPublishedBlocks(exec, "thg-fulfill", "vi")).length === 0, "disabled block is not served (soft-delete)");
+    const revCount = await exec.query<{ n: number }>("SELECT count(*)::int AS n FROM service_content_revisions");
+    ok(revCount[0].n === 1, "no historical revision was removed by the lifecycle operations");
+    // Empty scaffolding (no localizations) IS deletable — documented behavior.
+    const emptyBlock = await createBlock(exec, { pageId, kind: "capability", blockKey: "scratch", position: 9 });
+    await exec.query("DELETE FROM service_content_blocks WHERE id = $1", [emptyBlock]);
+    ok(true, "empty block with no localizations can be deleted (documented cleanup path)");
+  }
+
+  // ── §1 Least-privilege runtime role — real column-level GRANTs via SET ROLE (PGlite enforces) ────
+  {
+    const { db, exec } = await freshDbWithRoles();
+    const pageId = await createPage(exec, "thg-fulfill");
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const locId = await upsertLocalization(exec, blockId, "vi");
+    const revId = await createRevision(exec, "capability", { localizationId: locId, title: "t", description: "d", reviewStatus: "reviewed" });
+
+    const asRuntime = async (sql: string) => {
+      await db.exec("SET ROLE thg_cms_runtime;");
+      try {
+        await db.exec(sql);
+      } finally {
+        await db.exec("RESET ROLE;");
+      }
+    };
+    const denied = async (sql: string, label: string) =>
+      expectThrows(() => asRuntime(sql), /permission denied|not.*allowed/i, label);
+    const allowed = async (sql: string, label: string) => {
+      try {
+        await asRuntime(sql);
+        ok(true, label);
+      } catch (e) {
+        ok(false, `${label} (${(e as Error).message})`);
+      }
+    };
+
+    // Mutable structure columns → allowed.
+    await allowed(`UPDATE content.service_content_blocks SET position = 2, is_active = false WHERE id = ${blockId}`, "runtime may UPDATE block position/is_active");
+    await allowed(`UPDATE content.service_content_pages SET status = 'archived' WHERE id = ${pageId}`, "runtime may UPDATE page status");
+    // Business-identity columns → denied.
+    await denied(`UPDATE content.service_content_blocks SET kind = 'solution' WHERE id = ${blockId}`, "runtime may NOT UPDATE block kind");
+    await denied(`UPDATE content.service_content_blocks SET block_key = 'x' WHERE id = ${blockId}`, "runtime may NOT UPDATE block_key");
+    await denied(`UPDATE content.service_content_blocks SET page_id = ${pageId} WHERE id = ${blockId}`, "runtime may NOT UPDATE block page_id");
+    await denied(`UPDATE content.service_content_pages SET slug = 'x' WHERE id = ${pageId}`, "runtime may NOT UPDATE page slug");
+    await denied(`UPDATE content.service_content_localizations SET locale = 'en' WHERE id = ${locId}`, "runtime may NOT UPDATE localization identity");
+    // Revisions append-only by privilege (independent of the trigger).
+    await denied(`UPDATE content.service_content_revisions SET title = 'x' WHERE id = ${revId}`, "runtime may NOT UPDATE a revision");
+    await denied(`DELETE FROM content.service_content_revisions WHERE id = ${revId}`, "runtime may NOT DELETE a revision");
+    // Publications: no direct write; the function is the only path.
+    await denied(`INSERT INTO content.service_content_publications (localization_id, revision_id) VALUES (${locId}, ${revId})`, "runtime may NOT INSERT a publication directly");
+    await allowed(`SELECT content.publish_revision(${locId}, ${revId}, NULL, NULL)`, "runtime MAY publish via EXECUTE on the function");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
