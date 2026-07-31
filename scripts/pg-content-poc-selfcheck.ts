@@ -48,13 +48,24 @@ async function expectContentError(
   }
 }
 
+async function expectThrows(fn: () => Promise<unknown>, matcher: RegExp, label: string): Promise<void> {
+  try {
+    await fn();
+    ok(false, `${label} (expected throw, none)`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    ok(matcher.test(msg), `${label}`);
+  }
+}
+
 async function freshDb(): Promise<PgExec> {
   const db = new PGlite();
   const schema = readFileSync(
     fileURLToPath(new URL("../db/pg/migrations/0001_service_content.sql", import.meta.url)),
     "utf8",
   );
-  await db.exec(schema); // §7: migrations apply cleanly
+  await db.exec(schema); // §7: migrations apply cleanly (private `content` schema)
+  await db.exec("SET search_path TO content, public;"); // mirrors the runtime role's pinned path
   const exec = pgliteExec(db);
   await upsertLocale(exec, {
     code: "vi",
@@ -346,6 +357,42 @@ async function main(): Promise<void> {
     ok(
       vi.every((b) => toPublicDto(b).payload.key === b.block_key),
       "manifest: every DTO carries payload.key = block_key",
+    );
+  }
+
+  // ── §3 Publication ownership enforced by the DB (composite FK), not by service code ─────────────
+  {
+    const exec = await freshDb();
+    const pageId = await createPage(exec, "thg-fulfill");
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const locVi = await upsertLocalization(exec, blockId, "vi");
+    const locEn = await upsertLocalization(exec, blockId, "en");
+    await createRevision(exec, "capability", { localizationId: locVi, title: "VI", description: "d", reviewStatus: "reviewed" });
+    const revEn = await createRevision(exec, "capability", { localizationId: locEn, title: "EN", description: "d", reviewStatus: "reviewed" });
+    // Publish localization A (vi) pointing at revision R that belongs to localization B (en).
+    await expectThrows(
+      () => exec.query("INSERT INTO service_content_publications (localization_id, revision_id) VALUES ($1, $2)", [locVi, revEn]),
+      /foreign key|violates/i,
+      "publication cannot point to a revision from another localization (composite FK rejects)",
+    );
+  }
+
+  // ── §4 Revisions are immutable at the DB level (append-only) ─────────────────────────────────
+  {
+    const exec = await freshDb();
+    const pageId = await createPage(exec, "thg-fulfill");
+    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const locId = await upsertLocalization(exec, blockId, "vi");
+    const revId = await createRevision(exec, "capability", { localizationId: locId, title: "orig", description: "d", reviewStatus: "reviewed" });
+    await expectThrows(
+      () => exec.query("UPDATE service_content_revisions SET title = 'mutated' WHERE id = $1", [revId]),
+      /append-only|immutable/i,
+      "UPDATE of a revision is rejected (immutable history)",
+    );
+    await expectThrows(
+      () => exec.query("DELETE FROM service_content_revisions WHERE id = $1", [revId]),
+      /append-only|immutable/i,
+      "DELETE of a revision is rejected (immutable history)",
     );
   }
 
