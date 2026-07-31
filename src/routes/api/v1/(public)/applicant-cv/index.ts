@@ -33,8 +33,20 @@ function slugify(s: string): string {
     .slice(0, 60);
 }
 
+/** Unguessable object-key prefix for a CV upload.
+ *
+ *  The stored object is reachable through the public /api/v1/media/{key} proxy, so this random
+ *  component IS the access control on an applicant's CV — the route classification records that
+ *  explicitly. It must therefore be cryptographically random: Math.random() is a seeded PRNG
+ *  whose output is predictable from observed values, which would let someone who has seen one
+ *  CV URL derive others. crypto.getRandomValues is available in the Workers runtime.
+ *
+ *  128 bits, base36-encoded. The key SHAPE is unchanged (`applicants/<id>-<name>.<ext>`), so
+ *  every already-issued URL keeps working and no consumer changes. */
 function shortId(): string {
-  return Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 8);
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
 }
 
 export const Route = createFileRoute("/api/v1/(public)/applicant-cv/")({

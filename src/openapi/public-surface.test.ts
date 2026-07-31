@@ -294,15 +294,15 @@ test("no public response shape exposes an internal or raw-database field", () =>
   expect(leaks, "Internal field reached a public response schema.").toEqual([]);
 });
 
-test("site-settings exposes exactly today's fields — a new operator-config field must be a decision", () => {
-  // `lead_form_destination` is operator configuration (an admin-set URL) on an unauthenticated
-  // endpoint that NO landing code reads. It predates the contract freeze, and removing it is a
-  // wire-shape change touching the landing's cmsSchemas.ts and cms-generated.d.ts — so it needs
-  // the deprecation policy and an owner decision, not a quiet edit.
+test("site-settings exposes exactly the approved fields and no operator configuration", () => {
+  // `lead_form_destination` was REMOVED from this response: it is operator configuration (an
+  // admin-set URL naming where leads are routed) that was published on an unauthenticated
+  // endpoint with no consumer in either landing app. The column and the admin editor are
+  // untouched; only the public projection dropped it.
   //
-  // This test does not bless it. It PINS the shape: the concern stays visible, the field cannot
-  // be dropped without someone reading this comment, and no second config field can join it
-  // unnoticed. See the route-classification note on this route.
+  // The list is asserted EXACTLY so the removal cannot silently regress and no second config
+  // field can join unnoticed. Analytics ids stay: they are rendered into the browser anyway,
+  // so publishing them discloses nothing.
   const schema = (
     declared["/api/v1/site-settings"] as {
       get?: {
@@ -331,7 +331,6 @@ test("site-settings exposes exactly today's fields — a new operator-config fie
       "fb_pixel_id",
       "ga4_id",
       "gtm_id",
-      "lead_form_destination", // ← tracked concern, see above
       "logo_media_id",
       "og_image_url",
       "remote_area_links",
@@ -339,6 +338,7 @@ test("site-settings exposes exactly today's fields — a new operator-config fie
       "tiktok_pixel_id",
     ].sort(),
   );
+  expect(fields).not.toContain("lead_form_destination");
 });
 
 test("every error response uses the bounded { error } envelope", () => {

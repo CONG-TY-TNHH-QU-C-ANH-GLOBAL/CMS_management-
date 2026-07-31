@@ -262,13 +262,14 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "/api/v1/site-settings",
     "settings",
     `${LANDING} global shell (brand, contact, analytics ids)`,
-    "CONTRACT CONCERN — `lead_form_destination` is operator configuration (an admin-set URL; " +
-      "settings.actions.ts validates it as z.string().url()) published on an unauthenticated " +
-      "endpoint, and NO landing code reads it in either app. It predates the contract freeze, " +
-      "and removing it is a wire-shape change that also touches the landing's cmsSchemas.ts " +
-      "and cms-generated.d.ts, so it needs the deprecation policy and an owner decision rather " +
-      "than a quiet edit here. Pinned by a dedicated test so it cannot be dropped accidentally " +
-      "or joined by another config field.",
+    "`lead_form_destination` was REMOVED from this response (owner-approved security " +
+      "correction). It is operator configuration — an admin-set URL naming where leads are " +
+      "routed — that was published on an unauthenticated endpoint with NO reader in either " +
+      "landing app, so publishing it only let someone discover and target the destination. " +
+      "The column and the admin editor are unchanged; only the public projection dropped it. " +
+      "The landing's cmsSchemas.ts still declares the field as nullable, so it keeps parsing " +
+      "the narrower body. The exact remaining field set is pinned by a test so the removal " +
+      "cannot regress and no second config field can join unnoticed.",
   ),
   "v1/(public)/sitemap/index.ts": read(
     "/api/v1/sitemap",
@@ -308,10 +309,14 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "/api/v1/applicant-cv",
     "careers",
     `${LANDING} job application dialog`,
-    "SECURITY CONCERN — unauthenticated R2 write with NO Turnstile; the only controls are " +
-      "5/IP/hour plus MIME and 10MB caps. Every sibling public write verifies Turnstile. " +
-      "Adding it changes the request contract and needs a coordinated landing change, so it is " +
-      "reported rather than done here. Behavior is unchanged by the contract freeze.",
+    "The stored object is served through the public /api/v1/media/{key} proxy, so the random " +
+      "key IS the access control on an applicant CV. That key now comes from " +
+      "crypto.getRandomValues (128 bits), not Math.random — a seeded PRNG whose output is " +
+      "predictable from observed values would let someone holding one CV URL derive others. " +
+      "The key shape is unchanged, so issued URLs keep working. " +
+      "STILL OPEN: this is an unauthenticated R2 write with NO Turnstile (only 5/IP/hour plus " +
+      "MIME and 10MB caps) while every sibling public write verifies one. Adding it changes " +
+      "the request contract and needs a coordinated landing change, so it stays reported.",
   ),
   "v1/(public)/community/questions/$slug.same-issue.ts": write(
     "/api/v1/community/questions/{slug}/same-issue",

@@ -52,7 +52,14 @@ export const Route = createFileRoute("/api/v1/(public)/site-settings/")({
             contact_phone: row.contact_phone,
             contact_email: row.contact_email,
             facebook_url: row.facebook_url,
-            lead_form_destination: row.lead_form_destination,
+            // `lead_form_destination` is REMOVED from this public response. It is operator
+            // configuration — an admin-set URL (settings.actions.ts validates it as
+            // z.string().url()) naming where leads are routed — published on an
+            // unauthenticated endpoint with NO consumer: neither the Vite app nor the Next app
+            // reads it. Publishing the lead destination lets anyone discover and target it
+            // directly. The column and the admin editor are untouched; only the public
+            // projection drops it. Removal is safe because the field had no reader — see the
+            // note on this route in src/openapi/route-classification.ts.
             logo_media_id: row.logo_media_id,
             default_og_image_id: row.default_og_image_id,
             about_video_url: row.about_video_url,

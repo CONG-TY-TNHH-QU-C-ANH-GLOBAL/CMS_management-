@@ -36,7 +36,6 @@ const siteSettingsBodySchema = z.object({
   contact_phone: z.string().nullable(),
   contact_email: z.string().nullable(),
   facebook_url: z.string().nullable(),
-  lead_form_destination: z.string().nullable(),
   logo_media_id: z.number().int().nullable(),
   default_og_image_id: z.number().int().nullable(),
   about_video_url: z.string().nullable(),
