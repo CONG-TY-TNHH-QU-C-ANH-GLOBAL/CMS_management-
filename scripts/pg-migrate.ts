@@ -40,6 +40,8 @@ import {
   buildPlan,
   migrationStatus,
   runMigrations,
+  type Migration,
+  type MigrationExec,
 } from "../src/features/content-pg/migrate/runner";
 
 /** A DIRECT postgres.js connection as the migration owner.
@@ -113,23 +115,67 @@ function authorizedUrl(): { url: string; host: string } {
   return { url, host };
 }
 
-async function main(): Promise<number> {
-  const onDisk = discoverMigrations();
+// ── Command implementations ─────────────────────────────────────────────────────────────────
+// One responsibility each, so `main` stays a readable four-step orchestration: parse intent →
+// validate configuration → execute → map an exit code. (The single `main` that did all of this
+// inline measured Cognitive Complexity 16.)
 
-  // `plan` is offline on purpose — it is the checksum/ordering pre-flight a reviewer can run
-  // with no credentials at all.
-  if (command === "plan") {
-    console.log(`Migration plan — ${onDisk.length} file(s) in db/pg/migrations\n`);
-    for (const m of onDisk) {
-      const mode = m.transactional ? "transactional" : "NON-transactional";
-      console.log(`  ${m.name}  ${m.checksum.slice(0, 12)}…  ${mode}`);
-    }
-    // Empty history: everything on disk is pending. This also exercises buildPlan offline.
-    const { pending } = buildPlan(onDisk, []);
-    console.log(`\nAgainst an empty database: ${pending.length} would apply, in this order.`);
-    return 0;
+/** Offline pre-flight: ordering, checksums and declared transaction mode, straight from disk.
+ *  Never connects, so a reviewer can run it with no credentials at all. */
+function runPlan(onDisk: readonly Migration[]): number {
+  console.log(`Migration plan — ${onDisk.length} file(s) in db/pg/migrations
+`);
+  for (const m of onDisk) {
+    const mode = m.transactional ? "transactional" : "NON-transactional";
+    console.log(`  ${m.name}  ${m.checksum.slice(0, 12)}…  ${mode}`);
   }
+  // Empty history: everything on disk is pending. This also exercises buildPlan offline.
+  const { pending } = buildPlan(onDisk, []);
+  console.log(`
+Against an empty database: ${pending.length} would apply, in this order.`);
+  return 0;
+}
 
+async function runStatus(exec: MigrationExec, onDisk: readonly Migration[]): Promise<number> {
+  const { plan, applied } = await migrationStatus(exec, onDisk);
+  for (const entry of plan.entries) {
+    const at = applied.find((a) => a.name === entry.name)?.appliedAt;
+    console.log(
+      entry.state === "applied"
+        ? `  ✓ ${entry.name}  applied ${at?.toISOString() ?? "?"}`
+        : `  · ${entry.name}  PENDING`,
+    );
+  }
+  console.log(`
+${plan.pending.length} pending, ${applied.length} applied.`);
+  return 0;
+}
+
+/** Not recorded in schema_migrations — see runner.ts. Applied after the migrations, by the
+ *  same migration owner, so it owns the SECURITY DEFINER functions. */
+async function runBootstrap(exec: MigrationExec): Promise<number> {
+  for (const file of discoverBootstrap()) {
+    console.log(`Applying bootstrap ${file.name}…`);
+    await exec.script(file.sql);
+    console.log(`  ✓ ${file.name}`);
+  }
+  return 0;
+}
+
+async function runUp(exec: MigrationExec, onDisk: readonly Migration[]): Promise<number> {
+  const result = await runMigrations(exec, onDisk, { log: (m) => console.log(m) });
+  console.log(
+    `
+${result.applied.length} applied this run, ${result.alreadyApplied.length} already present.`,
+  );
+  return 0;
+}
+
+/** Open an authorized preview connection, prove it is healthy, and run `body`. Owns the
+ *  connection lifecycle so no command has to remember to close it. */
+async function withAuthorizedConnection(
+  body: (exec: MigrationExec) => Promise<number>,
+): Promise<number> {
   const { url, host } = authorizedUrl();
   const sql = await connectDirect(url);
   try {
@@ -138,41 +184,24 @@ async function main(): Promise<number> {
       console.error("pg-migrate: REFUSED — health check failed; aborting before any DDL.");
       return 2;
     }
-    console.log(`pg-migrate: connected to preview host ${host}\n`);
-
-    if (command === "status") {
-      const { plan, applied } = await migrationStatus(exec, onDisk);
-      for (const entry of plan.entries) {
-        const at = applied.find((a) => a.name === entry.name)?.appliedAt;
-        console.log(
-          entry.state === "applied"
-            ? `  ✓ ${entry.name}  applied ${at?.toISOString() ?? "?"}`
-            : `  · ${entry.name}  PENDING`,
-        );
-      }
-      console.log(`\n${plan.pending.length} pending, ${applied.length} applied.`);
-      return 0;
-    }
-
-    if (command === "bootstrap") {
-      // Not recorded in schema_migrations — see runner.ts. Applied after migrations, by the
-      // same migration owner, so it owns the SECURITY DEFINER functions.
-      for (const file of discoverBootstrap()) {
-        console.log(`Applying bootstrap ${file.name}…`);
-        await exec.script(file.sql);
-        console.log(`  ✓ ${file.name}`);
-      }
-      return 0;
-    }
-
-    const result = await runMigrations(exec, onDisk, { log: (m) => console.log(m) });
-    console.log(
-      `\n${result.applied.length} applied this run, ${result.alreadyApplied.length} already present.`,
-    );
-    return 0;
+    console.log(`pg-migrate: connected to preview host ${host}
+`);
+    return await body(exec);
   } finally {
     await sql.end({ timeout: 5 });
   }
+}
+
+async function main(): Promise<number> {
+  const onDisk = discoverMigrations();
+
+  if (command === "plan") return runPlan(onDisk);
+
+  return withAuthorizedConnection(async (exec) => {
+    if (command === "status") return runStatus(exec, onDisk);
+    if (command === "bootstrap") return runBootstrap(exec);
+    return runUp(exec, onDisk);
+  });
 }
 
 try {

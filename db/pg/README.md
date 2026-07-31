@@ -58,8 +58,9 @@ or two CI jobs can do it at once. The runner now lives in
 Guarantees: `schema_migrations` history with SHA-256 checksums (an edited applied migration is
 rejected before anything new runs, and a deleted one is rejected too), ordered discovery, a session
 advisory lock taken **before** the history is read and released in a `finally`, bounded
-statement/lock timeouts, one reserved session (`max: 1`), transactional-by-default with an explicit
-`NON_TRANSACTIONAL` opt-out list, idempotent rerun, and failure that stops at the first bad migration
+statement/lock timeouts, one reserved session (`max: 1`), transactional by default with a
+per-migration `-- migrate:no-transaction` opt-out declared in the file itself (and therefore
+covered by its checksum), idempotent rerun, and failure that stops at the first bad migration
 leaving no history row for it.
 
 Bootstrap is deliberately **not** a migration: roles are cluster objects and `bootstrap/0001` is

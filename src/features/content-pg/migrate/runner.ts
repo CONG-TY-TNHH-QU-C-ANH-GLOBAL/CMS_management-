@@ -58,7 +58,7 @@ export interface Migration {
   sql: string;
   /** SHA-256 of the file contents. */
   checksum: string;
-  /** False for a migration that must NOT be wrapped in a transaction (see NON_TRANSACTIONAL). */
+  /** False when the file declares `-- migrate:no-transaction` (see parseTransactionMode). */
   transactional: boolean;
 }
 
@@ -118,25 +118,103 @@ export class MigrationFailedError extends Error {
 
 export function checksumOf(sql: string): string {
   // Normalize line endings so a Windows checkout and a Linux CI runner agree. Without this,
-  // every migration would appear "changed" on the first cross-platform run.
-  return createHash("sha256").update(sql.replace(/\r\n/g, "\n"), "utf8").digest("hex");
+  // every migration would appear "changed" on the first cross-platform run. splitLines is the
+  // same normalization the directive parser uses, so the two can never disagree.
+  return createHash("sha256").update(splitLines(sql).join("\n"), "utf8").digest("hex");
 }
 
-/** Migrations that must run OUTSIDE a transaction.
- *
- *  Empty today — 0001..0005 are all transactional DDL, and PostgreSQL's DDL is transactional,
- *  which is why the default is `true`. The list exists because the assumption is not universal:
- *  CREATE INDEX CONCURRENTLY, ALTER TYPE … ADD VALUE (pre-12), and CREATE DATABASE all fail
- *  inside a transaction block. Add a filename here rather than turning the wrapper off
- *  globally — a non-transactional migration that fails halfway leaves partial state, so it is
- *  an explicit, reviewed decision per file. */
-export const NON_TRANSACTIONAL: readonly string[] = [];
+/** A migration file declaring an unknown or contradictory `-- migrate:` directive. */
+export class InvalidMigrationDirectiveError extends Error {
+  constructor(
+    readonly migration: string,
+    reason: string,
+  ) {
+    super(
+      `Migration "${migration}" has an invalid directive: ${reason}. ` +
+        `The only supported directive is \`-- migrate:no-transaction\`, at most once, in the ` +
+        `leading comment block.`,
+    );
+    this.name = "InvalidMigrationDirectiveError";
+  }
+}
 
-/** Order .sql files by filename. Filenames are zero-padded (`0001_…`), so a plain codepoint
- *  sort is the numeric order; localeCompare is deliberately NOT used because its collation is
- *  locale-dependent and could reorder migrations between machines. */
+/** Split on either line ending so a CRLF checkout parses directives identically to a LF one. */
+function splitLines(sql: string): string[] {
+  return sql.replaceAll("\r\n", "\n").split("\n");
+}
+
+/** The one supported directive. Deliberately a single marker, not a DSL. */
+const NO_TRANSACTION_DIRECTIVE = "no-transaction";
+const DIRECTIVE_PATTERN = /^--\s*migrate:\s*(\S*)\s*$/;
+
+/**
+ * Read the transaction mode a migration declares.
+ *
+ * Default is TRANSACTIONAL. PostgreSQL's DDL is transactional, so the runner's explicit
+ * BEGIN/COMMIT is right for every migration this repository has — but the assumption is not
+ * universal: CREATE INDEX CONCURRENTLY, ALTER TYPE … ADD VALUE (pre-12) and CREATE DATABASE
+ * are all refused inside a transaction block. Declaring the directive omits that wrapper.
+ *
+ * ponytail: the directive omits the runner's OWN transaction, not PostgreSQL's implicit one.
+ * A multi-statement simple-protocol send is still executed as a single implicit transaction
+ * (verified against real PostgreSQL via PGlite), so a migration that must genuinely escape a
+ * transaction block has to contain exactly ONE statement. Splitting a file into statements
+ * would need a SQL parser — a migration DSL this runner deliberately does not have. Keep such
+ * a migration to one statement per file; add per-statement execution only if that stops being
+ * enough.
+ *
+ * This replaces an earlier `NON_TRANSACTIONAL: string[] = []` allowlist. That list was
+ * permanently empty, which made the non-transactional branch provably unreachable — the mode
+ * has to come from the migration itself, not from a hardcoded set in the runner that nobody
+ * would remember to update.
+ *
+ * The directive is part of the file, so `checksumOf` already covers it: flipping a migration's
+ * mode after it has been applied changes its checksum and is rejected like any other edit.
+ *
+ * Scanning stops at the first line that is neither blank nor a comment, so a `-- migrate:` in a
+ * SQL string literal or a trailing comment cannot be mistaken for a directive.
+ */
+export function parseTransactionMode(name: string, sql: string): boolean {
+  let transactional = true;
+  let seen = false;
+
+  for (const raw of splitLines(sql)) {
+    const line = raw.trim();
+    if (line.length === 0) continue;
+    if (!line.startsWith("--")) break; // end of the leading comment block
+
+    const match = DIRECTIVE_PATTERN.exec(line);
+    if (!match) continue; // an ordinary comment
+
+    if (seen) throw new InvalidMigrationDirectiveError(name, "more than one directive");
+    if (match[1] !== NO_TRANSACTION_DIRECTIVE) {
+      // An unrecognized directive is a typo of a safety-critical instruction — refuse rather
+      // than silently defaulting to transactional and running it the wrong way.
+      throw new InvalidMigrationDirectiveError(
+        name,
+        `unknown directive "${match[1] || "(empty)"}"`,
+      );
+    }
+    seen = true;
+    transactional = false;
+  }
+
+  return transactional;
+}
+
+/** Deterministic filename ordering for migrations and bootstrap scripts alike.
+ *
+ *  An explicit comparator, and an explicit locale: `localeCompare` with no locale argument uses
+ *  the host's default collation, which could order two migrations differently on a developer's
+ *  machine and in CI. Migration filenames are zero-padded ASCII (`0001_…`), so pinning "en-US"
+ *  makes the order both stable and the numeric order. */
+export function byMigrationFilename(a: string, b: string): number {
+  return a.localeCompare(b, "en-US");
+}
+
+/** Order .sql files by filename. */
 export function orderMigrationFiles(names: readonly string[]): string[] {
-  return names.filter((n) => n.endsWith(".sql")).sort();
+  return names.filter((n) => n.endsWith(".sql")).sort(byMigrationFilename);
 }
 
 export function toMigration(name: string, sql: string): Migration {
@@ -144,7 +222,7 @@ export function toMigration(name: string, sql: string): Migration {
     name,
     sql,
     checksum: checksumOf(sql),
-    transactional: !NON_TRANSACTIONAL.includes(name),
+    transactional: parseTransactionMode(name, sql),
   };
 }
 
@@ -252,10 +330,9 @@ async function applyOne(exec: MigrationExec, migration: Migration): Promise<void
     ]);
 
   if (!migration.transactional) {
-    // The statement cannot be rolled back, so the history row is written after it succeeds. A
-    // crash between the two leaves the migration applied but unrecorded — which is why every
-    // NON_TRANSACTIONAL entry must be individually idempotent, and why the list is empty
-    // until a migration genuinely needs it.
+    // No explicit BEGIN/COMMIT. The history row is written after the script succeeds, so a
+    // crash between the two leaves the migration applied but unrecorded — which is why a
+    // migration that declares `-- migrate:no-transaction` must be written to be idempotent.
     await exec.script(migration.sql);
     await record();
     return;

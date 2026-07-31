@@ -16,6 +16,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { pgliteMigrationExec } from "./exec";
 import type { MigrationExec } from "./runner";
 import {
+  InvalidMigrationDirectiveError,
+  byMigrationFilename,
+  parseTransactionMode,
   buildPlan,
   checksumOf,
   ensureMigrationTable,
@@ -71,10 +74,76 @@ test("checksum changes when the SQL actually changes", () => {
   expect(checksumOf("SELECT 1;")).not.toBe(checksumOf("SELECT 2;"));
 });
 
-test("every real migration defaults to transactional", () => {
-  // The default is only safe because PostgreSQL DDL is transactional. If a future migration
-  // needs CREATE INDEX CONCURRENTLY it must be added to NON_TRANSACTIONAL deliberately.
+test("every real migration is transactional — none declares the directive", () => {
+  // The default is only safe because PostgreSQL DDL is transactional. A migration that needs
+  // CREATE INDEX CONCURRENTLY must say so in the file itself.
   for (const m of discoverMigrations()) expect(m.transactional).toBe(true);
+});
+
+// ── Transaction-mode directive ──────────────────────────────────────────────────────────────
+// This replaced a `NON_TRANSACTIONAL: string[] = []` allowlist that was permanently empty,
+// which made the non-transactional branch provably unreachable. The mode now comes from the
+// migration file, so both branches are real and both are exercised below.
+
+test("a migration is transactional by default", () => {
+  expect(parseTransactionMode("0001_a.sql", "CREATE TABLE x();")).toBe(true);
+  expect(parseTransactionMode("0001_a.sql", "-- an ordinary comment\nCREATE TABLE x();")).toBe(
+    true,
+  );
+});
+
+test("the no-transaction directive is honored in the leading comment block", () => {
+  expect(parseTransactionMode("0001_a.sql", "-- migrate:no-transaction\nCREATE INDEX y;")).toBe(
+    false,
+  );
+  expect(
+    parseTransactionMode("0001_a.sql", "-- why\n\n--   migrate: no-transaction  \nCREATE INDEX y;"),
+  ).toBe(false);
+});
+
+test("a directive after the leading comment block is NOT a directive", () => {
+  // Scanning stops at the first non-comment line, so this cannot be triggered from a SQL
+  // string literal or a trailing comment further down the file.
+  expect(parseTransactionMode("0001_a.sql", "CREATE TABLE x();\n-- migrate:no-transaction\n")).toBe(
+    true,
+  );
+});
+
+test("an unknown or duplicated directive is rejected, not silently defaulted", () => {
+  // A typo in a safety-critical instruction must fail loudly — running a migration in the
+  // wrong mode is exactly what this marker exists to prevent.
+  expect(() => parseTransactionMode("0001_a.sql", "-- migrate:no-transacton\nSELECT 1;")).toThrow(
+    InvalidMigrationDirectiveError,
+  );
+  expect(() => parseTransactionMode("0001_a.sql", "-- migrate:\nSELECT 1;")).toThrow(
+    InvalidMigrationDirectiveError,
+  );
+  expect(() =>
+    parseTransactionMode(
+      "0001_a.sql",
+      "-- migrate:no-transaction\n-- migrate:no-transaction\nSELECT 1;",
+    ),
+  ).toThrow(InvalidMigrationDirectiveError);
+});
+
+test("the directive is inside the checksum, so flipping the mode is an edit", () => {
+  const plain = toMigration("0001_a.sql", "CREATE TABLE x();");
+  const marked = toMigration("0001_a.sql", "-- migrate:no-transaction\nCREATE TABLE x();");
+  // An applied migration whose mode changed is therefore rejected by the normal checksum guard.
+  expect(marked.checksum).not.toBe(plain.checksum);
+  expect(marked.transactional).toBe(false);
+});
+
+test("directive parsing is line-ending agnostic", () => {
+  expect(parseTransactionMode("0001_a.sql", "-- migrate:no-transaction\r\nCREATE INDEX y;")).toBe(
+    false,
+  );
+});
+
+test("the filename comparator pins a locale so CI and a laptop agree", () => {
+  expect(byMigrationFilename("0001_a.sql", "0002_b.sql")).toBeLessThan(0);
+  expect(byMigrationFilename("0002_b.sql", "0001_a.sql")).toBeGreaterThan(0);
+  expect(byMigrationFilename("0001_a.sql", "0001_a.sql")).toBe(0);
 });
 
 test("the real migration set is discovered in 0001..0005 order", () => {
@@ -235,6 +304,64 @@ test("MigrationFailedError names the migration and keeps the driver cause", asyn
       expect((err as MigrationFailedError).migration).toBe("0001_bad.sql");
       expect((err as MigrationFailedError).cause).toBeDefined();
     }
+  });
+});
+
+test("a transactional migration ROLLS BACK its partial work on failure", async () => {
+  await withDb(async (exec) => {
+    await expect(
+      runMigrations(exec, [mig("0001_tx.sql", "CREATE TABLE tx_a (id int); SELECT nope();")]),
+    ).rejects.toThrow(MigrationFailedError);
+
+    const tables = await exec.query<{ c: string }>(
+      "SELECT count(*)::text AS c FROM information_schema.tables WHERE table_name = 'tx_a'",
+    );
+    expect(tables[0].c).toBe("0");
+  });
+});
+
+test("a non-transactional migration is NOT wrapped in the runner's BEGIN/COMMIT", async () => {
+  await withDb(async (exec) => {
+    // This is the observable difference the directive buys, and the reason it exists:
+    // statements like CREATE INDEX CONCURRENTLY are refused inside a transaction block.
+    const scripts: string[] = [];
+    const spy = {
+      ...exec,
+      script: async (sql: string) => {
+        scripts.push(sql);
+        await exec.script(sql);
+      },
+    };
+
+    const nonTx = mig("0001_nt.sql", "-- migrate:no-transaction\nCREATE TABLE nt_a (id int);");
+    const tx = mig("0002_tx.sql", "CREATE TABLE tx_b (id int);");
+
+    await runMigrations(spy, [nonTx]);
+    expect(scripts).not.toContain("BEGIN");
+    expect(scripts).not.toContain("COMMIT");
+
+    scripts.length = 0;
+    // Both files on disk now — 0001 is already applied, so only 0002 runs.
+    await runMigrations(spy, [nonTx, tx]);
+    expect(scripts).toContain("BEGIN");
+    expect(scripts).toContain("COMMIT");
+  });
+});
+
+test("a failed non-transactional migration records no history row, so a rerun retries it", async () => {
+  await withDb(async (exec) => {
+    const m = mig("0001_nt.sql", "-- migrate:no-transaction\nSELECT nope();");
+    await expect(runMigrations(exec, [m])).rejects.toThrow(MigrationFailedError);
+    expect(await readApplied(exec)).toEqual([]);
+  });
+});
+
+test("a non-transactional migration that succeeds is recorded exactly once", async () => {
+  await withDb(async (exec) => {
+    const m = mig("0001_nt.sql", "-- migrate:no-transaction\nCREATE TABLE nt_ok (id int);");
+    expect((await runMigrations(exec, [m])).applied).toEqual(["0001_nt.sql"]);
+    expect((await readApplied(exec)).map((r) => r.name)).toEqual(["0001_nt.sql"]);
+    expect((await runMigrations(exec, [m])).applied).toEqual([]);
   });
 });
 
