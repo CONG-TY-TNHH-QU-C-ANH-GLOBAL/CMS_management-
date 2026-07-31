@@ -62,7 +62,10 @@ CREATE TABLE content.service_content_localizations (
 
 -- ── Revisions — IMMUTABLE, append-only. A new draft is a NEW row; existing revisions are never
 --    mutated, so a draft edit cannot alter currently published content. The UNIQUE(localization_id,
---    id) exists solely as the target of the publication ownership FK below. ───────────────────────
+--    id) exists solely as the target of the publication + review-lineage ownership FKs below.
+--    Review provenance: a `reviewed` revision is created by content.approve_revision from an EXACT
+--    `draft`; reviewed_from_revision_id points at that draft (same localization, composite FK). The DB
+--    forbids a `reviewed` row without lineage and a non-reviewed row with lineage. ────────────────────
 CREATE TABLE content.service_content_revisions (
   id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   -- ON DELETE RESTRICT: revisions are permanent history; a localization with revisions cannot be
@@ -75,12 +78,24 @@ CREATE TABLE content.service_content_revisions (
   source_hash        text NOT NULL DEFAULT '',
   review_status      text NOT NULL DEFAULT 'draft'
                      CHECK (review_status IN ('draft', 'reviewed', 'stale', 'failed')),
+  reviewed_from_revision_id bigint,                 -- set ONLY on a reviewed revision → its source draft
+  reviewed_by        bigint,
+  reviewed_at        timestamptz,
   created_by         bigint,
   created_at         timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT ck_translated_payload_object CHECK (jsonb_typeof(translated_payload) = 'object'),
-  CONSTRAINT uq_revision_owner UNIQUE (localization_id, id)
+  CONSTRAINT uq_revision_owner UNIQUE (localization_id, id),
+  -- lineage exists IFF the revision is reviewed (draft/stale/failed must have none).
+  CONSTRAINT ck_review_lineage CHECK ((review_status = 'reviewed') = (reviewed_from_revision_id IS NOT NULL)),
+  -- the source draft must belong to the SAME localization (DB-enforced ownership, not service code).
+  CONSTRAINT fk_reviewed_from_owner
+    FOREIGN KEY (localization_id, reviewed_from_revision_id)
+    REFERENCES content.service_content_revisions (localization_id, id)
 );
 CREATE INDEX idx_scr_localization ON content.service_content_revisions (localization_id, id DESC);
+-- A given draft can be approved at most once (prevents duplicate reviewed revisions from one draft).
+CREATE UNIQUE INDEX uq_reviewed_from ON content.service_content_revisions (reviewed_from_revision_id)
+  WHERE reviewed_from_revision_id IS NOT NULL;
 
 -- ── Publication pointer — the ONE live revision per localization. The COMPOSITE FK guarantees the
 --    pointed-to revision BELONGS to this localization: (localization_id, revision_id) must match a
@@ -110,6 +125,107 @@ $$;
 CREATE TRIGGER trg_revisions_immutable
   BEFORE UPDATE OR DELETE ON content.service_content_revisions
   FOR EACH ROW EXECUTE FUNCTION content.reject_revision_mutation();
+
+-- ── Draft creation, enforced in the DB ────────────────────────────────────────────────────────────
+--    The ONLY runtime path to a revision. review_status is FORCED to 'draft' — the caller cannot
+--    choose a status, so the runtime can never fabricate a 'reviewed' row. SECURITY DEFINER: the
+--    runtime holds EXECUTE only (no direct INSERT on the revision table — see db/pg/bootstrap). Drafts
+--    are pure appends (each is a new immutable row), so no optimistic-concurrency token is needed here.
+--    Fully-qualified names, no dynamic SQL, no content/secret logging.
+CREATE FUNCTION content.create_draft_revision(
+  p_localization_id    bigint,
+  p_title              text,
+  p_description        text,
+  p_translated_payload jsonb DEFAULT '{}'::jsonb,
+  p_source_locale      text  DEFAULT NULL,
+  p_source_hash        text  DEFAULT '',
+  p_created_by         bigint DEFAULT NULL
+) RETURNS bigint
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path = content, pg_temp
+AS $$
+DECLARE
+  v_new_id bigint;
+BEGIN
+  PERFORM 1 FROM content.service_content_localizations WHERE id = p_localization_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'draft rejected: localization % does not exist', p_localization_id
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+
+  INSERT INTO content.service_content_revisions
+      (localization_id, title, description, translated_payload, source_locale, source_hash,
+       review_status, reviewed_from_revision_id, created_by)
+    VALUES
+      (p_localization_id, p_title, p_description, COALESCE(p_translated_payload, '{}'::jsonb),
+       p_source_locale, COALESCE(p_source_hash, ''), 'draft', NULL, p_created_by)
+    RETURNING id INTO v_new_id;
+  RETURN v_new_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION content.create_draft_revision(bigint, text, text, jsonb, text, text, bigint) FROM PUBLIC;
+
+-- ── Approval, enforced in the DB — closes the review-provenance gap ────────────────────────────────
+--    Creates an immutable 'reviewed' revision that is an EXACT COPY of a specific 'draft', linked by
+--    reviewed_from_revision_id. The caller supplies NO content (title/description/payload) — it is
+--    copied verbatim from the draft, so a reviewed revision provably corresponds to a submitted draft.
+--    The draft is NOT mutated in place (revisions are immutable). Eligibility: the source must be a
+--    'draft' (stale/failed/reviewed are rejected). uq_reviewed_from forbids approving one draft twice.
+--    Optional optimistic concurrency: p_expected_version, when supplied, must equal the owning block's
+--    version. SECURITY DEFINER; fully-qualified; no dynamic SQL; no content/secret logging.
+CREATE FUNCTION content.approve_revision(
+  p_draft_revision_id bigint,
+  p_reviewer_id       bigint,
+  p_expected_version  bigint DEFAULT NULL
+) RETURNS bigint
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path = content, pg_temp
+AS $$
+DECLARE
+  d        content.service_content_revisions%ROWTYPE;
+  v_new_id bigint;
+  v_block_version integer;
+BEGIN
+  -- Read the EXACT draft. No row lock is taken: the source draft is IMMUTABLE (its content cannot
+  -- change under us), and uq_reviewed_from atomically rejects a concurrent second approval of the same
+  -- draft — a stronger guarantee than a lock — so the function-owner role stays strictly INSERT-only
+  -- (no UPDATE/DELETE privilege, which a FOR UPDATE lock would otherwise require).
+  SELECT * INTO d FROM content.service_content_revisions
+   WHERE id = p_draft_revision_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'approve rejected: revision % does not exist', p_draft_revision_id
+      USING ERRCODE = 'foreign_key_violation';
+  END IF;
+  IF d.review_status <> 'draft' THEN
+    RAISE EXCEPTION 'approve rejected: revision % is "%", only a draft is reviewable',
+      p_draft_revision_id, d.review_status USING ERRCODE = 'check_violation';
+  END IF;
+
+  IF p_expected_version IS NOT NULL THEN
+    SELECT b.version INTO v_block_version
+      FROM content.service_content_blocks b
+      JOIN content.service_content_localizations l ON l.block_id = b.id
+     WHERE l.id = d.localization_id;
+    IF v_block_version IS DISTINCT FROM p_expected_version THEN
+      RAISE EXCEPTION 'approve rejected: block version moved (expected %, found %)',
+        p_expected_version, v_block_version USING ERRCODE = 'serialization_failure';
+    END IF;
+  END IF;
+
+  -- Append a reviewed revision copying the draft's EXACT content + preserving source provenance.
+  INSERT INTO content.service_content_revisions
+      (localization_id, title, description, translated_payload, source_locale, source_hash,
+       review_status, reviewed_from_revision_id, reviewed_by, reviewed_at, created_by)
+    VALUES
+      (d.localization_id, d.title, d.description, d.translated_payload, d.source_locale, d.source_hash,
+       'reviewed', d.id, p_reviewer_id, now(), d.created_by)
+    RETURNING id INTO v_new_id;
+  RETURN v_new_id;
+END;
+$$;
+REVOKE ALL ON FUNCTION content.approve_revision(bigint, bigint, bigint) FROM PUBLIC;
 
 -- ── Publication eligibility, enforced in the DB (not just the TypeScript service) ─────────────────
 --    The ONLY way the runtime moves a published pointer. SECURITY DEFINER so the runtime role needs

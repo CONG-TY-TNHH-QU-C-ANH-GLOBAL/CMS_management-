@@ -15,16 +15,17 @@ import {
   createPage,
   createBlock,
   upsertLocalization,
-  createRevision,
+  createDraftRevision,
+  approveRevision,
   publish,
   getPublishedBlocks,
+  type NewRevision,
 } from "../src/features/content-pg/content.repo";
+import { type Kind } from "../src/features/content-pg/content.kinds";
 import {
   FULFILL_CONTENT_MANIFEST,
   type ContentManifest,
 } from "../src/features/content-pg/manifests/fulfill.content";
-
-type NewRevisionStatus = "draft" | "reviewed" | "stale" | "failed";
 
 let passed = 0;
 let failed = 0;
@@ -49,7 +50,6 @@ async function expectContentError(
     ok(e instanceof ContentError && e.code === code, `${label} (${(e as ContentError).code ?? e})`);
   }
 }
-
 async function expectThrows(fn: () => Promise<unknown>, matcher: RegExp, label: string): Promise<void> {
   try {
     await fn();
@@ -82,7 +82,7 @@ async function freshDb(): Promise<PgExec> {
 
 /** Like freshDb but ALSO applies the real role/privilege bootstrap and returns the raw PGlite handle
  *  so tests can `SET ROLE thg_cms_runtime` and prove least-privilege. PGlite enforces column-level
- *  GRANTs and SET ROLE (verified), so these are real privilege checks, not simulations. */
+ *  GRANTs, SET ROLE, and SECURITY DEFINER ownership (verified), so these are real privilege checks. */
 async function freshDbWithRoles(): Promise<{ db: PGlite; exec: PgExec }> {
   const db = new PGlite();
   const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
@@ -95,8 +95,36 @@ async function freshDbWithRoles(): Promise<{ db: PGlite; exec: PgExec }> {
   return { db, exec };
 }
 
+/** Draft → approve in one step: the ONLY way to a reviewed revision (approval copies the exact draft). */
+async function reviewedRevision(
+  exec: PgExec,
+  kind: Kind,
+  r: NewRevision,
+  reviewerId = 1,
+): Promise<number> {
+  const draftId = await createDraftRevision(exec, kind, r);
+  return approveRevision(exec, draftId, reviewerId);
+}
+
+/** Raw INSERT of a revision at an arbitrary status — used ONLY to fabricate stale/failed fixtures (no
+ *  runtime path creates those). Runs as the PGlite superuser; the immutability trigger only blocks
+ *  UPDATE/DELETE, not INSERT. */
+async function insertRawRevision(
+  exec: PgExec,
+  localizationId: number,
+  status: string,
+  title = "raw",
+): Promise<number> {
+  const rows = await exec.query<{ id: number }>(
+    `INSERT INTO service_content_revisions (localization_id, title, description, review_status)
+     VALUES ($1, $2, 'd', $3) RETURNING id`,
+    [localizationId, title, status],
+  );
+  return rows[0].id;
+}
+
 /** Generic manifest importer (sketch of the future importer): validate-by-kind is enforced in the repo;
- *  identity/integrity is enforced by the DB. One transaction per manifest. */
+ *  identity/integrity is enforced by the DB. Each locale goes draft → approve → publish in one tx. */
 async function importManifest(exec: PgExec, m: ContentManifest): Promise<void> {
   await exec.tx(async (tx) => {
     const pageId = await createPage(tx, m.pageSlug);
@@ -117,16 +145,15 @@ async function importManifest(exec: PgExec, m: ContentManifest): Promise<void> {
       for (const locale of ["vi", "en", "zh"] as const) {
         const loc = b.localizations[locale];
         const localizationId = await upsertLocalization(tx, blockId, locale);
-        const revisionId = await createRevision(tx, b.kind, {
+        const reviewedId = await reviewedRevision(tx, b.kind, {
           localizationId,
           title: loc.title,
           description: loc.description,
           translatedPayload: loc.translatedPayload,
           sourceLocale: locale === "vi" ? null : "vi",
           sourceHash,
-          reviewStatus: "reviewed",
         });
-        await publish(tx, localizationId, revisionId);
+        await publish(tx, localizationId, reviewedId);
       }
     }
   });
@@ -135,7 +162,7 @@ async function importManifest(exec: PgExec, m: ContentManifest): Promise<void> {
 async function main(): Promise<void> {
   console.log("PG content data-plane POC — PGlite (real PostgreSQL, in-process)\n");
 
-  // ── Core lifecycle: transactional create → publish ──────────────────────────────────────────
+  // ── Core lifecycle: draft → approve → publish ────────────────────────────────────────────────
   {
     const exec = await freshDb();
     const { pageId, locId, revId } = await exec.tx(async (tx) => {
@@ -147,11 +174,10 @@ async function main(): Promise<void> {
         position: 1,
       });
       const locId = await upsertLocalization(tx, blockId, "vi");
-      const revId = await createRevision(tx, "journey_step", {
+      const revId = await reviewedRevision(tx, "journey_step", {
         localizationId: locId,
         title: "Design Input",
         description: "v1 desc",
-        reviewStatus: "reviewed",
       });
       await publish(tx, locId, revId);
       return { pageId, blockId, locId, revId };
@@ -163,30 +189,22 @@ async function main(): Promise<void> {
     );
 
     // §7: reviewed != published — an extra reviewed revision that is NOT the pointer is not served.
-    const otherLocId = await upsertLocalization(
-      exec,
-      (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].id,
-      "en",
-    );
-    await createRevision(exec, "journey_step", {
+    const otherLocId = await upsertLocalization(exec, blocks[0].id, "en");
+    await reviewedRevision(exec, "journey_step", {
       localizationId: otherLocId,
       title: "reviewed-not-published",
       description: "x",
-      reviewStatus: "reviewed",
     });
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "en")).length === 0,
       "reviewed revision without publish pointer is NOT served",
     );
 
-    // §7: a NEW draft does not alter published content, and (§2) publishing a draft is rejected by the
-    // DB function — review_status is fixed at creation (revisions are immutable), so approval is a new
-    // reviewed revision, not an in-place status flip.
-    const rev2draft = await createRevision(exec, "journey_step", {
+    // §7: a NEW draft does not alter published content, and publishing a draft is rejected by the DB.
+    const rev2draft = await createDraftRevision(exec, "journey_step", {
       localizationId: locId,
       title: "Design Input EDITED",
       description: "v2 desc",
-      reviewStatus: "draft",
     });
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input",
@@ -201,16 +219,11 @@ async function main(): Promise<void> {
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input",
       "rejected publish leaves the current published revision unchanged",
     );
-    const rev2 = await createRevision(exec, "journey_step", {
-      localizationId: locId,
-      title: "Design Input EDITED",
-      description: "v2 desc",
-      reviewStatus: "reviewed",
-    });
+    const rev2 = await approveRevision(exec, rev2draft, 1);
     await publish(exec, locId, rev2, revId); // optimistic: expect the pointer still holds revId
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input EDITED",
-      "publish atomically moves the pointer to the new reviewed revision",
+      "publish atomically moves the pointer to the approved revision",
     );
     ok(revId !== rev2, "revisions are append-only (distinct ids)");
   }
@@ -251,7 +264,7 @@ async function main(): Promise<void> {
     const locId = await upsertLocalization(exec, blockId, "vi");
     await expectContentError(
       () =>
-        createRevision(exec, "solution", {
+        createDraftRevision(exec, "solution", {
           localizationId: locId,
           title: "t",
           description: "d",
@@ -261,7 +274,7 @@ async function main(): Promise<void> {
       "invalid translated_payload rejected",
     );
     await expectContentError(
-      () => createRevision(exec, "process_step", { localizationId: locId, title: "only title" }),
+      () => createDraftRevision(exec, "process_step", { localizationId: locId, title: "only title" }),
       "invalid_text",
       "missing required description rejected (process_step)",
     );
@@ -283,12 +296,11 @@ async function main(): Promise<void> {
       ["zh", "Hub ZH"],
     ] as const) {
       const locId = await upsertLocalization(exec, blockId, locale);
-      const rev = await createRevision(exec, "capability", {
+      const rev = await reviewedRevision(exec, "capability", {
         localizationId: locId,
         title,
         description: `${locale} desc`,
         sourceLocale: locale === "vi" ? null : "vi",
-        reviewStatus: "reviewed",
       });
       await publish(exec, locId, rev);
     }
@@ -311,11 +323,10 @@ async function main(): Promise<void> {
     await publish(
       exec,
       l2,
-      await createRevision(exec, "capability", {
+      await reviewedRevision(exec, "capability", {
         localizationId: l2,
         title: "VI only",
         description: "d",
-        reviewStatus: "reviewed",
       }),
     );
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi")).length === 2, "VI sees both blocks");
@@ -340,12 +351,11 @@ async function main(): Promise<void> {
     await publish(
       exec,
       locId,
-      await createRevision(exec, "solution", {
+      await reviewedRevision(exec, "solution", {
         localizationId: locId,
         title: "Real business",
         description: "Registered.",
         translatedPayload: { tag: "Trust & Safety" },
-        reviewStatus: "reviewed",
       }),
     );
     const pgDto = toPublicDto((await getPublishedBlocks(exec, "thg-order", "en"))[0]);
@@ -374,7 +384,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── §9 Fulfill manifest import round-trips (validated by the kind registry) ──────────────────
+  // ── §9 Fulfill manifest import round-trips (draft → approve → publish per locale) ────────────
   {
     const exec = await freshDb();
     await importManifest(exec, FULFILL_CONTENT_MANIFEST);
@@ -394,15 +404,15 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── §3 Publication ownership enforced by the DB (composite FK), not by service code ─────────────
+  // ── Publication ownership enforced by the DB (composite FK), not by service code ─────────────
   {
     const exec = await freshDb();
     const pageId = await createPage(exec, "thg-fulfill");
     const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
     const locVi = await upsertLocalization(exec, blockId, "vi");
     const locEn = await upsertLocalization(exec, blockId, "en");
-    await createRevision(exec, "capability", { localizationId: locVi, title: "VI", description: "d", reviewStatus: "reviewed" });
-    const revEn = await createRevision(exec, "capability", { localizationId: locEn, title: "EN", description: "d", reviewStatus: "reviewed" });
+    await reviewedRevision(exec, "capability", { localizationId: locVi, title: "VI", description: "d" });
+    const revEn = await reviewedRevision(exec, "capability", { localizationId: locEn, title: "EN", description: "d" });
     // Publish localization A (vi) pointing at revision R that belongs to localization B (en).
     await expectThrows(
       () => exec.query("INSERT INTO service_content_publications (localization_id, revision_id) VALUES ($1, $2)", [locVi, revEn]),
@@ -411,13 +421,13 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── §4 Revisions are immutable at the DB level (append-only) ─────────────────────────────────
+  // ── Revisions are immutable at the DB level (append-only) ────────────────────────────────────
   {
     const exec = await freshDb();
     const pageId = await createPage(exec, "thg-fulfill");
     const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
     const locId = await upsertLocalization(exec, blockId, "vi");
-    const revId = await createRevision(exec, "capability", { localizationId: locId, title: "orig", description: "d", reviewStatus: "reviewed" });
+    const revId = await reviewedRevision(exec, "capability", { localizationId: locId, title: "orig", description: "d" });
     await expectThrows(
       () => exec.query("UPDATE service_content_revisions SET title = 'mutated' WHERE id = $1", [revId]),
       /append-only|immutable/i,
@@ -430,23 +440,100 @@ async function main(): Promise<void> {
     );
   }
 
+  // ── Review provenance: draft → approve lineage, enforced in the DB ───────────────────────────
+  {
+    const exec = await freshDb();
+    const pageId = await createPage(exec, "thg-order");
+    const blockId = await createBlock(exec, { pageId, kind: "solution", blockKey: "hub", position: 1 });
+    const locId = await upsertLocalization(exec, blockId, "vi");
+
+    // create_draft_revision ALWAYS creates a draft (caller cannot choose status).
+    const draftId = await createDraftRevision(exec, "solution", {
+      localizationId: locId,
+      title: "Hub",
+      description: "desc",
+      translatedPayload: { tag: "T" },
+      sourceHash: "hash-123",
+    });
+    const draftRow = (
+      await exec.query<{ review_status: string; reviewed_from_revision_id: number | null }>(
+        "SELECT review_status, reviewed_from_revision_id FROM service_content_revisions WHERE id = $1",
+        [draftId],
+      )
+    )[0];
+    ok(draftRow.review_status === "draft", "create_draft_revision always creates a draft");
+    ok(draftRow.reviewed_from_revision_id === null, "a draft carries no review lineage");
+
+    // approve copies the EXACT draft content and records lineage + reviewer.
+    const reviewedId = await approveRevision(exec, draftId, 42);
+    const rev = (
+      await exec.query<{
+        title: string; description: string; translated_payload: Record<string, unknown>;
+        source_hash: string; review_status: string; reviewed_from_revision_id: number | null;
+        reviewed_by: number | null; reviewed_at: string | null;
+      }>(
+        `SELECT title, description, translated_payload, source_hash, review_status,
+                reviewed_from_revision_id, reviewed_by, reviewed_at
+           FROM service_content_revisions WHERE id = $1`,
+        [reviewedId],
+      )
+    )[0];
+    ok(
+      rev.review_status === "reviewed" && rev.title === "Hub" && rev.description === "desc" &&
+        JSON.stringify(rev.translated_payload) === JSON.stringify({ tag: "T" }) && rev.source_hash === "hash-123",
+      "approve_revision copies the EXACT draft content + preserves source_hash provenance",
+    );
+    ok(rev.reviewed_from_revision_id === draftId, "reviewed revision records reviewed_from_revision_id = the draft");
+    ok(rev.reviewed_by === 42 && rev.reviewed_at !== null, "reviewed revision records reviewer + reviewed_at");
+
+    // approving the SAME draft twice is rejected (uq_reviewed_from → conflict).
+    await expectContentError(() => approveRevision(exec, draftId, 42), "conflict", "a draft cannot be approved twice");
+
+    // a stale or failed draft is not reviewable.
+    const staleId = await insertRawRevision(exec, locId, "stale");
+    const failedId = await insertRawRevision(exec, locId, "failed");
+    await expectContentError(() => approveRevision(exec, staleId, 1), "not_publishable", "a stale revision cannot be approved");
+    await expectContentError(() => approveRevision(exec, failedId, 1), "not_publishable", "a failed revision cannot be approved");
+    // approving a non-existent revision is rejected.
+    await expectContentError(() => approveRevision(exec, 999999, 1), "not_publishable", "approving a missing revision is rejected");
+
+    // cross-localization lineage is impossible: a reviewed row cannot claim a draft from another
+    // localization (composite FK on (localization_id, reviewed_from_revision_id)).
+    const enLoc = await upsertLocalization(exec, blockId, "en");
+    const enDraft = await createDraftRevision(exec, "solution", { localizationId: enLoc, title: "EN", description: "d", translatedPayload: { tag: "e" } });
+    await expectThrows(
+      () =>
+        exec.query(
+          `INSERT INTO service_content_revisions (localization_id, title, description, review_status, reviewed_from_revision_id)
+           VALUES ($1, 'x', 'y', 'reviewed', $2)`,
+          [locId, enDraft], // vi localization claiming an en draft
+        ),
+      /foreign key|violates/i,
+      "cross-localization review lineage is rejected by the composite FK",
+    );
+
+    // the approved revision publishes; a rejected publish leaves the pointer unchanged.
+    await publish(exec, locId, reviewedId);
+    ok((await getPublishedBlocks(exec, "thg-order", "vi"))[0].title === "Hub", "an approved revision publishes successfully");
+  }
+
   // ── §2 Publication eligibility enforced by content.publish_revision (not service code) ──────────
   {
     const exec = await freshDb();
     const pageId = await createPage(exec, "thg-fulfill");
     const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
     const locId = await upsertLocalization(exec, blockId, "vi");
-    const mkRev = (status: NewRevisionStatus) =>
-      createRevision(exec, "capability", { localizationId: locId, title: `t-${status}`, description: "d", reviewStatus: status });
 
     // reviewed → publishes; establishes the baseline pointer.
-    const reviewed = await mkRev("reviewed");
+    const reviewed = await reviewedRevision(exec, "capability", { localizationId: locId, title: "t-reviewed", description: "d" });
     await publish(exec, locId, reviewed);
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed", "reviewed revision publishes");
 
     // every non-reviewed state is rejected, and the baseline pointer never moves.
-    for (const bad of ["draft", "stale", "failed"] as const) {
-      const rev = await mkRev(bad);
+    const draft = await createDraftRevision(exec, "capability", { localizationId: locId, title: "t-draft", description: "d" });
+    const stale = await insertRawRevision(exec, locId, "stale", "t-stale");
+    const failed = await insertRawRevision(exec, locId, "failed", "t-failed");
+    for (const [bad, rev] of [["draft", draft], ["stale", stale], ["failed", failed]] as const) {
       await expectContentError(() => publish(exec, locId, rev), "not_publishable", `${bad} revision is rejected`);
       ok(
         (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed",
@@ -459,9 +546,9 @@ async function main(): Promise<void> {
     await expectContentError(() => publish(exec, enLoc, reviewed), "not_publishable", "cross-localization publish rejected by function");
 
     // approved move is atomic: pointer flips to the new reviewed revision in one call.
-    const reviewed2 = await mkRev("reviewed");
+    const reviewed2 = await reviewedRevision(exec, "capability", { localizationId: locId, title: "t-reviewed2", description: "d" });
     await publish(exec, locId, reviewed2, reviewed);
-    ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed", "atomic move: pointer now on reviewed2");
+    ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed2", "atomic move: pointer now on reviewed2");
     // optimistic concurrency: a stale expected-pointer is rejected as a conflict.
     await expectContentError(() => publish(exec, locId, reviewed2, reviewed), "conflict", "stale optimistic token rejected");
   }
@@ -475,7 +562,7 @@ async function main(): Promise<void> {
     await publish(
       exec,
       locId,
-      await createRevision(exec, "capability", { localizationId: locId, title: "keep", description: "d", reviewStatus: "reviewed" }),
+      await reviewedRevision(exec, "capability", { localizationId: locId, title: "keep", description: "d" }),
     );
     // Historical boundaries reject hard delete PREDICTABLY (FK RESTRICT → 23503), not via the trigger.
     await expectThrows(
@@ -493,20 +580,23 @@ async function main(): Promise<void> {
     await exec.query("UPDATE service_content_pages SET status = 'archived' WHERE id = $1", [pageId]);
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi")).length === 0, "disabled block is not served (soft-delete)");
     const revCount = await exec.query<{ n: number }>("SELECT count(*)::int AS n FROM service_content_revisions");
-    ok(revCount[0].n === 1, "no historical revision was removed by the lifecycle operations");
+    ok(revCount[0].n === 2, "no historical revision was removed by the lifecycle operations");
     // Empty scaffolding (no localizations) IS deletable — documented behavior.
     const emptyBlock = await createBlock(exec, { pageId, kind: "capability", blockKey: "scratch", position: 9 });
     await exec.query("DELETE FROM service_content_blocks WHERE id = $1", [emptyBlock]);
     ok(true, "empty block with no localizations can be deleted (documented cleanup path)");
   }
 
-  // ── §1 Least-privilege runtime role — real column-level GRANTs via SET ROLE (PGlite enforces) ────
+  // ── §1 Least-privilege runtime role — real column-level GRANTs + function-only revision path ─────
   {
     const { db, exec } = await freshDbWithRoles();
     const pageId = await createPage(exec, "thg-fulfill");
     const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
     const locId = await upsertLocalization(exec, blockId, "vi");
-    const revId = await createRevision(exec, "capability", { localizationId: locId, title: "t", description: "d", reviewStatus: "reviewed" });
+    const draftId = await createDraftRevision(exec, "capability", { localizationId: locId, title: "t", description: "d" });
+    const reviewedId = await approveRevision(exec, draftId, 1);
+    // A second, un-approved draft for the runtime approve test below.
+    const draft2 = await createDraftRevision(exec, "capability", { localizationId: locId, title: "t2", description: "d" });
 
     const asRuntime = async (sql: string) => {
       await db.exec("SET ROLE thg_cms_runtime;");
@@ -536,12 +626,17 @@ async function main(): Promise<void> {
     await denied(`UPDATE content.service_content_blocks SET page_id = ${pageId} WHERE id = ${blockId}`, "runtime may NOT UPDATE block page_id");
     await denied(`UPDATE content.service_content_pages SET slug = 'x' WHERE id = ${pageId}`, "runtime may NOT UPDATE page slug");
     await denied(`UPDATE content.service_content_localizations SET locale = 'en' WHERE id = ${locId}`, "runtime may NOT UPDATE localization identity");
-    // Revisions append-only by privilege (independent of the trigger).
-    await denied(`UPDATE content.service_content_revisions SET title = 'x' WHERE id = ${revId}`, "runtime may NOT UPDATE a revision");
-    await denied(`DELETE FROM content.service_content_revisions WHERE id = ${revId}`, "runtime may NOT DELETE a revision");
-    // Publications: no direct write; the function is the only path.
-    await denied(`INSERT INTO content.service_content_publications (localization_id, revision_id) VALUES (${locId}, ${revId})`, "runtime may NOT INSERT a publication directly");
-    await allowed(`SELECT content.publish_revision(${locId}, ${revId}, NULL, NULL)`, "runtime MAY publish via EXECUTE on the function");
+    // Revisions: NO direct write of ANY kind — the runtime cannot fabricate a revision.
+    await denied(`INSERT INTO content.service_content_revisions (localization_id, title, review_status) VALUES (${locId}, 'x', 'draft')`, "runtime may NOT INSERT a draft revision directly");
+    await denied(`INSERT INTO content.service_content_revisions (localization_id, title, review_status) VALUES (${locId}, 'x', 'reviewed')`, "runtime may NOT INSERT an arbitrary reviewed revision directly");
+    await denied(`UPDATE content.service_content_revisions SET title = 'x' WHERE id = ${reviewedId}`, "runtime may NOT UPDATE a revision");
+    await denied(`DELETE FROM content.service_content_revisions WHERE id = ${reviewedId}`, "runtime may NOT DELETE a revision");
+    // Publications: no direct write.
+    await denied(`INSERT INTO content.service_content_publications (localization_id, revision_id) VALUES (${locId}, ${reviewedId})`, "runtime may NOT INSERT a publication directly");
+    // The functions ARE the runtime's only write path (EXECUTE granted; definer = fn_owner).
+    await allowed(`SELECT content.create_draft_revision(${locId}, 'via-fn', 'd', '{}'::jsonb, NULL, '', NULL)`, "runtime MAY create a draft via create_draft_revision");
+    await allowed(`SELECT content.approve_revision(${draft2}, 1, NULL)`, "runtime MAY approve a draft via approve_revision");
+    await allowed(`SELECT content.publish_revision(${locId}, ${reviewedId}, NULL, NULL)`, "runtime MAY publish via publish_revision");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

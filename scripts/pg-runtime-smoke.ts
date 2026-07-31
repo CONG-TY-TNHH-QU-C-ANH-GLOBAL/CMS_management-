@@ -11,7 +11,7 @@
 //
 // Run:  SMOKE_DATABASE_URL="postgres://…preview…" bun scripts/pg-runtime-smoke.ts
 import { createRuntimeExec, healthCheck } from "../src/features/content-pg/pg-adapter";
-import { createPage, createBlock, upsertLocalization, createRevision, publish } from "../src/features/content-pg/content.repo";
+import { createPage, createBlock, upsertLocalization, createDraftRevision, approveRevision, publish } from "../src/features/content-pg/content.repo";
 import { ContentError } from "../src/features/content-pg/content.errors";
 
 const url = process.env.SMOKE_DATABASE_URL;
@@ -45,8 +45,9 @@ async function main(): Promise<void> {
     const pageId = await createPage(exec, `smoke-${Date.now()}`);
     const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 1, coreConfig: {} });
     const locId = await upsertLocalization(exec, blockId, "en");
-    const reviewed = await createRevision(exec, "capability", { localizationId: locId, title: "ok", description: "d", reviewStatus: "reviewed" });
-    const draft = await createRevision(exec, "capability", { localizationId: locId, title: "wip", description: "d", reviewStatus: "draft" });
+    // Draft → approve → publish (the reviewed revision copies the exact draft).
+    const draft = await createDraftRevision(exec, "capability", { localizationId: locId, title: "wip", description: "d" });
+    const reviewed = await approveRevision(exec, draft, 1);
 
     // Publication APPROVAL through content.publish_revision (reviewed passes).
     await publish(exec, locId, reviewed);

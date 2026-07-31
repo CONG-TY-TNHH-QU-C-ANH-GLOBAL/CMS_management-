@@ -28,7 +28,9 @@ export interface NewRevision {
   translatedPayload?: Record<string, unknown>;
   sourceLocale?: string | null;
   sourceHash?: string;
-  reviewStatus?: "draft" | "reviewed" | "stale" | "failed";
+  createdBy?: number | null;
+  // NOTE: review status is NOT a caller field. Drafts are always created as 'draft' via
+  // content.create_draft_revision; a 'reviewed' revision exists only via content.approve_revision.
 }
 
 export interface PublishedBlockRow {
@@ -47,19 +49,22 @@ export interface PublishedBlockRow {
 function mapDbError(err: unknown): ContentError {
   const code = (err as { code?: string })?.code;
   const msg = err instanceof Error ? err.message : String(err);
+  // Optimistic-concurrency signals (publish pointer moved / approve block-version moved / a draft that
+  // was already approved) → conflict. Checked BEFORE the generic unique rule so the double-approve
+  // unique violation (uq_reviewed_from) is not misreported as a duplicate block identity.
+  if (code === "40001" || /pointer moved|version moved/.test(msg) || /uq_reviewed_from/.test(msg)) {
+    return new ContentError("conflict", "content changed concurrently; retry with current state");
+  }
   if (code === PG_UNIQUE_VIOLATION || /unique|duplicate key/i.test(msg)) {
     return new ContentError(
       "duplicate_identity",
       "a block with this (page, kind, block_key) already exists",
     );
   }
-  // content.publish_revision guards. Pointer-moved (optimistic concurrency) → conflict; every other
-  // "publish rejected" (non-reviewed status, missing/cross-localization revision) → not_publishable.
-  if (code === "40001" || /pointer moved/.test(msg)) {
-    return new ContentError("conflict", "publication pointer moved; retry with the current revision");
-  }
-  if (/publish rejected/.test(msg)) {
-    return new ContentError("not_publishable", "revision is not eligible to be published");
+  // Workflow guards from the DB functions (non-reviewed publish, non-draft approve, cross-localization,
+  // missing row) → not_publishable.
+  if (/publish rejected|approve rejected|draft rejected/.test(msg)) {
+    return new ContentError("not_publishable", "revision is not eligible for this operation");
   }
   return new ContentError("db_unavailable", "content store write failed");
 }
@@ -117,28 +122,52 @@ export async function upsertLocalization(
   return rows[0].id;
 }
 
-/** Append a new immutable revision (validated by the block's kind). Does NOT change what is published. */
-export async function createRevision(exec: PgExec, kind: Kind, r: NewRevision): Promise<number> {
+/** Create a new immutable DRAFT revision via content.create_draft_revision (status forced to 'draft').
+ *  Validated by the block's kind BEFORE the DB call. Does NOT change what is published, and cannot
+ *  create a reviewed revision — the runtime has no direct revision INSERT. */
+export async function createDraftRevision(exec: PgExec, kind: Kind, r: NewRevision): Promise<number> {
   validateRevision(kind, {
     title: r.title ?? null,
     description: r.description ?? null,
     translatedPayload: r.translatedPayload ?? {},
   });
-  const rows = await exec.query<{ id: number }>(
-    `INSERT INTO service_content_revisions
-       (localization_id, title, description, translated_payload, source_locale, source_hash, review_status)
-     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7) RETURNING id`,
-    [
-      r.localizationId,
-      r.title ?? null,
-      r.description ?? null,
-      JSON.stringify(r.translatedPayload ?? {}),
-      r.sourceLocale ?? null,
-      r.sourceHash ?? "",
-      r.reviewStatus ?? "draft",
-    ],
-  );
-  return rows[0].id;
+  try {
+    const rows = await exec.query<{ create_draft_revision: number }>(
+      "SELECT content.create_draft_revision($1, $2, $3, $4::jsonb, $5, $6, $7) AS create_draft_revision",
+      [
+        r.localizationId,
+        r.title ?? null,
+        r.description ?? null,
+        JSON.stringify(r.translatedPayload ?? {}),
+        r.sourceLocale ?? null,
+        r.sourceHash ?? "",
+        r.createdBy ?? null,
+      ],
+    );
+    return rows[0].create_draft_revision;
+  } catch (err) {
+    throw mapDbError(err);
+  }
+}
+
+/** Approve an EXACT draft via content.approve_revision → a new immutable 'reviewed' revision that
+ *  copies the draft's content verbatim and records reviewed_from_revision_id/reviewer. The caller
+ *  supplies no content. Optional expectedVersion guards the owning block's optimistic version. */
+export async function approveRevision(
+  exec: PgExec,
+  draftRevisionId: number,
+  reviewerId?: number,
+  expectedVersion?: number,
+): Promise<number> {
+  try {
+    const rows = await exec.query<{ approve_revision: number }>(
+      "SELECT content.approve_revision($1, $2, $3) AS approve_revision",
+      [draftRevisionId, reviewerId ?? null, expectedVersion ?? null],
+    );
+    return rows[0].approve_revision;
+  } catch (err) {
+    throw mapDbError(err);
+  }
 }
 
 /** Atomically move the published pointer for a localization to a specific revision. */

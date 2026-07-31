@@ -52,16 +52,34 @@ are the primary boundary.
   **column-by-column**, excluding the stable slug (pages), `page_id`/`kind`/`block_key` (blocks), and
   `block_id`/`locale` (localizations). The self-check flips to `thg_cms_runtime` via `SET ROLE` and
   proves each identity `UPDATE` is `permission denied` while mutable structure columns succeed.
+- **Revision workflow with DB-enforced provenance** — the runtime has **no direct write** on
+  `service_content_revisions` at all; three SECURITY DEFINER functions are its only path:
+  - **`create_draft_revision(...)`** — `review_status` is **forced to `'draft'`** (the caller cannot
+    choose a status), so the runtime can never fabricate a `reviewed` row.
+  - **`approve_revision(draft_id, reviewer_id, expected_version)`** — copies the **exact** draft
+    content (the caller supplies no title/description/payload), appends a new `reviewed` revision with
+    **`reviewed_from_revision_id`** = the draft, and records `reviewed_by`/`reviewed_at`. A `reviewed`
+    revision therefore provably corresponds to a specific submitted draft. Only a `draft` is
+    reviewable; `uq_reviewed_from` forbids approving one draft twice.
+  - **`publish_revision(...)`** — the *only* publication path; re-checks ownership, rejects any
+    revision whose `review_status <> 'reviewed'`, applies optional optimistic concurrency, and moves
+    the single pointer atomically.
+  The `content` FK `(localization_id, reviewed_from_revision_id) → revisions (localization_id, id)`
+  makes cross-localization review lineage impossible; `CHECK ((review_status='reviewed') =
+  (reviewed_from_revision_id IS NOT NULL))` ties lineage to status. The self-check proves: create-draft
+  always drafts, the caller can't choose status, approve copies exact content + records lineage/reviewer,
+  double-approve and stale/failed/missing approvals are rejected, cross-localization lineage is rejected,
+  an approved revision publishes, and (via `SET ROLE`) the runtime cannot INSERT an arbitrary reviewed
+  revision directly.
 - **Publication ownership + eligibility** — the composite FK `(localization_id, revision_id) →
-  revisions (localization_id, id)` makes a cross-localization pointer impossible; and
-  **`content.publish_revision(...)`** is the *only* publication path (runtime has **no** direct
-  table write, only `EXECUTE`). The function re-checks ownership, rejects any revision whose
-  `review_status <> 'reviewed'`, applies optional optimistic concurrency, and moves the single pointer
-  atomically. The self-check proves draft/stale/failed and cross-localization publishes are rejected,
-  the live pointer is unchanged after a rejected attempt, an approved move is atomic, and a stale
-  optimistic token is a conflict.
-- **Revision immutability** — two layers: the runtime role has **`INSERT` only** on
-  `service_content_revisions`, and a `BEFORE UPDATE OR DELETE` trigger raises. Both are proven.
+  revisions (localization_id, id)` makes a cross-localization pointer impossible. The self-check proves
+  draft/stale/failed and cross-localization publishes are rejected, the live pointer is unchanged after
+  a rejected attempt, an approved move is atomic, and a stale optimistic token is a conflict.
+- **Revision immutability** — two layers: the runtime has **no** `UPDATE`/`DELETE` on
+  `service_content_revisions` (and no direct `INSERT`), and a `BEFORE UPDATE OR DELETE` trigger raises.
+  Both are proven. The dedicated `thg_content_fn_owner` role that owns the functions is itself strictly
+  **INSERT-only** on revisions (no row lock is taken in `approve_revision` — the immutable source plus
+  `uq_reviewed_from` give the concurrency guarantee without needing UPDATE privilege).
 - **Deletion / history semantics** — historical boundaries use **`ON DELETE RESTRICT`**
   (block→page, localization→block, revision→localization), so a hard delete of a page/block with
   content is rejected **predictably as a FK violation** (not as a side effect of the immutability
@@ -75,8 +93,9 @@ are the primary boundary.
 The POC (`bun run check:pg-content-poc`) runs against **real PostgreSQL in-process** (PGlite / WASM). It
 validates the **schema, constraints, triggers, transactions, the publish function, kind registry, DTO
 compat, and manifest import** — and, because PGlite honors `CREATE ROLE`, column-level `GRANT`, and
-`SET ROLE`, it also **genuinely enforces the least-privilege grants** in `bootstrap/` (identity columns
-denied, function-only publication, append-only revisions). What PGlite still does **not** prove:
+`SET ROLE`, and SECURITY DEFINER ownership by a non-superuser function-owner, it also **genuinely
+enforces the least-privilege grants** in `bootstrap/` (identity columns denied, function-only
+draft/approve/publish, no direct revision write). What PGlite still does **not** prove:
 real **authentication** (`LOGIN`/passwords), Supabase's own `anon`/`authenticated`/`service_role`
 exposure, and the **Hyperdrive** path — those are the job of the required runtime gate below.
 
