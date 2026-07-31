@@ -51,6 +51,29 @@ describe("Google OAuth configuration guard", () => {
     expect(parsed.searchParams.get("state")).toBe("state123");
   });
 
+  test("a valid client ID with surrounding whitespace is trimmed in the authorization URL", () => {
+    fakeEnv.GOOGLE_CLIENT_ID = `\t  ${CLIENT_ID}  \n`;
+    const parsed = new URL(buildGoogleAuthUrl("state123"));
+    expect(parsed.searchParams.get("client_id")).toBe(CLIENT_ID); // trimmed, not the raw padded value
+  });
+
+  test("a whitespace-only GOOGLE_CLIENT_SECRET is treated as missing (before any network call)", async () => {
+    fakeEnv.GOOGLE_CLIENT_ID = CLIENT_ID;
+    fakeEnv.GOOGLE_CLIENT_SECRET = "   \t";
+    let fetched = false;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      fetched = true;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    try {
+      await expect(exchangeCodeForTokens("auth-code")).rejects.toBeInstanceOf(OAuthConfigError);
+      expect(fetched).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("token exchange rejects with OAuthConfigError (before any network call) when GOOGLE_CLIENT_SECRET is missing", async () => {
     fakeEnv.GOOGLE_CLIENT_ID = CLIENT_ID; // id present, secret absent
     let fetched = false;
@@ -80,20 +103,24 @@ describe("Google OAuth configuration guard", () => {
     }
   });
 
-  test("a failed token exchange surfaces the provider response and NEVER the client secret value", async () => {
+  test("a failed token exchange throws a BOUNDED provider error — status + parsed code only, no raw body, no secret", async () => {
     fakeEnv.GOOGLE_CLIENT_ID = CLIENT_ID;
     fakeEnv.GOOGLE_CLIENT_SECRET = SECRET_SENTINEL; // both configured → guard passes, network is reached
+    const RAW_BODY =
+      '{"error":"invalid_grant","error_description":"RAW-BODY-SENTINEL-do-not-leak"}';
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
-      new Response("invalid_grant", { status: 400 })) as unknown as typeof fetch;
+      new Response(RAW_BODY, { status: 400 })) as unknown as typeof fetch;
     try {
-      await expect(exchangeCodeForTokens("auth-code")).rejects.toThrow(/token exchange failed/i);
-      try {
-        await exchangeCodeForTokens("auth-code");
-      } catch (e) {
-        // The error carries Google's RESPONSE, never the request body's client_secret.
-        expect((e as Error).message).not.toContain(SECRET_SENTINEL);
-      }
+      await exchangeCodeForTokens("auth-code");
+      throw new Error("expected exchangeCodeForTokens to throw");
+    } catch (e) {
+      const msg = (e as Error).message;
+      expect(msg).toContain("400"); // safe metadata: HTTP status
+      expect(msg).toContain("invalid_grant"); // safe metadata: parsed provider code
+      expect(msg).not.toContain("RAW-BODY-SENTINEL-do-not-leak"); // raw response body never surfaced
+      expect(msg).not.toContain("error_description");
+      expect(msg).not.toContain(SECRET_SENTINEL); // client secret never in the error
     } finally {
       globalThis.fetch = originalFetch;
     }

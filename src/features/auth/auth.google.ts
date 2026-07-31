@@ -30,10 +30,39 @@ export class OAuthConfigError extends Error {
   }
 }
 
+/** A bounded provider error: carries ONLY safe metadata (operation, HTTP status, and a safely-parsed
+ *  short provider error code). It never contains the raw Google response body, request body, or any
+ *  credential — so it is safe to log and to map to the fixed `token_exchange_failed` browser code. */
+export class GoogleProviderError extends Error {
+  constructor(
+    readonly operation: "token exchange" | "userinfo",
+    readonly status: number,
+    readonly providerCode?: string,
+  ) {
+    super(`Google ${operation} failed: HTTP ${status}${providerCode ? ` (${providerCode})` : ""}`);
+    this.name = "GoogleProviderError";
+  }
+}
+
+/** Extract Google's short OAuth error code (e.g. `invalid_grant`) from an error response WITHOUT
+ *  surfacing the raw body — returns it only when it is a bounded lowercase token, else undefined. */
+async function safeProviderErrorCode(res: Response): Promise<string | undefined> {
+  try {
+    const parsed = JSON.parse(await res.text()) as { error?: unknown };
+    const code = parsed.error;
+    return typeof code === "string" && /^[a-z][a-z0-9_]{0,39}$/.test(code) ? code : undefined;
+  } catch {
+    return undefined; // non-JSON or unparsable body → no code, and the raw text is discarded
+  }
+}
+
 function requireOAuthEnv(varName: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET"): string {
   const value = env[varName];
-  if (!value || value.trim() === "") throw new OAuthConfigError(varName);
-  return value;
+  const trimmed = value?.trim() ?? "";
+  // Reject undefined / empty / whitespace-only; return the trimmed value so stray surrounding
+  // whitespace in a binding never corrupts the Google request.
+  if (trimmed === "") throw new OAuthConfigError(varName);
+  return trimmed;
 }
 
 export function getRedirectUri(): string {
@@ -76,8 +105,7 @@ export async function exchangeCodeForTokens(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Google token exchange failed: ${res.status} ${text}`);
+    throw new GoogleProviderError("token exchange", res.status, await safeProviderErrorCode(res));
   }
   return res.json();
 }
@@ -87,7 +115,7 @@ export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUs
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) {
-    throw new Error(`Google userinfo failed: ${res.status}`);
+    throw new GoogleProviderError("userinfo", res.status);
   }
   return res.json();
 }
