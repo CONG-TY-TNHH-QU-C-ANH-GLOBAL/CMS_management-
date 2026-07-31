@@ -39,8 +39,15 @@ export class GoogleProviderError extends Error {
     readonly status: number,
     readonly providerCode?: string,
   ) {
-    super(`Google ${operation} failed: HTTP ${status}${providerCode ? ` (${providerCode})` : ""}`);
+    super(GoogleProviderError.formatMessage(operation, status, providerCode));
     this.name = "GoogleProviderError";
+  }
+
+  /** Build the bounded message from named parts — no nested template literals, and never any raw
+   *  provider body, error_description, credential, code, or token. */
+  private static formatMessage(operation: string, status: number, providerCode?: string): string {
+    const providerCodeSuffix = providerCode ? ` (${providerCode})` : "";
+    return `Google ${operation} failed: HTTP ${status}${providerCodeSuffix}`;
   }
 }
 

@@ -7,7 +7,7 @@ const fakeEnv: Record<string, string> = {};
 mock.module("cloudflare:workers", () => ({ env: fakeEnv }));
 mock.module("@/core/db/env", () => ({}));
 
-const { buildGoogleAuthUrl, exchangeCodeForTokens, OAuthConfigError } =
+const { buildGoogleAuthUrl, exchangeCodeForTokens, OAuthConfigError, GoogleProviderError } =
   await import("./auth.google");
 
 const CLIENT_ID = "test-client-id.apps.googleusercontent.com";
@@ -103,7 +103,7 @@ describe("Google OAuth configuration guard", () => {
     }
   });
 
-  test("a failed token exchange throws a BOUNDED provider error — status + parsed code only, no raw body, no secret", async () => {
+  test("a failed token exchange exposes bounded provider metadata and never the client secret", async () => {
     fakeEnv.GOOGLE_CLIENT_ID = CLIENT_ID;
     fakeEnv.GOOGLE_CLIENT_SECRET = SECRET_SENTINEL; // both configured → guard passes, network is reached
     const RAW_BODY =
@@ -111,18 +111,25 @@ describe("Google OAuth configuration guard", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
       new Response(RAW_BODY, { status: 400 })) as unknown as typeof fetch;
+
+    // Invoke exactly ONCE, capture the single rejection, and assert every requirement on that one error.
+    let captured: unknown;
     try {
       await exchangeCodeForTokens("auth-code");
-      throw new Error("expected exchangeCodeForTokens to throw");
     } catch (e) {
-      const msg = (e as Error).message;
-      expect(msg).toContain("400"); // safe metadata: HTTP status
-      expect(msg).toContain("invalid_grant"); // safe metadata: parsed provider code
-      expect(msg).not.toContain("RAW-BODY-SENTINEL-do-not-leak"); // raw response body never surfaced
-      expect(msg).not.toContain("error_description");
-      expect(msg).not.toContain(SECRET_SENTINEL); // client secret never in the error
+      captured = e;
     } finally {
       globalThis.fetch = originalFetch;
     }
+
+    // Fails clearly (not silently) if the function unexpectedly resolved — `captured` stays undefined.
+    expect(captured).toBeInstanceOf(GoogleProviderError);
+    const msg = (captured as Error).message;
+    expect(msg).toMatch(/token exchange failed/i); // bounded operation label
+    expect(msg).toContain("400"); // safe metadata: HTTP status
+    expect(msg).toContain("invalid_grant"); // safe metadata: validated short provider code
+    expect(msg).not.toContain(SECRET_SENTINEL); // client secret never in the error
+    expect(msg).not.toContain("RAW-BODY-SENTINEL-do-not-leak"); // raw provider body is discarded
+    expect(msg).not.toContain("error_description"); // discarded provider detail never surfaced
   });
 });
