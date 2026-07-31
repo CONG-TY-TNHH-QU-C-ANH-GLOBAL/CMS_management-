@@ -183,78 +183,100 @@ const BUNDLES: KindBundle[] = [
   { kind: "section_copy", blocks: sectionCopy },
 ];
 
+// ── Centralized seed metadata (emitted once as context/lookup datasets) ────────────────────────
 const PAGE_SLUG = "thg-fulfill";
-/** The kinds this seed owns — all managed roles live under these; unrelated blocks use other kinds. */
-const MANAGED_KINDS = ["journey_step", "capability", "section_copy"] as const;
+const SOURCE_LOCALE = "vi";
+const REVIEWED_STATUS = "reviewed";
+const KEY_PATH = "$.key";
+/** Stable numeric id → canonical CMS kind. Ownership: all managed roles live under these kinds. */
+const KIND_BY_ID: ReadonlyArray<{ id: number; kind: string }> = [
+  { id: 1, kind: "journey_step" },
+  { id: 2, kind: "capability" },
+  { id: 3, kind: "section_copy" },
+];
+const KIND_ID = new Map(KIND_BY_ID.map((k) => [k.kind, k.id]));
+/** Translation locales this seed produces (VI is the source row, not a translation). */
+const TRANSLATION_LOCALES = ["en", "zh"] as const;
 
+/** One flat managed role — localized columns for every locale, plus the canonical source_hash. The
+ *  payload is NOT stored: it is derived as json_object('key', role_key) so the only variable is the
+ *  key. Absent scalar text is null (not ""), matching the nullable columns + the endpoint contract. */
 interface RoleRow {
-  kind: string;
+  kindId: number;
   key: string;
   position: number;
-  viTitle: string;
-  viDescription: string;
-  payload: string;
-}
-interface TransRow {
-  kind: string;
-  key: string;
-  locale: "en" | "zh";
-  title: string;
-  description: string;
+  viTitle: string | null;
+  viDescription: string | null;
+  enTitle: string | null;
+  enDescription: string | null;
+  zhTitle: string | null;
+  zhDescription: string | null;
   sourceHash: string;
 }
 
-/** Flatten the bundles into the managed-role + translation datasets, computing each role's canonical
- *  source_hash (of its VI {title, description, payload_json}) via the repository's hashing function. */
-async function buildData(): Promise<{ roles: RoleRow[]; trans: TransRow[] }> {
+/** Absence is null; a present value (including a real string) is kept verbatim. */
+const orNull = (s: string): string | null => (s === "" ? null : s);
+
+/** Flatten the bundles into the single managed-role dataset, computing each role's canonical
+ *  source_hash of its VI {title, description, payload_json} via the repository's hashing function.
+ *  The hash uses the SAME payload string SQLite's json_object emits (verified byte-identical) and
+ *  treats absent text as "" — exactly as onServiceBlockSourceChanged recomputes it (title ?? ""). */
+async function buildRoles(): Promise<RoleRow[]> {
   const roles: RoleRow[] = [];
-  const trans: TransRow[] = [];
   for (const bundle of BUNDLES) {
     for (const block of bundle.blocks) {
-      const payload = JSON.stringify({ key: block.key });
       const sourceHash = await computeSourceHash({
         title: block.title.vi,
         description: block.description.vi,
-        payload_json: payload,
+        payload_json: JSON.stringify({ key: block.key }),
       });
       roles.push({
-        kind: bundle.kind,
+        kindId: KIND_ID.get(bundle.kind)!,
         key: block.key,
         position: block.position,
-        viTitle: block.title.vi,
-        viDescription: block.description.vi,
-        payload,
+        viTitle: orNull(block.title.vi),
+        viDescription: orNull(block.description.vi),
+        enTitle: orNull(block.title.en),
+        enDescription: orNull(block.description.en),
+        zhTitle: orNull(block.title.zh),
+        zhDescription: orNull(block.description.zh),
+        sourceHash,
       });
-      for (const locale of ["en", "zh"] as const) {
-        trans.push({
-          kind: bundle.kind,
-          key: block.key,
-          locale,
-          title: block.title[locale],
-          description: block.description[locale],
-          sourceHash,
-        });
-      }
     }
   }
-  return { roles, trans };
+  return roles;
 }
 
 // ── SQL emit helpers ─────────────────────────────────────────────────────────────────────────
 
 /** SQLite single-quoted literal with CHAR(10) joins to keep newlines portable. */
-function lit(s: string): string {
-  const parts = s.replace(/'/g, "''").split("\n");
+function sqlLit(s: string): string {
+  const parts = s.replaceAll("'", "''").split("\n");
   return parts.length === 1 ? `'${parts[0]}'` : parts.map((p) => `'${p}'`).join(" || CHAR(10) || ");
 }
-
+/** A nullable text column: absence → SQL NULL, present value → escaped literal. */
+function sqlNullable(s: string | null): string {
+  return s === null ? "NULL" : sqlLit(s);
+}
 /** `(v1, v2, …)` VALUES tuple. */
 function tuple(values: string[]): string {
   return `  (${values.join(", ")})`;
 }
 
-const kindsInList = MANAGED_KINDS.map((k) => `'${k}'`).join(", ");
-const KEY_PATH = "'$.key'";
+// Focused self-check for the SQL escaping (§ SonarCloud replaceAll): one / many / no / Unicode
+// apostrophes must all round-trip to a valid single-quoted literal. Runs on every generation.
+for (const [input, expected] of [
+  ["none", "'none'"],
+  ["it's", "'it''s'"],
+  ["a'b'c'", "'a''b''c'''"],
+  ["Tiếng Việt · 中文", "'Tiếng Việt · 中文'"],
+] as const) {
+  if (sqlLit(input) !== expected) {
+    throw new Error(
+      `sqlLit escaping regression: ${JSON.stringify(input)} → ${sqlLit(input)} (expected ${expected})`,
+    );
+  }
+}
 
 function emitHeader(): string {
   return [
@@ -299,60 +321,78 @@ function emitHeader(): string {
   ].join("\n");
 }
 
-function emitStaging(roles: RoleRow[], trans: TransRow[]): string {
-  const roleValues = roles
+/** Context + kind + locale lookups. Every shared literal (page slug, source locale, reviewed status,
+ *  JSON key path, canonical kinds, translation locales) is emitted HERE exactly once; all executable
+ *  SQL below references these datasets instead of repeating the literals. */
+function emitContext(): string {
+  const kindRows = KIND_BY_ID.map((k) => tuple([String(k.id), sqlLit(k.kind)])).join(",\n");
+  const localeRows = TRANSLATION_LOCALES.map((l) => tuple([sqlLit(l)])).join(",\n");
+  return [
+    "-- Centralized seed metadata — the ONLY place these literals appear (D1 blocks TEMP tables, so",
+    "-- these are regular tables, dropped at the end).",
+    "DROP TABLE IF EXISTS _seed_fulfill_ctx;",
+    "CREATE TABLE _seed_fulfill_ctx (page_slug TEXT, source_locale TEXT, reviewed_status TEXT, key_path TEXT);",
+    `INSERT INTO _seed_fulfill_ctx (page_slug, source_locale, reviewed_status, key_path) VALUES\n` +
+      `${tuple([sqlLit(PAGE_SLUG), sqlLit(SOURCE_LOCALE), sqlLit(REVIEWED_STATUS), sqlLit(KEY_PATH)])};`,
+    "",
+    "DROP TABLE IF EXISTS _seed_fulfill_kinds;",
+    "CREATE TABLE _seed_fulfill_kinds (kind_id INTEGER, kind TEXT);",
+    `INSERT INTO _seed_fulfill_kinds (kind_id, kind) VALUES\n${kindRows};`,
+    "",
+    "DROP TABLE IF EXISTS _seed_fulfill_locales;",
+    "CREATE TABLE _seed_fulfill_locales (locale TEXT);",
+    `INSERT INTO _seed_fulfill_locales (locale) VALUES\n${localeRows};`,
+  ].join("\n");
+}
+
+/** One managed-role dataset: kind_id (→ lookup), key, position, localized title/description columns
+ *  (NULL where absent) and the canonical source_hash. Payload is NOT stored — derived downstream. */
+function emitRoles(roles: RoleRow[]): string {
+  const rows = roles
     .map((r) =>
       tuple([
-        lit(r.kind),
-        lit(r.key),
+        String(r.kindId),
+        sqlLit(r.key),
         String(r.position),
-        lit(r.viTitle),
-        lit(r.viDescription),
-        lit(r.payload),
-      ]),
-    )
-    .join(",\n");
-  const transValues = trans
-    .map((t) =>
-      tuple([
-        lit(t.kind),
-        lit(t.key),
-        lit(t.locale),
-        lit(t.title),
-        lit(t.description),
-        lit(t.sourceHash),
+        sqlNullable(r.viTitle),
+        sqlNullable(r.viDescription),
+        sqlNullable(r.enTitle),
+        sqlNullable(r.enDescription),
+        sqlNullable(r.zhTitle),
+        sqlNullable(r.zhDescription),
+        sqlLit(r.sourceHash),
       ]),
     )
     .join(",\n");
   return [
-    "-- Transient staging datasets (D1 blocks TEMP tables, so these are regular tables, dropped at end).",
     "DROP TABLE IF EXISTS _seed_fulfill_roles;",
-    "CREATE TABLE _seed_fulfill_roles (kind TEXT, role_key TEXT, position INTEGER, vi_title TEXT, vi_description TEXT, payload TEXT);",
-    `INSERT INTO _seed_fulfill_roles (kind, role_key, position, vi_title, vi_description, payload) VALUES\n${roleValues};`,
-    "",
-    "DROP TABLE IF EXISTS _seed_fulfill_trans;",
-    "CREATE TABLE _seed_fulfill_trans (kind TEXT, role_key TEXT, locale TEXT, title TEXT, description TEXT, source_hash TEXT);",
-    `INSERT INTO _seed_fulfill_trans (kind, role_key, locale, title, description, source_hash) VALUES\n${transValues};`,
+    "CREATE TABLE _seed_fulfill_roles (kind_id INTEGER, role_key TEXT, position INTEGER, vi_title TEXT," +
+      " vi_description TEXT, en_title TEXT, en_description TEXT, zh_title TEXT, zh_description TEXT, source_hash TEXT);",
+    "INSERT INTO _seed_fulfill_roles (kind_id, role_key, position, vi_title, vi_description, en_title," +
+      ` en_description, zh_title, zh_description, source_hash) VALUES\n${rows};`,
   ].join("\n");
 }
 
 function emitPreflight(): string {
   // Sum of (rows_in_group - 1) across managed VI identities and per-(block,locale) translations:
   // >0 iff some managed identity is already duplicated. CHECK(dupes=0) aborts before any seed write.
+  // (Translation duplicates are additionally impossible via UNIQUE(service_block_id, locale).)
   return [
     "-- PREFLIGHT — abort (before writes) if a managed identity is already duplicated.",
     "DROP TABLE IF EXISTS _seed_fulfill_preflight;",
     "CREATE TABLE _seed_fulfill_preflight (dupes INTEGER NOT NULL CHECK (dupes = 0));",
     "INSERT INTO _seed_fulfill_preflight (dupes)",
     "SELECT COALESCE(SUM(extra), 0) FROM (",
-    `  SELECT COUNT(*) - 1 AS extra FROM service_blocks`,
-    `   WHERE page_slug = '${PAGE_SLUG}' AND locale = 'vi' AND kind IN (${kindsInList})`,
-    `   GROUP BY kind, json_extract(payload_json, ${KEY_PATH})`,
+    "  SELECT COUNT(*) - 1 AS extra FROM service_blocks sb CROSS JOIN _seed_fulfill_ctx c",
+    "   WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale",
+    "     AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)",
+    "   GROUP BY sb.kind, json_extract(sb.payload_json, c.key_path)",
     "  UNION ALL",
     "  SELECT COUNT(*) - 1 AS extra FROM service_block_translations t",
-    "    JOIN service_blocks sb ON sb.id = t.service_block_id",
-    `   WHERE sb.page_slug = '${PAGE_SLUG}' AND sb.locale = 'vi' AND sb.kind IN (${kindsInList})`,
-    "     AND t.locale IN ('en', 'zh')",
+    "    JOIN service_blocks sb ON sb.id = t.service_block_id CROSS JOIN _seed_fulfill_ctx c",
+    "   WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale",
+    "     AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)",
+    "     AND t.locale IN (SELECT locale FROM _seed_fulfill_locales)",
     "   GROUP BY sb.id, t.locale",
     ");",
     "DROP TABLE IF EXISTS _seed_fulfill_preflight;",
@@ -360,58 +400,72 @@ function emitPreflight(): string {
 }
 
 function emitRoleInsert(): string {
-  // Set-based create-if-missing: anti-join the managed roles against existing VI rows by identity.
+  // One set-based anti-join insert (create-if-missing; preserves editor-modified roles). payload_json
+  // is derived as json_object('key', role_key) — verified byte-identical to the hashed payload string.
   return [
     "-- VI rows — one set-based anti-join insert (create-if-missing; preserves editor-modified roles).",
     "INSERT INTO service_blocks (page_slug, kind, position, locale, icon, title, description, payload_json)",
-    `SELECT '${PAGE_SLUG}', r.kind, r.position, 'vi', NULL, r.vi_title, r.vi_description, r.payload`,
+    "SELECT c.page_slug, k.kind, r.position, c.source_locale, NULL, r.vi_title, r.vi_description," +
+      " json_object('key', r.role_key)",
     "FROM _seed_fulfill_roles r",
+    "JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id",
+    "CROSS JOIN _seed_fulfill_ctx c",
     "LEFT JOIN service_blocks sb",
-    `  ON sb.page_slug = '${PAGE_SLUG}' AND sb.kind = r.kind AND sb.locale = 'vi'`,
-    `  AND json_extract(sb.payload_json, ${KEY_PATH}) = r.role_key`,
+    "  ON sb.page_slug = c.page_slug AND sb.kind = k.kind AND sb.locale = c.source_locale",
+    "  AND json_extract(sb.payload_json, c.key_path) = r.role_key",
     "WHERE sb.id IS NULL;",
   ].join("\n");
 }
 
 function emitTranslationInsert(): string {
-  // Set-based create-if-missing for EN/ZH reviewed translations. The `sb.title=r.vi_title AND …`
-  // predicate is the REVIEW-SAFETY gate: attach a reviewed translation only when the live VI source
-  // still equals canonical, so an editor-edited VI never gets a stale reviewed translation.
+  // One set-based insert: roles CROSS JOIN the locale lookup, unpivoting EN/ZH columns via CASE.
+  // REVIEW SAFETY: `sb.title IS r.vi_title AND sb.description IS r.vi_description` (NULL-safe) attaches
+  // a reviewed translation only when the live VI still equals canonical — an editor-edited VI gets
+  // none. Create-if-missing on (block, locale); a duplicate is also blocked by the DB UNIQUE.
   return [
     "-- EN/ZH reviewed translations — one set-based insert; review-safe (canonical VI only), create-if-missing.",
     "INSERT INTO service_block_translations (service_block_id, locale, title, description, payload_json, status, source_locale, source_hash, reviewed_at)",
-    "SELECT sb.id, tr.locale, tr.title, tr.description, r.payload, 'reviewed', 'vi', tr.source_hash, unixepoch()",
-    "FROM _seed_fulfill_trans tr",
-    "JOIN _seed_fulfill_roles r ON r.kind = tr.kind AND r.role_key = tr.role_key",
+    "SELECT sb.id, loc.locale,",
+    "       CASE loc.locale WHEN 'en' THEN r.en_title ELSE r.zh_title END,",
+    "       CASE loc.locale WHEN 'en' THEN r.en_description ELSE r.zh_description END,",
+    "       json_object('key', r.role_key), c.reviewed_status, c.source_locale, r.source_hash, unixepoch()",
+    "FROM _seed_fulfill_roles r",
+    "JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id",
+    "CROSS JOIN _seed_fulfill_ctx c",
+    "CROSS JOIN _seed_fulfill_locales loc",
     "JOIN service_blocks sb",
-    `  ON sb.page_slug = '${PAGE_SLUG}' AND sb.kind = tr.kind AND sb.locale = 'vi'`,
-    `  AND json_extract(sb.payload_json, ${KEY_PATH}) = tr.role_key`,
-    "  AND sb.title = r.vi_title AND sb.description = r.vi_description AND sb.payload_json = r.payload",
-    "LEFT JOIN service_block_translations t ON t.service_block_id = sb.id AND t.locale = tr.locale",
+    "  ON sb.page_slug = c.page_slug AND sb.kind = k.kind AND sb.locale = c.source_locale",
+    "  AND json_extract(sb.payload_json, c.key_path) = r.role_key",
+    "  AND sb.title IS r.vi_title AND sb.description IS r.vi_description",
+    "LEFT JOIN service_block_translations t ON t.service_block_id = sb.id AND t.locale = loc.locale",
     "WHERE t.id IS NULL;",
   ].join("\n");
 }
 
 function emitPostflight(): string {
-  // violations = managed roles not present exactly once (P1) + duplicate EN/ZH per block (P2)
-  //            + blocks whose reviewed EN count != reviewed ZH count (P3: pair integrity; 0=0 is fine
-  //              for an editor-edited role whose translations were safely skipped). CHECK aborts non-zero.
+  // violations = managed roles not present exactly once (P1) + duplicate EN/ZH per block (P2, also
+  // DB-blocked) + blocks whose reviewed EN count != reviewed ZH count (P3: pair integrity; 0=0 is fine
+  // for an editor-edited role whose translations were safely skipped). CHECK aborts non-zero.
   return [
     "-- POSTFLIGHT — abort (non-zero) if the managed shape is wrong after writes.",
     "DROP TABLE IF EXISTS _seed_fulfill_postflight;",
     "CREATE TABLE _seed_fulfill_postflight (violations INTEGER NOT NULL CHECK (violations = 0));",
     "INSERT INTO _seed_fulfill_postflight (violations) SELECT",
-    "  (SELECT COUNT(*) FROM _seed_fulfill_roles r WHERE (",
-    `     SELECT COUNT(*) FROM service_blocks sb WHERE sb.page_slug = '${PAGE_SLUG}' AND sb.locale = 'vi'`,
-    `      AND sb.kind = r.kind AND json_extract(sb.payload_json, ${KEY_PATH}) = r.role_key) <> 1)`,
+    "  (SELECT COUNT(*) FROM _seed_fulfill_roles r JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id",
+    "     CROSS JOIN _seed_fulfill_ctx c WHERE (SELECT COUNT(*) FROM service_blocks sb",
+    "       WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale AND sb.kind = k.kind",
+    "         AND json_extract(sb.payload_json, c.key_path) = r.role_key) <> 1)",
     "  + (SELECT COUNT(*) FROM (SELECT 1 FROM service_block_translations t",
-    "       JOIN service_blocks sb ON sb.id = t.service_block_id",
-    `      WHERE sb.page_slug = '${PAGE_SLUG}' AND sb.locale = 'vi' AND sb.kind IN (${kindsInList})`,
-    "        AND t.locale IN ('en', 'zh') GROUP BY sb.id, t.locale HAVING COUNT(*) > 1))",
-    `  + (SELECT COUNT(*) FROM service_blocks sb WHERE sb.page_slug = '${PAGE_SLUG}' AND sb.locale = 'vi'`,
-    `      AND sb.kind IN (${kindsInList}) AND (`,
-    "        (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'en' AND t.status = 'reviewed')",
-    "        <> (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'zh' AND t.status = 'reviewed')));",
+    "       JOIN service_blocks sb ON sb.id = t.service_block_id CROSS JOIN _seed_fulfill_ctx c",
+    "      WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale",
+    "        AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)",
+    "        AND t.locale IN (SELECT locale FROM _seed_fulfill_locales)",
+    "      GROUP BY sb.id, t.locale HAVING COUNT(*) > 1))",
+    "  + (SELECT COUNT(*) FROM service_blocks sb CROSS JOIN _seed_fulfill_ctx c",
+    "      WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale",
+    "        AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds) AND (",
+    "        (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'en' AND t.status = c.reviewed_status)",
+    "        <> (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'zh' AND t.status = c.reviewed_status)));",
     "DROP TABLE IF EXISTS _seed_fulfill_postflight;",
   ].join("\n");
 }
@@ -419,15 +473,18 @@ function emitPostflight(): string {
 function emitCleanup(): string {
   return [
     "-- Drop staging datasets.",
+    "DROP TABLE IF EXISTS _seed_fulfill_ctx;",
+    "DROP TABLE IF EXISTS _seed_fulfill_kinds;",
+    "DROP TABLE IF EXISTS _seed_fulfill_locales;",
     "DROP TABLE IF EXISTS _seed_fulfill_roles;",
-    "DROP TABLE IF EXISTS _seed_fulfill_trans;",
   ].join("\n");
 }
 
-const { roles, trans } = await buildData();
+const roles = await buildRoles();
 const sql = [
   emitHeader(),
-  emitStaging(roles, trans),
+  emitContext(),
+  emitRoles(roles),
   emitPreflight(),
   emitRoleInsert(),
   emitTranslationInsert(),

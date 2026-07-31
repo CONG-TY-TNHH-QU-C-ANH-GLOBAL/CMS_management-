@@ -37,112 +37,114 @@
 --   bunx wrangler d1 execute thg-cms --remote --file=db/seeds/fulfill-service-blocks.sql
 -- ============================================================================================
 
--- Transient staging datasets (D1 blocks TEMP tables, so these are regular tables, dropped at end).
-DROP TABLE IF EXISTS _seed_fulfill_roles;
-CREATE TABLE _seed_fulfill_roles (kind TEXT, role_key TEXT, position INTEGER, vi_title TEXT, vi_description TEXT, payload TEXT);
-INSERT INTO _seed_fulfill_roles (kind, role_key, position, vi_title, vi_description, payload) VALUES
-  ('journey_step', 'design-input', 1, 'Design Input', 'Tiếp nhận sản phẩm & file thiết kế, gắn định danh (ID) vận hành cho từng đơn vị.', '{"key":"design-input"}'),
-  ('journey_step', 'processing', 2, 'Processing · POD', 'In POD (DTG/DTF) độ phân giải cao tại VN · CN · US.', '{"key":"processing"}'),
-  ('journey_step', 'quality-assurance', 3, 'Quality Assurance', 'QC từng đơn: định dạng, màu sắc, chất lượng in — chuẩn TMĐT Mỹ.', '{"key":"quality-assurance"}'),
-  ('journey_step', 'dispatch-ready', 4, 'Dispatch Ready', 'Đóng gói chuẩn quy cách, dán nhãn vận chuyển + tracking.', '{"key":"dispatch-ready"}'),
-  ('capability', 'network', 1, 'Cross-border network', 'Xưởng POD tại VN · CN và fulfill nội địa US — định tuyến theo sản phẩm & điểm đến.', '{"key":"network"}'),
-  ('capability', 'qc', 2, 'Item-level QC', 'Kiểm tra chất lượng từng đơn trước khi đóng gói.', '{"key":"qc"}'),
-  ('capability', 'pack', 3, 'Đóng gói chuẩn Mỹ', 'Đóng gói chuẩn TMĐT Mỹ, dán nhãn + tracking.', '{"key":"pack"}'),
-  ('capability', 'hub', 4, 'Hub System', 'Trạng thái đơn hàng & sản phẩm hiển thị theo từng bước — không cần dò file thủ công.', '{"key":"hub"}'),
-  ('capability', 'intake', 5, 'Tiếp nhận & định danh', 'Tiếp nhận sản phẩm & file, gắn định danh vận hành.', '{"key":"intake"}'),
-  ('capability', 'print', 6, 'POD & cá nhân hóa', 'In DTG/DTF độ phân giải cao theo yêu cầu.', '{"key":"print"}'),
-  ('capability', 'advisory', 7, 'Tư vấn', 'Tư vấn theo loại sản phẩm và nhu cầu cụ thể.', '{"key":"advisory"}'),
-  ('section_copy', 'consult-heading', 1, 'Mở hồ sơ vận hành.', '', '{"key":"consult-heading"}'),
-  ('section_copy', 'consult-intro', 2, '', 'Không cấp báo giá tự động. Mô tả sản phẩm và nhu cầu — đội ngũ THG sẽ thiết kế luồng vận hành phù hợp và liên hệ trực tiếp.', '{"key":"consult-intro"}'),
-  ('section_copy', 'hub-caption', 3, '', 'Hub System hiển thị trạng thái theo từng bước xử lý cho đội vận hành của bạn.', '{"key":"hub-caption"}');
+-- Centralized seed metadata — the ONLY place these literals appear (D1 blocks TEMP tables, so
+-- these are regular tables, dropped at the end).
+DROP TABLE IF EXISTS _seed_fulfill_ctx;
+CREATE TABLE _seed_fulfill_ctx (page_slug TEXT, source_locale TEXT, reviewed_status TEXT, key_path TEXT);
+INSERT INTO _seed_fulfill_ctx (page_slug, source_locale, reviewed_status, key_path) VALUES
+  ('thg-fulfill', 'vi', 'reviewed', '$.key');
 
-DROP TABLE IF EXISTS _seed_fulfill_trans;
-CREATE TABLE _seed_fulfill_trans (kind TEXT, role_key TEXT, locale TEXT, title TEXT, description TEXT, source_hash TEXT);
-INSERT INTO _seed_fulfill_trans (kind, role_key, locale, title, description, source_hash) VALUES
-  ('journey_step', 'design-input', 'en', 'Design Input', 'Receive products and design files, assigning an operational ID to every unit.', '07617f5eade14a9b734345d5593a7e3bbecd64f3092f490cf6f33421a24131b5'),
-  ('journey_step', 'design-input', 'zh', 'Design Input', '接收产品与设计文件，为每个单元分配运营ID。', '07617f5eade14a9b734345d5593a7e3bbecd64f3092f490cf6f33421a24131b5'),
-  ('journey_step', 'processing', 'en', 'Processing · POD', 'High-resolution POD printing (DTG/DTF) in Vietnam, China and the US.', '94fdadba1ab2ef48af08e006680738d132c0db823eba3117cd21f01b3bea1345'),
-  ('journey_step', 'processing', 'zh', 'Processing · POD', '在越南·中国·美国进行高分辨率POD打印（DTG/DTF）。', '94fdadba1ab2ef48af08e006680738d132c0db823eba3117cd21f01b3bea1345'),
-  ('journey_step', 'quality-assurance', 'en', 'Quality Assurance', 'Item-level QC: file format, color and print quality — to US eCommerce standard.', 'd191d92aaa0ea9fdb856f8ffd802d8fb9e1d75da1b63c14c77ecd617647ee02a'),
-  ('journey_step', 'quality-assurance', 'zh', 'Quality Assurance', '逐单质检：文件格式、颜色与印刷质量——达到美国电商标准。', 'd191d92aaa0ea9fdb856f8ffd802d8fb9e1d75da1b63c14c77ecd617647ee02a'),
-  ('journey_step', 'dispatch-ready', 'en', 'Dispatch Ready', 'Standards-compliant packing with a shipping label and tracking.', '175c82c6ecf01e1140a302e39d89ab6e10e6fa4e7228c27a995b1d575c05f8ea'),
-  ('journey_step', 'dispatch-ready', 'zh', 'Dispatch Ready', '按规范包装，贴运输标签并提供追踪。', '175c82c6ecf01e1140a302e39d89ab6e10e6fa4e7228c27a995b1d575c05f8ea'),
-  ('capability', 'network', 'en', 'Cross-border network', 'POD workshops in VN · CN and US domestic fulfillment — routed by product and destination.', '19603555265abeb41a9dbfcb7e04110d439b8d88928db8394ce1f48f65f91f65'),
-  ('capability', 'network', 'zh', 'Cross-border network', '越南·中国的POD车间与美国本土履约——按产品与目的地路由。', '19603555265abeb41a9dbfcb7e04110d439b8d88928db8394ce1f48f65f91f65'),
-  ('capability', 'qc', 'en', 'Item-level QC', 'Quality-checking every order before it is packed.', '7a8ecc4871e1bb03a3b793770b0acaa58ef210a54579a8ba5e0374f3bc44ca18'),
-  ('capability', 'qc', 'zh', 'Item-level QC', '在包装前检查每一个订单的质量。', '7a8ecc4871e1bb03a3b793770b0acaa58ef210a54579a8ba5e0374f3bc44ca18'),
-  ('capability', 'pack', 'en', 'US standard packing', 'US eCommerce-standard packing with label and tracking.', '8d5429299b10f04c29ee6b83ae58580582a9e04d2adf434f9c0e05f30f302644'),
-  ('capability', 'pack', 'zh', 'US standard packing', '美国电商标准包装，附标签与追踪。', '8d5429299b10f04c29ee6b83ae58580582a9e04d2adf434f9c0e05f30f302644'),
-  ('capability', 'hub', 'en', 'Hub System', 'Order and product status visible step by step — no manual file digging.', '0c36fb54158130fb18958178cfcbe123b67d1a3fdc7b7a785e8a221bd920c244'),
-  ('capability', 'hub', 'zh', 'Hub System', '订单与产品状态按步骤可见——无需手动翻查文件。', '0c36fb54158130fb18958178cfcbe123b67d1a3fdc7b7a785e8a221bd920c244'),
-  ('capability', 'intake', 'en', 'Intake & ID', 'Receiving products and files, assigning an operational ID.', '8d0148ed56b396020d01eedfad111b8946529caa5c5d267fe7bb5c3ca4d5d1d1'),
-  ('capability', 'intake', 'zh', 'Intake & ID', '接收产品与文件，分配运营标识。', '8d0148ed56b396020d01eedfad111b8946529caa5c5d267fe7bb5c3ca4d5d1d1'),
-  ('capability', 'print', 'en', 'POD & personalization', 'High-resolution DTG/DTF printing on demand.', '121489680b5131c44d399a5415b6329e67a5f5dc5db8fb4bbd77cc5d8623153a'),
-  ('capability', 'print', 'zh', 'POD & personalization', '按需高分辨率DTG/DTF打印。', '121489680b5131c44d399a5415b6329e67a5f5dc5db8fb4bbd77cc5d8623153a'),
-  ('capability', 'advisory', 'en', 'Consultation', 'Advice tailored to your product type and specific needs.', '17448fe3850b7c2bca655f4523c83328f3eef609e2c32b44c0732dc48487a112'),
-  ('capability', 'advisory', 'zh', 'Consultation', '根据您的产品类型与具体需求提供咨询。', '17448fe3850b7c2bca655f4523c83328f3eef609e2c32b44c0732dc48487a112'),
-  ('section_copy', 'consult-heading', 'en', 'Open an operations file.', '', '1a862cc38d09bcf2339577d01a48f2583628317e282eeb6b63a052ae94bd2c64'),
-  ('section_copy', 'consult-heading', 'zh', '开启运营档案。', '', '1a862cc38d09bcf2339577d01a48f2583628317e282eeb6b63a052ae94bd2c64'),
-  ('section_copy', 'consult-intro', 'en', '', 'No automated quotes. Describe your product and needs — the THG team designs the right operational flow and contacts you directly.', '4c52db64a5dffa52ef9a5e1ef49493786f5762ea9e4f4aa7844010c0b7547118'),
-  ('section_copy', 'consult-intro', 'zh', '', '不提供自动报价。描述您的产品与需求——THG团队将设计合适的运营流程并直接联系您。', '4c52db64a5dffa52ef9a5e1ef49493786f5762ea9e4f4aa7844010c0b7547118'),
-  ('section_copy', 'hub-caption', 'en', '', 'Hub System surfaces status at each processing stage for your operations team.', '451e2448858d317e97a34cfee76666832f7fc0956a7492cae4fb928947695050'),
-  ('section_copy', 'hub-caption', 'zh', '', 'Hub System 在每个处理阶段向您的运营团队显示状态。', '451e2448858d317e97a34cfee76666832f7fc0956a7492cae4fb928947695050');
+DROP TABLE IF EXISTS _seed_fulfill_kinds;
+CREATE TABLE _seed_fulfill_kinds (kind_id INTEGER, kind TEXT);
+INSERT INTO _seed_fulfill_kinds (kind_id, kind) VALUES
+  (1, 'journey_step'),
+  (2, 'capability'),
+  (3, 'section_copy');
+
+DROP TABLE IF EXISTS _seed_fulfill_locales;
+CREATE TABLE _seed_fulfill_locales (locale TEXT);
+INSERT INTO _seed_fulfill_locales (locale) VALUES
+  ('en'),
+  ('zh');
+
+DROP TABLE IF EXISTS _seed_fulfill_roles;
+CREATE TABLE _seed_fulfill_roles (kind_id INTEGER, role_key TEXT, position INTEGER, vi_title TEXT, vi_description TEXT, en_title TEXT, en_description TEXT, zh_title TEXT, zh_description TEXT, source_hash TEXT);
+INSERT INTO _seed_fulfill_roles (kind_id, role_key, position, vi_title, vi_description, en_title, en_description, zh_title, zh_description, source_hash) VALUES
+  (1, 'design-input', 1, 'Design Input', 'Tiếp nhận sản phẩm & file thiết kế, gắn định danh (ID) vận hành cho từng đơn vị.', 'Design Input', 'Receive products and design files, assigning an operational ID to every unit.', 'Design Input', '接收产品与设计文件，为每个单元分配运营ID。', '07617f5eade14a9b734345d5593a7e3bbecd64f3092f490cf6f33421a24131b5'),
+  (1, 'processing', 2, 'Processing · POD', 'In POD (DTG/DTF) độ phân giải cao tại VN · CN · US.', 'Processing · POD', 'High-resolution POD printing (DTG/DTF) in Vietnam, China and the US.', 'Processing · POD', '在越南·中国·美国进行高分辨率POD打印（DTG/DTF）。', '94fdadba1ab2ef48af08e006680738d132c0db823eba3117cd21f01b3bea1345'),
+  (1, 'quality-assurance', 3, 'Quality Assurance', 'QC từng đơn: định dạng, màu sắc, chất lượng in — chuẩn TMĐT Mỹ.', 'Quality Assurance', 'Item-level QC: file format, color and print quality — to US eCommerce standard.', 'Quality Assurance', '逐单质检：文件格式、颜色与印刷质量——达到美国电商标准。', 'd191d92aaa0ea9fdb856f8ffd802d8fb9e1d75da1b63c14c77ecd617647ee02a'),
+  (1, 'dispatch-ready', 4, 'Dispatch Ready', 'Đóng gói chuẩn quy cách, dán nhãn vận chuyển + tracking.', 'Dispatch Ready', 'Standards-compliant packing with a shipping label and tracking.', 'Dispatch Ready', '按规范包装，贴运输标签并提供追踪。', '175c82c6ecf01e1140a302e39d89ab6e10e6fa4e7228c27a995b1d575c05f8ea'),
+  (2, 'network', 1, 'Cross-border network', 'Xưởng POD tại VN · CN và fulfill nội địa US — định tuyến theo sản phẩm & điểm đến.', 'Cross-border network', 'POD workshops in VN · CN and US domestic fulfillment — routed by product and destination.', 'Cross-border network', '越南·中国的POD车间与美国本土履约——按产品与目的地路由。', '19603555265abeb41a9dbfcb7e04110d439b8d88928db8394ce1f48f65f91f65'),
+  (2, 'qc', 2, 'Item-level QC', 'Kiểm tra chất lượng từng đơn trước khi đóng gói.', 'Item-level QC', 'Quality-checking every order before it is packed.', 'Item-level QC', '在包装前检查每一个订单的质量。', '7a8ecc4871e1bb03a3b793770b0acaa58ef210a54579a8ba5e0374f3bc44ca18'),
+  (2, 'pack', 3, 'Đóng gói chuẩn Mỹ', 'Đóng gói chuẩn TMĐT Mỹ, dán nhãn + tracking.', 'US standard packing', 'US eCommerce-standard packing with label and tracking.', 'US standard packing', '美国电商标准包装，附标签与追踪。', '8d5429299b10f04c29ee6b83ae58580582a9e04d2adf434f9c0e05f30f302644'),
+  (2, 'hub', 4, 'Hub System', 'Trạng thái đơn hàng & sản phẩm hiển thị theo từng bước — không cần dò file thủ công.', 'Hub System', 'Order and product status visible step by step — no manual file digging.', 'Hub System', '订单与产品状态按步骤可见——无需手动翻查文件。', '0c36fb54158130fb18958178cfcbe123b67d1a3fdc7b7a785e8a221bd920c244'),
+  (2, 'intake', 5, 'Tiếp nhận & định danh', 'Tiếp nhận sản phẩm & file, gắn định danh vận hành.', 'Intake & ID', 'Receiving products and files, assigning an operational ID.', 'Intake & ID', '接收产品与文件，分配运营标识。', '8d0148ed56b396020d01eedfad111b8946529caa5c5d267fe7bb5c3ca4d5d1d1'),
+  (2, 'print', 6, 'POD & cá nhân hóa', 'In DTG/DTF độ phân giải cao theo yêu cầu.', 'POD & personalization', 'High-resolution DTG/DTF printing on demand.', 'POD & personalization', '按需高分辨率DTG/DTF打印。', '121489680b5131c44d399a5415b6329e67a5f5dc5db8fb4bbd77cc5d8623153a'),
+  (2, 'advisory', 7, 'Tư vấn', 'Tư vấn theo loại sản phẩm và nhu cầu cụ thể.', 'Consultation', 'Advice tailored to your product type and specific needs.', 'Consultation', '根据您的产品类型与具体需求提供咨询。', '17448fe3850b7c2bca655f4523c83328f3eef609e2c32b44c0732dc48487a112'),
+  (3, 'consult-heading', 1, 'Mở hồ sơ vận hành.', NULL, 'Open an operations file.', NULL, '开启运营档案。', NULL, '1a862cc38d09bcf2339577d01a48f2583628317e282eeb6b63a052ae94bd2c64'),
+  (3, 'consult-intro', 2, NULL, 'Không cấp báo giá tự động. Mô tả sản phẩm và nhu cầu — đội ngũ THG sẽ thiết kế luồng vận hành phù hợp và liên hệ trực tiếp.', NULL, 'No automated quotes. Describe your product and needs — the THG team designs the right operational flow and contacts you directly.', NULL, '不提供自动报价。描述您的产品与需求——THG团队将设计合适的运营流程并直接联系您。', '4c52db64a5dffa52ef9a5e1ef49493786f5762ea9e4f4aa7844010c0b7547118'),
+  (3, 'hub-caption', 3, NULL, 'Hub System hiển thị trạng thái theo từng bước xử lý cho đội vận hành của bạn.', NULL, 'Hub System surfaces status at each processing stage for your operations team.', NULL, 'Hub System 在每个处理阶段向您的运营团队显示状态。', '451e2448858d317e97a34cfee76666832f7fc0956a7492cae4fb928947695050');
 
 -- PREFLIGHT — abort (before writes) if a managed identity is already duplicated.
 DROP TABLE IF EXISTS _seed_fulfill_preflight;
 CREATE TABLE _seed_fulfill_preflight (dupes INTEGER NOT NULL CHECK (dupes = 0));
 INSERT INTO _seed_fulfill_preflight (dupes)
 SELECT COALESCE(SUM(extra), 0) FROM (
-  SELECT COUNT(*) - 1 AS extra FROM service_blocks
-   WHERE page_slug = 'thg-fulfill' AND locale = 'vi' AND kind IN ('journey_step', 'capability', 'section_copy')
-   GROUP BY kind, json_extract(payload_json, '$.key')
+  SELECT COUNT(*) - 1 AS extra FROM service_blocks sb CROSS JOIN _seed_fulfill_ctx c
+   WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale
+     AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)
+   GROUP BY sb.kind, json_extract(sb.payload_json, c.key_path)
   UNION ALL
   SELECT COUNT(*) - 1 AS extra FROM service_block_translations t
-    JOIN service_blocks sb ON sb.id = t.service_block_id
-   WHERE sb.page_slug = 'thg-fulfill' AND sb.locale = 'vi' AND sb.kind IN ('journey_step', 'capability', 'section_copy')
-     AND t.locale IN ('en', 'zh')
+    JOIN service_blocks sb ON sb.id = t.service_block_id CROSS JOIN _seed_fulfill_ctx c
+   WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale
+     AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)
+     AND t.locale IN (SELECT locale FROM _seed_fulfill_locales)
    GROUP BY sb.id, t.locale
 );
 DROP TABLE IF EXISTS _seed_fulfill_preflight;
 
 -- VI rows — one set-based anti-join insert (create-if-missing; preserves editor-modified roles).
 INSERT INTO service_blocks (page_slug, kind, position, locale, icon, title, description, payload_json)
-SELECT 'thg-fulfill', r.kind, r.position, 'vi', NULL, r.vi_title, r.vi_description, r.payload
+SELECT c.page_slug, k.kind, r.position, c.source_locale, NULL, r.vi_title, r.vi_description, json_object('key', r.role_key)
 FROM _seed_fulfill_roles r
+JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id
+CROSS JOIN _seed_fulfill_ctx c
 LEFT JOIN service_blocks sb
-  ON sb.page_slug = 'thg-fulfill' AND sb.kind = r.kind AND sb.locale = 'vi'
-  AND json_extract(sb.payload_json, '$.key') = r.role_key
+  ON sb.page_slug = c.page_slug AND sb.kind = k.kind AND sb.locale = c.source_locale
+  AND json_extract(sb.payload_json, c.key_path) = r.role_key
 WHERE sb.id IS NULL;
 
 -- EN/ZH reviewed translations — one set-based insert; review-safe (canonical VI only), create-if-missing.
 INSERT INTO service_block_translations (service_block_id, locale, title, description, payload_json, status, source_locale, source_hash, reviewed_at)
-SELECT sb.id, tr.locale, tr.title, tr.description, r.payload, 'reviewed', 'vi', tr.source_hash, unixepoch()
-FROM _seed_fulfill_trans tr
-JOIN _seed_fulfill_roles r ON r.kind = tr.kind AND r.role_key = tr.role_key
+SELECT sb.id, loc.locale,
+       CASE loc.locale WHEN 'en' THEN r.en_title ELSE r.zh_title END,
+       CASE loc.locale WHEN 'en' THEN r.en_description ELSE r.zh_description END,
+       json_object('key', r.role_key), c.reviewed_status, c.source_locale, r.source_hash, unixepoch()
+FROM _seed_fulfill_roles r
+JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id
+CROSS JOIN _seed_fulfill_ctx c
+CROSS JOIN _seed_fulfill_locales loc
 JOIN service_blocks sb
-  ON sb.page_slug = 'thg-fulfill' AND sb.kind = tr.kind AND sb.locale = 'vi'
-  AND json_extract(sb.payload_json, '$.key') = tr.role_key
-  AND sb.title = r.vi_title AND sb.description = r.vi_description AND sb.payload_json = r.payload
-LEFT JOIN service_block_translations t ON t.service_block_id = sb.id AND t.locale = tr.locale
+  ON sb.page_slug = c.page_slug AND sb.kind = k.kind AND sb.locale = c.source_locale
+  AND json_extract(sb.payload_json, c.key_path) = r.role_key
+  AND sb.title IS r.vi_title AND sb.description IS r.vi_description
+LEFT JOIN service_block_translations t ON t.service_block_id = sb.id AND t.locale = loc.locale
 WHERE t.id IS NULL;
 
 -- POSTFLIGHT — abort (non-zero) if the managed shape is wrong after writes.
 DROP TABLE IF EXISTS _seed_fulfill_postflight;
 CREATE TABLE _seed_fulfill_postflight (violations INTEGER NOT NULL CHECK (violations = 0));
 INSERT INTO _seed_fulfill_postflight (violations) SELECT
-  (SELECT COUNT(*) FROM _seed_fulfill_roles r WHERE (
-     SELECT COUNT(*) FROM service_blocks sb WHERE sb.page_slug = 'thg-fulfill' AND sb.locale = 'vi'
-      AND sb.kind = r.kind AND json_extract(sb.payload_json, '$.key') = r.role_key) <> 1)
+  (SELECT COUNT(*) FROM _seed_fulfill_roles r JOIN _seed_fulfill_kinds k ON k.kind_id = r.kind_id
+     CROSS JOIN _seed_fulfill_ctx c WHERE (SELECT COUNT(*) FROM service_blocks sb
+       WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale AND sb.kind = k.kind
+         AND json_extract(sb.payload_json, c.key_path) = r.role_key) <> 1)
   + (SELECT COUNT(*) FROM (SELECT 1 FROM service_block_translations t
-       JOIN service_blocks sb ON sb.id = t.service_block_id
-      WHERE sb.page_slug = 'thg-fulfill' AND sb.locale = 'vi' AND sb.kind IN ('journey_step', 'capability', 'section_copy')
-        AND t.locale IN ('en', 'zh') GROUP BY sb.id, t.locale HAVING COUNT(*) > 1))
-  + (SELECT COUNT(*) FROM service_blocks sb WHERE sb.page_slug = 'thg-fulfill' AND sb.locale = 'vi'
-      AND sb.kind IN ('journey_step', 'capability', 'section_copy') AND (
-        (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'en' AND t.status = 'reviewed')
-        <> (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'zh' AND t.status = 'reviewed')));
+       JOIN service_blocks sb ON sb.id = t.service_block_id CROSS JOIN _seed_fulfill_ctx c
+      WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale
+        AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds)
+        AND t.locale IN (SELECT locale FROM _seed_fulfill_locales)
+      GROUP BY sb.id, t.locale HAVING COUNT(*) > 1))
+  + (SELECT COUNT(*) FROM service_blocks sb CROSS JOIN _seed_fulfill_ctx c
+      WHERE sb.page_slug = c.page_slug AND sb.locale = c.source_locale
+        AND sb.kind IN (SELECT kind FROM _seed_fulfill_kinds) AND (
+        (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'en' AND t.status = c.reviewed_status)
+        <> (SELECT COUNT(*) FROM service_block_translations t WHERE t.service_block_id = sb.id AND t.locale = 'zh' AND t.status = c.reviewed_status)));
 DROP TABLE IF EXISTS _seed_fulfill_postflight;
 
 -- Drop staging datasets.
+DROP TABLE IF EXISTS _seed_fulfill_ctx;
+DROP TABLE IF EXISTS _seed_fulfill_kinds;
+DROP TABLE IF EXISTS _seed_fulfill_locales;
 DROP TABLE IF EXISTS _seed_fulfill_roles;
-DROP TABLE IF EXISTS _seed_fulfill_trans;
