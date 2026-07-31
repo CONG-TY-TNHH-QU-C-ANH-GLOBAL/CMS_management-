@@ -24,6 +24,13 @@ declare global {
       TURNSTILE_SECRET_KEY?: string; // Cloudflare Turnstile for /api/v1/leads
       OPENAI_API_KEY?: string; // Copilot LLM — undefined disables /admin/ai/copilot chat
       OPENAI_BASE_URL?: string; // Override OpenAI endpoint (e.g. Cloudflare AI Gateway proxy URL) — bypass geo-blocked egress
+      // Blog Auto-Bot images. Optional — a campaign's image_mode='stock' fetches
+      // royalty-free photos from Pexels (primary) or Unsplash (fallback) and
+      // downloads them into R2. Undefined disables stock images (article still
+      // generates, just without a photo). image_mode='ai_generate' uses
+      // OPENAI_API_KEY instead. Set via `wrangler secret put PEXELS_API_KEY`.
+      PEXELS_API_KEY?: string;
+      UNSPLASH_ACCESS_KEY?: string;
       SESSION_SECRET?: string; // Auth cookie signer (defined elsewhere; declaring for completeness)
       // Landing auto-redeploy (Workstream C3): on careers publish/edit the cron
       // fires a GitHub repository_dispatch to rebuild the landing site so new/
