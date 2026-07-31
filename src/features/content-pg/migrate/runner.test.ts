@@ -126,6 +126,48 @@ test("an unknown or duplicated directive is rejected, not silently defaulted", (
   ).toThrow(InvalidMigrationDirectiveError);
 });
 
+test("directive parsing is linear on the input shape that made the old regex quadratic", () => {
+  // The previous pattern was /^--\s*migrate:\s*(\S*)\s*$/. `\s*` … `(\S*)` … `\s*$` gives the
+  // engine a split point to retry at every whitespace position, so a line that FAILS to match
+  // costs O(n^2). Measured before the change: 10k -> 28ms, 20k -> 108ms, 40k -> 421ms,
+  // 80k -> 1700ms. The forward scanner walks the line once and never revisits a position.
+  //
+  // The budget is deliberately loose — this catches a complexity-class regression, not a slow
+  // CI box. The old pattern blew it by orders of magnitude at 200k.
+  const pathological = `-- migrate:${" ".repeat(200_000)}a b`;
+  const started = performance.now();
+  const transactional = parseTransactionMode("0001_a.sql", pathological);
+  const elapsed = performance.now() - started;
+
+  expect(elapsed).toBeLessThan(1000);
+  // And it still behaves correctly: a token followed by more text is an ordinary comment.
+  expect(transactional).toBe(true);
+});
+
+test("directive scanning matches the old pattern on every edge case", () => {
+  // Equivalence table, kept explicit so the replacement cannot silently narrow the contract.
+  const cases: [string, boolean][] = [
+    ["-- migrate:no-transaction", false],
+    ["--migrate:no-transaction", false], // whitespace after `--` optional
+    ["--   migrate:   no-transaction   ", false], // whitespace either side, trailing allowed
+    ["--	migrate:	no-transaction", false], // tabs count as whitespace
+    ["-- ordinary comment", true],
+    ["-- migrate no colon", true], // marker requires the colon
+    ["-- not-migrate:no-transaction", true],
+  ];
+  for (const [line, expected] of cases) {
+    expect(parseTransactionMode("0001_a.sql", `${line}\nSELECT 1;`), line).toBe(expected);
+  }
+});
+
+test("a token followed by more text is an ordinary comment, not a bad directive", () => {
+  // `\s*$` in the old pattern required the token to be the whole remainder. Preserved: this
+  // must NOT throw, because it never was a directive.
+  expect(
+    parseTransactionMode("0001_a.sql", "-- migrate:no-transaction and then prose\nSELECT 1;"),
+  ).toBe(true);
+});
+
 test("the directive is inside the checksum, so flipping the mode is an edit", () => {
   const plain = toMigration("0001_a.sql", "CREATE TABLE x();");
   const marked = toMigration("0001_a.sql", "-- migrate:no-transaction\nCREATE TABLE x();");
