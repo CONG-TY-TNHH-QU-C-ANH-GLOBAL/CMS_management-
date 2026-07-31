@@ -1,28 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { corsJson, corsOptions } from "@/core/middlewares/cors";
 import { guardCommunitySubmit, handleCommunityList } from "@/features/community/community.http";
+import { communityReviewSubmitSchema } from "@/features/community/community.schemas";
 import {
   createCommunityReview,
   listPublishedCommunityReviews,
   toPublicReviewSummary,
 } from "@/features/community";
-
-const submitSchema = z.object({
-  title: z.string().trim().min(8, "Tiêu đề tối thiểu 8 ký tự").max(200),
-  body: z.string().trim().min(20, "Nội dung tối thiểu 20 ký tự").max(5000),
-  category_slug: z.string().trim().max(80).optional().nullable(),
-  reviewer_name: z.string().trim().min(1, "Tên không được rỗng").max(80),
-  reviewer_email: z.string().trim().email("Email không hợp lệ").max(254),
-  rating: z.number().int().min(1).max(5).optional().nullable(),
-  locale: z.enum(["en", "vi", "zh"]).optional().nullable(),
-  // Private, admin-only moderation context — never surfaced publicly.
-  private_evidence_note: z.string().trim().max(2000).optional().nullable(),
-  private_order_reference: z.string().trim().max(200).optional().nullable(),
-  utm: z.record(z.string()).optional().nullable(),
-  turnstile_token: z.string().min(1, "Missing Turnstile token"),
-});
 
 export const Route = createFileRoute("/api/v1/(public)/community/reviews/")({
   server: {
@@ -32,7 +17,11 @@ export const Route = createFileRoute("/api/v1/(public)/community/reviews/")({
         handleCommunityList(request, "reviews", listPublishedCommunityReviews, toPublicReviewSummary),
       POST: async ({ request }) => {
         // Rate limit (5/hr), JSON, schema + Turnstile — shared guard.
-        const guard = await guardCommunitySubmit(request, "community-reviews", submitSchema);
+        const guard = await guardCommunitySubmit(
+          request,
+          "community-reviews",
+          communityReviewSubmitSchema,
+        );
         if (guard instanceof Response) return guard;
         const { ip, data } = guard;
 

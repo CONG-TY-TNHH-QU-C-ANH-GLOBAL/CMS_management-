@@ -17,10 +17,14 @@
 // appears (D2.1 brief constraint #6: no premature abstraction).
 
 import {
+  blogCategoriesResponseSchema,
   blogListResponseSchema,
   blogPostResponseSchema,
 } from "../src/features/blog/blog.schemas";
 import {
+  applicantCreatedResponseSchema,
+  applicantCvUploadedResponseSchema,
+  applicantRequestSchema,
   jobResponseSchema,
   jobsResponseSchema,
 } from "../src/features/careers/careers.schemas";
@@ -30,17 +34,27 @@ import {
   communityQuestionsResponseSchema,
   communityReviewResponseSchema,
   communityReviewsResponseSchema,
+  communityQuestionSubmitSchema,
+  communityReviewSubmitSchema,
+  communitySameIssueResponseSchema,
+  communitySubmitResponseSchema,
+  communityWithdrawRequestSchema,
+  communityWithdrawResponseSchema,
 } from "../src/features/community/community.schemas";
 import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
   marqueeImagesResponseSchema,
+  serviceBlocksResponseSchema,
   servicesResponseSchema,
+  sitemapResponseSchema,
   testimonialsResponseSchema,
 } from "../src/features/content/content.schemas";
 import { homepageResponseSchema } from "../src/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
+import { leadRequestBaseSchema } from "../src/features/leads/lead-request";
+import { leadCreatedResponseSchema } from "../src/features/leads/leads.schemas";
 import {
   policiesResponseSchema,
   policyResponseSchema,
@@ -51,26 +65,43 @@ import {
 } from "../src/features/pricing/pricing.schemas";
 import { siteSettingsResponseSchema } from "../src/features/settings/settings.schemas";
 import {
+  shippingRouteResponseSchema,
+  shippingRoutesResponseSchema,
+} from "../src/features/shipping/shipping.schemas";
+import {
+  applicantCvRouteConfig,
+  applicantsRouteConfig,
+  blogCategoriesRouteConfig,
   blogListRouteConfig,
   blogPostRouteConfig,
   communityCategoriesRouteConfig,
   communityQuestionRouteConfig,
   communityQuestionsRouteConfig,
+  communityQuestionSubmitRouteConfig,
+  communityQuestionWithdrawRouteConfig,
   communityReviewRouteConfig,
+  communityReviewSubmitRouteConfig,
+  communityReviewWithdrawRouteConfig,
   communityReviewsRouteConfig,
+  communitySameIssueRouteConfig,
   contactLocationsRouteConfig,
   faqsRouteConfig,
   homepageRouteConfig,
   integrationsRouteConfig,
   jobRouteConfig,
   jobsListRouteConfig,
+  leadsRouteConfig,
   marqueeImagesRouteConfig,
   policiesListRouteConfig,
   policyRouteConfig,
   pricingListRouteConfig,
   pricingTableRouteConfig,
+  serviceBlocksRouteConfig,
   servicesRouteConfig,
+  shippingRouteRouteConfig,
+  shippingRoutesListRouteConfig,
   siteSettingsRouteConfig,
+  sitemapRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
 } from "../src/openapi/paths";
@@ -191,6 +222,106 @@ const CHECKS: Check[] = [
     name: "GET /api/v1/community/reviews/{slug} → 200",
     canonical: communityReviewResponseSchema,
     registered: communityReviewRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/service-blocks → 200",
+    canonical: serviceBlocksResponseSchema,
+    registered: serviceBlocksRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/blog/categories → 200",
+    canonical: blogCategoriesResponseSchema,
+    registered: blogCategoriesRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/shipping-routes → 200",
+    canonical: shippingRoutesResponseSchema,
+    registered: shippingRoutesListRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/shipping-routes/{slug} → 200",
+    canonical: shippingRouteResponseSchema,
+    registered: shippingRouteRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "GET /api/v1/sitemap → 200",
+    canonical: sitemapResponseSchema,
+    registered: sitemapRouteConfig.responses[200].content["application/json"].schema,
+  },
+  // Request bodies are checked with the same identity rule as responses — a
+  // restated request shape drifts just as silently, and on a write endpoint
+  // the blast radius is a rejected lead rather than a misrendered section.
+  {
+    name: "POST /api/v1/leads → request body",
+    canonical: leadRequestBaseSchema,
+    registered: leadsRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/leads → 201",
+    canonical: leadCreatedResponseSchema,
+    registered: leadsRouteConfig.responses[201].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/applicants → request body",
+    canonical: applicantRequestSchema,
+    registered: applicantsRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/applicants → 200",
+    canonical: applicantCreatedResponseSchema,
+    registered: applicantsRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/applicant-cv → 200",
+    canonical: applicantCvUploadedResponseSchema,
+    registered: applicantCvRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/questions/{slug}/same-issue → 200",
+    canonical: communitySameIssueResponseSchema,
+    registered: communitySameIssueRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/questions/{slug}/withdraw → request body",
+    canonical: communityWithdrawRequestSchema,
+    registered:
+      communityQuestionWithdrawRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/questions/{slug}/withdraw → 200",
+    canonical: communityWithdrawResponseSchema,
+    registered: communityQuestionWithdrawRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/reviews/{slug}/withdraw → request body",
+    canonical: communityWithdrawRequestSchema,
+    registered:
+      communityReviewWithdrawRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/reviews/{slug}/withdraw → 200",
+    canonical: communityWithdrawResponseSchema,
+    registered: communityReviewWithdrawRouteConfig.responses[200].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/questions → request body",
+    canonical: communityQuestionSubmitSchema,
+    registered: communityQuestionSubmitRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/questions → 201",
+    canonical: communitySubmitResponseSchema,
+    registered: communityQuestionSubmitRouteConfig.responses[201].content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/reviews → request body",
+    canonical: communityReviewSubmitSchema,
+    registered: communityReviewSubmitRouteConfig.request.body.content["application/json"].schema,
+  },
+  {
+    name: "POST /api/v1/community/reviews → 201",
+    canonical: communitySubmitResponseSchema,
+    registered: communityReviewSubmitRouteConfig.responses[201].content["application/json"].schema,
   },
 ];
 

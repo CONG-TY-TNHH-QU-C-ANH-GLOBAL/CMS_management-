@@ -8,8 +8,7 @@ import { z } from "zod";
 
 import { corsError, corsJson } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
-
-const withdrawSchema = z.object({ ownerToken: z.string().min(1) });
+import { communityWithdrawRequestSchema } from "./community.schemas";
 
 /** GET list: optional `?category=` slug filter → `{ [key]: rows.map(mapper) }`. */
 export async function handleCommunityList<Row, Out>(
@@ -89,7 +88,7 @@ export async function handleCommunityWithdraw(
     return corsError(request, 400, "Body phải là JSON hợp lệ");
   }
 
-  const parsed = withdrawSchema.safeParse(body);
+  const parsed = communityWithdrawRequestSchema.safeParse(body);
   if (!parsed.success) return corsError(request, 400, "Thiếu ownerToken");
 
   const ok = await withdraw(slug, parsed.data.ownerToken);

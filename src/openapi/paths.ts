@@ -22,10 +22,14 @@
 import { z } from "zod";
 
 import {
+  blogCategoriesResponseSchema,
   blogListResponseSchema,
   blogPostResponseSchema,
 } from "@/features/blog/blog.schemas";
 import {
+  applicantCreatedResponseSchema,
+  applicantCvUploadedResponseSchema,
+  applicantRequestSchema,
   jobResponseSchema,
   jobsResponseSchema,
 } from "@/features/careers/careers.schemas";
@@ -35,17 +39,27 @@ import {
   communityQuestionsResponseSchema,
   communityReviewResponseSchema,
   communityReviewsResponseSchema,
+  communityQuestionSubmitSchema,
+  communityReviewSubmitSchema,
+  communitySameIssueResponseSchema,
+  communitySubmitResponseSchema,
+  communityWithdrawRequestSchema,
+  communityWithdrawResponseSchema,
 } from "@/features/community/community.schemas";
 import {
   contactLocationsResponseSchema,
   faqsResponseSchema,
   integrationsResponseSchema,
   marqueeImagesResponseSchema,
+  serviceBlocksResponseSchema,
   servicesResponseSchema,
+  sitemapResponseSchema,
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
+import { leadRequestBaseSchema } from "@/features/leads/lead-request";
+import { leadCreatedResponseSchema } from "@/features/leads/leads.schemas";
 import {
   policiesResponseSchema,
   policyResponseSchema,
@@ -55,6 +69,10 @@ import {
   pricingTableResponseSchema,
 } from "@/features/pricing/pricing.schemas";
 import { siteSettingsResponseSchema } from "@/features/settings/settings.schemas";
+import {
+  shippingRouteResponseSchema,
+  shippingRoutesResponseSchema,
+} from "@/features/shipping/shipping.schemas";
 import { openApiRegistry } from "./registry";
 
 // Reused fragments. Inlined here (not extracted to a shared module) until a
@@ -802,3 +820,617 @@ export const communityReviewRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(communityReviewRouteConfig);
+
+// ══════════════════════════════════════════════════════════════════════════
+// Contract freeze v1 — the public endpoints the landing already consumes but
+// which were never declared. Nothing below changes a response shape: every
+// schema was EXTRACTED from the handler that ships today. The point is to
+// make the surface enumerable, so `bun test` can prove no public endpoint
+// escapes the contract (src/openapi/public-surface.test.ts).
+// ══════════════════════════════════════════════════════════════════════════
+
+// Mirrors src/routes/api/v1/(public)/service-blocks/index.ts.
+// This is the generic page-block endpoint behind THG Order and the Next.js
+// THG Fulfill route. Identity is `page_slug + kind + <block key>`; the wire
+// item currently exposes only the numeric D1 `id`, so consumers deriving a
+// stable role do it from `kind + position`.
+export const serviceBlocksRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/service-blocks",
+  summary: "List page blocks for one page and locale",
+  description:
+    "Returns generic blocks (pain_point, process_step, solution, " +
+    "shipping_lane, policy, stat, …) for one `page_slug` + locale, ordered " +
+    "by `position`. Omit `kind` to hydrate every section of a page in one " +
+    "request; the response echoes the filter as `kind` (null when omitted). " +
+    "VI reads `service_blocks`; EN/ZH JOIN `service_block_translations` " +
+    "filtered to `status='reviewed'` — no cross-locale fallback. " +
+    "FAIL-SAFE: a row whose `payload_json` is malformed is returned with " +
+    "`payload: {}` rather than being dropped or failing the request.",
+  request: {
+    query: z.object({
+      page_slug: z.string(),
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+      kind: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Ordered block list for the page + locale",
+      content: {
+        "application/json": { schema: serviceBlocksResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang`, or missing required `page_slug`",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(serviceBlocksRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/blog/categories.ts.
+// NOTE the default: `lang` falls back to "vi" here, not "en" as on most other
+// endpoints. That asymmetry is pre-existing behavior and is documented rather
+// than corrected — changing it would silently move an unqualified caller's
+// results to a different locale.
+export const blogCategoriesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/blog/categories",
+  summary: "List distinct blog categories for a locale",
+  description:
+    "Distinct non-null `category` values across live posts, sorted by the " +
+    "database. `lang` defaults to **vi** on this endpoint. An empty array " +
+    "is a valid response, not an error.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Category list",
+      content: {
+        "application/json": { schema: blogCategoriesResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(blogCategoriesRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/shipping-routes/index.ts.
+export const shippingRoutesListRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/shipping-routes",
+  summary: "List live shipping routes for a locale",
+  description:
+    "Unpaginated: returns every `status='live'` route for the locale, " +
+    "ordered by (position, slug). `total` is the length of `routes` in the " +
+    "same response — it is NOT a pagination total. EN/ZH require a " +
+    "`status='reviewed'` translation; there is no cross-locale fallback.",
+  request: {
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Live shipping-route summaries",
+      content: {
+        "application/json": { schema: shippingRoutesResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(shippingRoutesListRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/shipping-routes/$slug.ts.
+export const shippingRouteRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/shipping-routes/{slug}",
+  summary: "Get one live shipping route by slug",
+  description:
+    "404 unless the route resolves in the requested locale AND its status " +
+    "is `live`. Rate tables are resolved by (slug, locale). FAIL-SAFE: a " +
+    "malformed `notes_json` / `columns_json` / `rows_json` blob degrades to " +
+    "an empty array instead of failing the request.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    query: z.object({
+      lang: z.enum(["en", "vi", "zh"]).optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Shipping route detail with rate tables",
+      content: {
+        "application/json": { schema: shippingRouteResponseSchema },
+      },
+    },
+    400: {
+      description: "Invalid `lang` query parameter",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "No live shipping route with that slug in the locale",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(shippingRouteRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/sitemap/index.ts.
+// Deliberately NOT locale-filtered — the consumer partitions by `locale` to
+// build hreflang alternates, so filtering server-side would break that.
+export const sitemapRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/sitemap",
+  summary: "List live page routes and blog slugs for sitemap generation",
+  description:
+    "Feed for the landing's sitemap builder. Returns every `status='live'` " +
+    "row across ALL locales; the consumer groups by `locale`. Takes no " +
+    "parameters. `locale` is an unconstrained string here because the " +
+    "column carries no CHECK constraint in D1.",
+  responses: {
+    200: {
+      description: "Live routes and blog slugs across every locale",
+      content: {
+        "application/json": { schema: sitemapResponseSchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(sitemapRouteConfig);
+
+// ─── Write endpoints (conversion + careers funnels) ────────────────────────
+
+// Mirrors src/routes/api/v1/(public)/leads/index.ts.
+// THE canonical lead endpoint — there is exactly one, shared by the global
+// services dialog, the homepage generic form and every fixed-intent service
+// form. Do not add a second, frontend-specific lead API.
+export const leadsRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/leads",
+  summary: "Submit a multi-intent lead",
+  description:
+    "Multi-intent by design: an optional `primary_service`, zero or more " +
+    "`service_interests`, and per-service `service_details`. Cross-field " +
+    "rules enforced beyond the field schema: `service_interests` must not " +
+    "contain duplicates; `primary_service`, when set, must be a member of " +
+    "`service_interests`; each `service_details` key must be a selected " +
+    "interest and validates against that service's strict schema. " +
+    "Interests are persisted in a deterministic order (primary first, then " +
+    "canonical registry order) — never client submission order. " +
+    "Protected by Turnstile and a 10-per-IP-per-hour rate limit. " +
+    "No provider or database error is ever surfaced; failures use the " +
+    "bounded `{ error }` envelope.",
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: leadRequestBaseSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Lead accepted and persisted",
+      content: {
+        "application/json": { schema: leadCreatedResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON, or a field/cross-field validation failure",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    403: {
+      description: "Turnstile verification failed",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (10 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(leadsRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/applicants/index.ts.
+// Answers 200 (not 201) on success — pre-existing behavior, kept.
+export const applicantsRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/applicants",
+  summary: "Submit a job application",
+  description:
+    "Validates that the job exists and is open before accepting. A job " +
+    "whose deadline has passed is treated as closed (410) even when its " +
+    "status is still `open`. Protected by Turnstile and a stricter " +
+    "5-per-IP-per-hour rate limit than leads. Upload the CV first via " +
+    "POST /api/v1/applicant-cv and pass the returned URL as `cv_url`.",
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: applicantRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Application accepted and persisted",
+      content: {
+        "application/json": { schema: applicantCreatedResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON or field validation failure",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    403: {
+      description: "Turnstile verification failed",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Job does not exist or is not open",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    410: {
+      description: "Application deadline has passed",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (5 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(applicantsRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/applicant-cv/index.ts.
+// multipart/form-data, so there is no Zod request schema to reference — the
+// constraints below are enforced imperatively in the handler.
+export const applicantCvRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/applicant-cv",
+  summary: "Upload an applicant CV and get its URL",
+  description:
+    "Accepts `multipart/form-data` with a single `file` field: PDF, DOC or " +
+    "DOCX, at most 10MB. Returns the CMS media URL to pass as `cv_url` on " +
+    "POST /api/v1/applicants. Rate limited to 5 uploads per IP per hour.",
+  request: {
+    body: {
+      content: {
+        "multipart/form-data": {
+          schema: z.object({
+            file: z.string().openapi({ type: "string", format: "binary" }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "CV stored; URL returned",
+      content: {
+        "application/json": { schema: applicantCvUploadedResponseSchema },
+      },
+    },
+    400: {
+      description: "Body is not multipart/form-data, or `file` is missing",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    413: {
+      description: "File exceeds the 10MB limit",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    415: {
+      description: "Unsupported file type (only PDF, DOC, DOCX)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (5 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(applicantCvRouteConfig);
+
+// ─── Community write endpoints (owner-token, no account system) ────────────
+
+// Mirrors src/routes/api/v1/(public)/community/questions/$slug.same-issue.ts.
+export const communitySameIssueRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/community/questions/{slug}/same-issue",
+  summary: "React same-issue to a published question",
+  description:
+    "Idempotent per client: the hashed client IP is the dedupe identity, so " +
+    "a repeat reaction answers 200 with `deduped: true` and an unchanged " +
+    "count. No Turnstile (one-click UX), so a request whose client IP " +
+    "cannot be determined is refused with 400 rather than pooled into a " +
+    "shared bucket. Rate limited to 30 per IP per hour. Takes no body.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Reaction recorded, or already present (`deduped: true`)",
+      content: {
+        "application/json": { schema: communitySameIssueResponseSchema },
+      },
+    },
+    400: {
+      description: "Client IP could not be determined",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "No published question with that slug",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (30 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communitySameIssueRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/community/questions/$slug.withdraw.ts.
+export const communityQuestionWithdrawRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/community/questions/{slug}/withdraw",
+  summary: "Withdraw your own question using its owner token",
+  description:
+    "The owner token issued at submission is the only authorization. An " +
+    "invalid token is answered with the SAME generic 404 as a missing slug " +
+    "— deliberately indistinguishable, so the endpoint cannot be used to " +
+    "probe which slugs exist. Rate limited to 20 per IP per hour.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    body: {
+      content: {
+        "application/json": { schema: communityWithdrawRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Question withdrawn",
+      content: {
+        "application/json": { schema: communityWithdrawResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON or missing `ownerToken`",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Unknown slug or wrong owner token (indistinguishable)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (20 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityQuestionWithdrawRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/community/reviews/$slug.withdraw.ts.
+// Same handler (handleCommunityWithdraw), same envelope, same generic-404
+// policy — only the rate-limit key and the target table differ.
+export const communityReviewWithdrawRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/community/reviews/{slug}/withdraw",
+  summary: "Withdraw your own review using its owner token",
+  description:
+    "Identical semantics to the question withdraw endpoint: owner token is " +
+    "the only authorization, and a wrong token is indistinguishable from a " +
+    "missing slug (generic 404). Rate limited to 20 per IP per hour.",
+  request: {
+    params: z.object({
+      slug: z.string(),
+    }),
+    body: {
+      content: {
+        "application/json": { schema: communityWithdrawRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Review withdrawn",
+      content: {
+        "application/json": { schema: communityWithdrawResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON or missing `ownerToken`",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    404: {
+      description: "Unknown slug or wrong owner token (indistinguishable)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (20 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityReviewWithdrawRouteConfig);
+
+// Mirrors the POST handler of src/routes/api/v1/(public)/community/questions/index.ts.
+// The GET on the same path is registered separately above; OpenAPI keys by
+// (path, method) so both coexist.
+export const communityQuestionSubmitRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/community/questions",
+  summary: "Submit a community question for moderation",
+  description:
+    "Every submission enters moderation: the response `status` is always " +
+    "`pending` and the question is absent from the public list until an " +
+    "operator publishes it. `owner_token` is returned ONCE here and never " +
+    "again — the client stores it to enable self-service withdrawal. " +
+    "Protected by Turnstile and a 5-per-IP-per-hour rate limit.",
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: communityQuestionSubmitSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Question accepted; awaiting moderation",
+      content: {
+        "application/json": { schema: communitySubmitResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON or field validation failure",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    403: {
+      description: "Turnstile verification failed",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (5 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityQuestionSubmitRouteConfig);
+
+// Mirrors the POST handler of src/routes/api/v1/(public)/community/reviews/index.ts.
+// `private_evidence_note` and `private_order_reference` are request-only
+// moderation context — they are accepted here and never appear on any public
+// response shape.
+export const communityReviewSubmitRouteConfig = {
+  method: "post" as const,
+  path: "/api/v1/community/reviews",
+  summary: "Submit a community review for moderation",
+  description:
+    "Same moderation contract as question submission: `status` is always " +
+    "`pending`, and `owner_token` is returned only on this response. " +
+    "`private_evidence_note` and `private_order_reference` are accepted as " +
+    "operator-only context and are never echoed on a public read. " +
+    "Protected by Turnstile and a 5-per-IP-per-hour rate limit.",
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: communityReviewSubmitSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Review accepted; awaiting moderation",
+      content: {
+        "application/json": { schema: communitySubmitResponseSchema },
+      },
+    },
+    400: {
+      description: "Malformed JSON or field validation failure",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    403: {
+      description: "Turnstile verification failed",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+    429: {
+      description: "Rate limit exceeded (5 per IP per hour)",
+      content: {
+        "application/json": { schema: errorBodySchema },
+      },
+    },
+  },
+} as const;
+
+openApiRegistry.registerPath(communityReviewSubmitRouteConfig);

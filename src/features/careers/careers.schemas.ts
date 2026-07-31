@@ -104,3 +104,49 @@ export const jobResponseSchema = z.object({
 });
 
 export type JobResponse = z.infer<typeof jobResponseSchema>;
+
+// ─── POST /api/v1/applicants ───────────────────────────────────────────────
+// Canonical request body for a job application. Moved here (from an inline
+// const in the route file) so src/openapi/paths.ts can reference the SAME
+// object the handler validates against — the identity the drift check asserts.
+// `locale` is REQUIRED here, unlike the lead contract where it is optional:
+// an application is always filed against one localized job row.
+export const applicantRequestSchema = z.object({
+  job_slug: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1, "Tên không được rỗng").max(120),
+  email: z.string().trim().email("Email không hợp lệ").max(254),
+  phone: z.string().trim().max(40).optional().nullable(),
+  cv_url: z.string().trim().url("CV URL không hợp lệ").max(1000).optional().nullable(),
+  cover_letter: z.string().trim().max(5000).optional().nullable(),
+  locale: localeSchema,
+  source_page: z.string().trim().max(500).optional().nullable(),
+  utm: z.record(z.string()).optional().nullable(),
+  turnstile_token: z.string().min(1, "Missing Turnstile token"),
+});
+
+export type ApplicantRequest = z.infer<typeof applicantRequestSchema>;
+
+// 200 body, built in applicants/index.ts as `{ ok: true, id }`.
+// NOTE: this endpoint answers 200 (not 201) — do NOT "fix" that; the landing
+// treats any 2xx as success and changing it is a visible contract change.
+export const applicantCreatedResponseSchema = z.object({
+  ok: z.literal(true),
+  id: z.number().int(),
+});
+
+export type ApplicantCreatedResponse = z.infer<typeof applicantCreatedResponseSchema>;
+
+// 200 body of POST /api/v1/applicant-cv (applicant-cv/index.ts). The request
+// is multipart/form-data with a single `file` field, so there is no Zod
+// request schema — the constraints (PDF/DOC/DOCX, ≤10MB) are enforced
+// imperatively in the handler and documented on the OpenAPI operation.
+// `url` points back at the CMS media proxy and is what the caller then sends
+// as `cv_url` on POST /api/v1/applicants.
+export const applicantCvUploadedResponseSchema = z.object({
+  ok: z.literal(true),
+  url: z.string(),
+  filename: z.string(),
+  size: z.number().int(),
+});
+
+export type ApplicantCvUploadedResponse = z.infer<typeof applicantCvUploadedResponseSchema>;

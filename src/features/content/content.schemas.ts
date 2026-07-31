@@ -219,3 +219,70 @@ export const servicesResponseSchema = z.object({
 });
 
 export type ServicesResponse = z.infer<typeof servicesResponseSchema>;
+
+// ──────────────────────────────────────────────────────────────────────────
+// /api/v1/service-blocks — the generic page-block contract
+// ──────────────────────────────────────────────────────────────────────────
+// Wire shape mirrors the handler projection at
+// src/routes/api/v1/(public)/service-blocks/index.ts:52-62.
+//
+// CONTRACT IDENTITY is `page_slug + kind + <block key>`. Today the wire item
+// carries only the numeric D1 `id`; the semantic `block_key` that the
+// PostgreSQL content model introduces is NOT on this shape yet, and adding it
+// later is an additive (minor) change. Consumers that need a stable role today
+// derive it from `kind + position` — see the landing's
+// next/src/features/fulfill/mappers/serviceBlocks.ts.
+//
+// `payload` is server-parsed from the row's `payload_json`. A row whose JSON is
+// malformed is NOT dropped and does NOT fail the request: the handler emits
+// `payload: {}` for that row and lets the consumer's own schema decide. That
+// fail-safe behavior is deliberate — a single bad editor payload must not blank
+// an entire marketing page — and is locked by the contract tests.
+const serviceBlockItemSchema = z.object({
+  id: z.number().int(),
+  kind: z.string(),
+  position: z.number().int(),
+  icon: z.string().nullable(),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+// `kind` echoes the request filter and is `null` when the caller asked for
+// every kind on the page — it is NOT omitted from the body.
+export const serviceBlocksResponseSchema = z.object({
+  locale: localeSchema,
+  page_slug: z.string(),
+  kind: z.string().nullable(),
+  blocks: z.array(serviceBlockItemSchema),
+});
+
+export type ServiceBlocksResponse = z.infer<typeof serviceBlocksResponseSchema>;
+
+// ──────────────────────────────────────────────────────────────────────────
+// /api/v1/sitemap — slug feed for landing sitemap generation
+// ──────────────────────────────────────────────────────────────────────────
+// Built in sitemap/index.ts:44-58. Not locale-filtered: the response carries
+// EVERY live locale row and the consumer partitions by `locale`. `locale` is a
+// plain string here (not the 3-value enum) because the column is unconstrained
+// in D1 and the handler does no validation — tightening it would turn existing
+// data into a validation failure.
+const sitemapPageSchema = z.object({
+  route: z.string(),
+  locale: z.string(),
+  updated_at: z.number().int(),
+});
+
+const sitemapBlogSchema = z.object({
+  slug: z.string(),
+  locale: z.string(),
+  published_date: z.string().nullable(),
+  updated_at: z.number().int(),
+});
+
+export const sitemapResponseSchema = z.object({
+  pages: z.array(sitemapPageSchema),
+  blog: z.array(sitemapBlogSchema),
+});
+
+export type SitemapResponse = z.infer<typeof sitemapResponseSchema>;
