@@ -54,6 +54,12 @@ jobs:
         # declared OpenAPI schema.
         run: bun run check:openapi-drift
 
+      - name: PG content data-plane POC
+        # Proves the PostgreSQL content vertical slice against real PostgreSQL in-process
+        # (PGlite) — migrations, transactions, constraints, revisions/publications, kind
+        # registry, DTO compat, and manifest import. No server, no secrets, no network.
+        run: bun run check:pg-content-poc
+
       - name: Lint (pricing module)
         # Repo-wide `eslint .` has large pre-existing formatting debt, so this
         # gate scopes lint to the actively-maintained pricing surface. Widen to
