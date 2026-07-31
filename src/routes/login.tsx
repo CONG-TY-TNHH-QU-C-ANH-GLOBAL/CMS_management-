@@ -1,17 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { meFn } from "@/features/auth/auth.actions";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  email_not_invited:
-    "Email này chưa được mời vào CMS. Liên hệ quản trị viên để được cấp quyền.",
-  user_disabled: "Tài khoản này đã bị vô hiệu hoá. Liên hệ quản trị viên.",
-  email_not_verified: "Email Google chưa xác thực. Hãy xác thực email rồi thử lại.",
-  invalid_state: "Phiên đăng nhập đã hết hạn. Thử đăng nhập lại.",
-  missing_code_or_state: "Quy trình đăng nhập bị gián đoạn. Thử lại.",
-  token_exchange_failed: "Không kết nối được với Google. Thử lại sau ít phút.",
-  access_denied: "Bạn đã từ chối cấp quyền cho Google.",
-};
+import { resolveLoginError } from "./login.errors";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { redirect: string; error?: string } => {
@@ -31,9 +21,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const search = Route.useSearch();
-  const errorMessage = search.error
-    ? ERROR_MESSAGES[search.error] ?? `Lỗi đăng nhập: ${search.error}`
-    : null;
+  const errorMessage = resolveLoginError(search.error);
 
   const startUrl = `/api/auth/google/start?redirect=${encodeURIComponent(search.redirect || "/")}`;
 

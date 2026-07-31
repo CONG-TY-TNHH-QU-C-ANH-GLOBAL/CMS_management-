@@ -4,6 +4,7 @@ import { getClientIp, rateLimit } from "@/core/middlewares/rate-limit";
 import {
   OAUTH_REDIRECT_COOKIE,
   OAUTH_STATE_COOKIE,
+  OAuthConfigError,
   buildGoogleAuthUrl,
   generateStateToken,
   isProduction,
@@ -50,6 +51,24 @@ export const Route = createFileRoute("/api/auth/google/start")({
         const redirect = url.searchParams.get("redirect") || "/";
 
         const state = generateStateToken();
+
+        // Build the Google URL BEFORE setting any state cookie: if the OAuth client is not
+        // configured, fail clearly to /login instead of redirecting the browser to Google
+        // with an empty client_id (which returns a confusing 400). The value is never logged.
+        let authUrl: string;
+        try {
+          authUrl = buildGoogleAuthUrl(state);
+        } catch (err) {
+          if (err instanceof OAuthConfigError) {
+            console.error(`[auth] OAuth start blocked: ${err.message}`);
+            return new Response(null, {
+              status: 302,
+              headers: { location: "/login?error=oauth_not_configured" },
+            });
+          }
+          throw err;
+        }
+
         const prod = isProduction();
         const headers = new Headers();
         headers.append("set-cookie", buildShortLivedCookie(OAUTH_STATE_COOKIE, state, prod));
@@ -57,7 +76,7 @@ export const Route = createFileRoute("/api/auth/google/start")({
           "set-cookie",
           buildShortLivedCookie(OAUTH_REDIRECT_COOKIE, encodeURIComponent(redirect), prod),
         );
-        headers.set("location", buildGoogleAuthUrl(state));
+        headers.set("location", authUrl);
 
         return new Response(null, { status: 302, headers });
       },
