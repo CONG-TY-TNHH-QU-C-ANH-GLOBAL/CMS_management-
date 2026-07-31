@@ -60,6 +60,11 @@ jobs:
         # registry, DTO compat, and manifest import. No server, no secrets, no network.
         run: bun run check:pg-content-poc
 
+      - name: PG kind inventory
+        # Fails if any production service-block kind (from seeds/manifest) is missing from the
+        # code-owned KIND_REGISTRY, or if a seed has an unsupported/unparsable shape. No network.
+        run: bun run check:pg-kind-inventory
+
       - name: Lint (pricing module)
         # Repo-wide `eslint .` has large pre-existing formatting debt, so this
         # gate scopes lint to the actively-maintained pricing surface. Widen to

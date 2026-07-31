@@ -16,32 +16,177 @@ import { FULFILL_CONTENT_MANIFEST } from "../src/features/content-pg/manifests/f
 const byName = (a: string, b: string): number => a.localeCompare(b);
 const sortedJoin = (values: Iterable<string>): string => [...values].sort(byName).join(", ");
 
-/** kind → the set of sources it was discovered in. */
-function discoverKinds(): Map<string, Set<string>> {
+// ── Seed SQL parser (robust: handles quoted commas, '' escaped apostrophes, line/block comments,
+//    multi-row VALUES, and any kind-column position; fails LOUDLY on an unsupported shape) ───────────
+
+/** Split SQL into statements on `;` at string-depth 0, stripping `--` and block comments. */
+function splitStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let buf = "";
+  let inStr = false;
+  for (let i = 0; i < sql.length; i += 1) {
+    const ch = sql[i];
+    if (inStr) {
+      buf += ch;
+      if (ch === "'") {
+        if (sql[i + 1] === "'") {
+          buf += "'";
+          i += 1;
+        } // escaped '' stays inside the string
+        else inStr = false;
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inStr = true;
+      buf += ch;
+      continue;
+    }
+    if (ch === "-" && sql[i + 1] === "-") {
+      while (i < sql.length && sql[i] !== "\n") i += 1;
+      continue;
+    }
+    if (ch === "/" && sql[i + 1] === "*") {
+      i += 2;
+      while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) i += 1;
+      i += 1;
+      continue;
+    }
+    if (ch === ";") {
+      statements.push(buf);
+      buf = "";
+      continue;
+    }
+    buf += ch;
+  }
+  if (buf.trim()) statements.push(buf);
+  return statements;
+}
+
+/** Parse the VALUES portion into tuples of field values (quotes stripped, '' unescaped). */
+function parseValueTuples(valuesText: string): string[][] {
+  const tuples: string[][] = [];
+  let i = 0;
+  while (i < valuesText.length) {
+    while (i < valuesText.length && valuesText[i] !== "(") i += 1;
+    if (i >= valuesText.length) break;
+    i += 1; // past '('
+    const fields: string[] = [];
+    let buf = "";
+    let inStr = false;
+    let closed = false;
+    while (i < valuesText.length && !closed) {
+      const ch = valuesText[i];
+      if (inStr) {
+        if (ch === "'") {
+          if (valuesText[i + 1] === "'") {
+            buf += "'";
+            i += 2;
+            continue;
+          }
+          inStr = false;
+          i += 1;
+          continue;
+        }
+        buf += ch;
+        i += 1;
+        continue;
+      }
+      if (ch === "'") {
+        inStr = true;
+        i += 1;
+        continue;
+      }
+      if (ch === ",") {
+        fields.push(buf.trim());
+        buf = "";
+        i += 1;
+        continue;
+      }
+      if (ch === ")") {
+        fields.push(buf.trim());
+        closed = true;
+        i += 1;
+        continue;
+      }
+      buf += ch;
+      i += 1;
+    }
+    tuples.push(fields);
+  }
+  return tuples;
+}
+
+export interface KindExtraction {
+  kinds: string[];
+  errors: string[];
+}
+
+/** Extract every `kind` value inserted into `service_blocks` in one seed file. Returns discovered kinds
+ *  and any hard errors (missing kind column, tuple/column arity mismatch) — never silently skips. */
+export function extractKindsFromSeedSql(sql: string): KindExtraction {
+  const kinds: string[] = [];
+  const errors: string[] = [];
+  for (const stmt of splitStatements(sql)) {
+    if (!/insert\s+into\s+service_blocks/i.test(stmt)) continue;
+    const colMatch = /service_blocks\s*\(([^)]*)\)\s*values/i.exec(stmt);
+    if (!colMatch) {
+      errors.push("service_blocks INSERT without a parsable column list");
+      continue;
+    }
+    const cols = colMatch[1].split(",").map((c) => c.trim().toLowerCase());
+    const kindIdx = cols.indexOf("kind");
+    if (kindIdx === -1) {
+      errors.push("service_blocks INSERT has no `kind` column");
+      continue;
+    }
+    const valuesText = stmt.slice(colMatch.index + colMatch[0].length);
+    for (const tuple of parseValueTuples(valuesText)) {
+      if (tuple.length !== cols.length) {
+        errors.push(`tuple arity ${tuple.length} != column count ${cols.length}`);
+        continue;
+      }
+      kinds.push(tuple[kindIdx]);
+    }
+  }
+  return { kinds, errors };
+}
+
+/** kind → the set of sources it was discovered in. Second return: hard parser errors. */
+export function discoverKinds(seedDir?: string): {
+  discovered: Map<string, Set<string>>;
+  errors: string[];
+} {
   const discovered = new Map<string, Set<string>>();
+  const errors: string[] = [];
   const add = (kind: string, source: string): void => {
     const sources = discovered.get(kind) ?? new Set<string>();
     sources.add(source);
     discovered.set(kind, sources);
   };
 
-  // D1 seed SQL — INSERT INTO service_blocks (page_slug, kind, …) VALUES ('slug', 'kind', …)
-  const seedDir = fileURLToPath(new URL("../db/seeds/", import.meta.url));
-  for (const file of readdirSync(seedDir).filter((f) => f.endsWith(".sql"))) {
-    const sql = readFileSync(new URL(`../db/seeds/${file}`, import.meta.url), "utf8");
-    for (const m of sql.matchAll(/service_blocks[^)]*\)\s*VALUES\s*\('[^']+',\s*'([a-z_]+)'/g)) {
-      add(m[1], `seed:${file}`);
-    }
+  const dir = seedDir ?? fileURLToPath(new URL("../db/seeds/", import.meta.url));
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith(".sql"));
+  } catch {
+    errors.push(`seed directory not found or unreadable: ${dir}`);
+  }
+  for (const file of files) {
+    const { kinds, errors: fileErrors } = extractKindsFromSeedSql(
+      readFileSync(`${dir}/${file}`, "utf8"),
+    );
+    kinds.forEach((k) => add(k, `seed:${file}`));
+    fileErrors.forEach((e) => errors.push(`${file}: ${e}`));
   }
   for (const b of FULFILL_CONTENT_MANIFEST.blocks) add(b.kind, "manifest:fulfill.content.ts");
   for (const kind of Object.keys(KIND_REGISTRY)) add(kind, "registry");
-  return discovered;
+  return { discovered, errors };
 }
 
 function main(): void {
   const registered = new Set(Object.keys(KIND_REGISTRY));
-  const discovered = discoverKinds();
-  const isRegistered = (kind: string): boolean => registered.has(kind);
+  const { discovered, errors } = discoverKinds();
   const isSeededOrManifested = (sources: Set<string>): boolean =>
     [...sources].some((s) => s !== "registry");
 
@@ -49,13 +194,17 @@ function main(): void {
   console.log("KIND INVENTORY (production service-block kinds)\n");
   let unregistered = 0;
   for (const kind of kinds) {
-    const status = isRegistered(kind) ? "registered" : "UNREGISTERED";
+    const status = registered.has(kind) ? "registered" : "UNREGISTERED";
     if (status === "UNREGISTERED") unregistered += 1;
     console.log(`  ${kind.padEnd(16)} ${status.padEnd(13)} ${sortedJoin(discovered.get(kind)!)}`);
   }
 
-  const registryOnly = [...registered].filter((k) => !isSeededOrManifested(discovered.get(k)!)).sort(byName);
-  console.log(`\n  registry-only (accepted, not yet seeded): ${registryOnly.join(", ") || "(none)"}`);
+  const registryOnly = [...registered]
+    .filter((k) => !isSeededOrManifested(discovered.get(k)!))
+    .sort(byName);
+  console.log(
+    `\n  registry-only (accepted, not yet seeded): ${registryOnly.join(", ") || "(none)"}`,
+  );
 
   console.log(
     [
@@ -66,8 +215,14 @@ function main(): void {
     ].join("\n"),
   );
 
-  console.log(`\n${kinds.length} kinds discovered, ${unregistered} unregistered`);
-  if (unregistered > 0) process.exit(1);
+  if (errors.length > 0) {
+    console.error(`\nPARSER ERRORS (unsupported seed shapes — fix the seed or the parser):`);
+    for (const e of errors) console.error(`  ✗ ${e}`);
+  }
+  console.log(
+    `\n${kinds.length} kinds discovered, ${unregistered} unregistered, ${errors.length} parser error(s)`,
+  );
+  if (unregistered > 0 || errors.length > 0) process.exit(1);
 }
 
-main();
+if (import.meta.main) main();

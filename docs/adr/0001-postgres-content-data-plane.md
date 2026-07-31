@@ -3,6 +3,7 @@
 **Status:** Proposed (POC delivered). **Date:** 2026-07-31.
 
 ## Context
+
 Service content (per-page localized blocks: journey_step, capability, section_copy, pain_point,
 process_step, solution, shipping_lane, policy, stat, resource) lives in Cloudflare **D1** as
 `service_blocks` (VI + payload-encoded identity) + `service_block_translations` (EN/ZH). That model has
@@ -12,27 +13,33 @@ to re-implement identity/locale/governance in generated SQL (PR #70). The owner 
 target: **CMS stays the control plane; a relational store becomes the canonical content data plane.**
 
 ## Decision
+
 Adopt **Supabase PostgreSQL** as the canonical Service Content data plane, reached from the Cloudflare
 Worker via **Hyperdrive** using a **least-privilege runtime role**. Planes:
 
 - **Control plane** — CMS Admin UI, Worker API, auth, RBAC, typed validation (kind registry),
-  draft/review/publish workflow, audit, `bumpCmsRev` cache revalidation. *Unchanged home.*
+  draft/review/publish workflow, audit, `bumpCmsRev` cache revalidation. _Unchanged home._
 - **Canonical data plane** — PostgreSQL: `content_locales`, `service_content_pages`,
   `service_content_blocks` (locale-neutral core), `service_content_localizations`,
   `service_content_revisions` (immutable), `service_content_publications` (published pointer).
 - **Delivery plane** — the current public `/service-blocks` API, returning flat locale-resolved DTOs.
   Landings keep their contract; they never see the DB model.
-- **Optional edge read plane** — a Cloudflare cache/KV/D1 *projection* only if justified; **never** a
+- **Optional edge read plane** — a Cloudflare cache/KV/D1 _projection_ only if justified; **never** a
   second writable source of truth.
 
 **The browser never receives DB credentials.** CMS Admin UI → authenticated Worker endpoint → service
 → repository → Postgres. RLS + DB privileges are defense-in-depth, not a replacement for Worker RBAC.
 
 ## Why PostgreSQL, not MongoDB (for this domain)
+
 This is a **relational editorial graph**, not a document store. Postgres fits it directly:
+
 - **Composite uniqueness** `UNIQUE(page_id, kind, block_key)` — DB-enforced business identity (the exact
   guarantee D1 lacks and PR #70 had to fake with runtime preflight).
-- **Foreign keys** page→block→localization→revision→publication with cascade integrity.
+- **Foreign keys** page→block→localization→revision→publication with EXPLICIT delete semantics:
+  historical boundaries use `ON DELETE RESTRICT` (a page/block with content cannot be hard-deleted — it
+  is archived/disabled), while the publication pointer is `ON DELETE CASCADE` (an ephemeral pointer, not
+  history).
 - **Immutable revisions + an explicit publication pointer** — “reviewed ≠ published”, draft edits can’t
   mutate live content; a single-row pointer move is the atomic publish.
 - **Transactional imports** — one manifest = one transaction; partial state impossible.
@@ -44,6 +51,7 @@ uniqueness across a relational graph, and immutable-revision + published-pointer
 Postgres and manual/weaker in a document model. We keep JSONB for the flexible parts, so we lose nothing.
 
 ## Consequences
+
 - One writable source of truth after cutover (D1 content tables retired last, behind a rollback window).
 - DB-enforced identity removes seed-time preflight; the content importer relies on constraints, not
   operational duplicate guards.
@@ -54,6 +62,7 @@ Postgres and manual/weaker in a document model. We keep JSONB for the flexible p
   cutover → deprecate). No big-bang.
 
 ## Alternatives rejected
+
 - **Keep D1 + patch Sonar (PR #70):** debt persists (no DB identity, VI special-case, untyped kinds).
 - **D1 Service Content V2:** better than today but still no composite-unique/immutable-revision ergonomics
   and a second SQLite dialect to hand-roll; superseded by this decision.

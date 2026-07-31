@@ -5,19 +5,29 @@ exposed `public`). The editorial tables are reached **only through the CMS Worke
 the Supabase Data API. This directory is a hardened POC: it is **not deployed**, no production Supabase
 resources exist yet, and nothing here writes remote data.
 
-```
+```text
 db/pg/
-  migrations/   transactional schema DDL (schema, tables, constraints, triggers) — run by the migration owner
-  bootstrap/    cluster-level role + privilege provisioning (NOT a migration) — run once, rerunnable
+  migrations/                           ORDERED, one concern per file — applied in filename order:
+    0001_service_content_schema.sql       schema, enum domains, tables, indexes, constraints
+    0002_create_draft_revision.sql        content.create_draft_revision (draft-only)
+    0003_approve_revision.sql             content.approve_revision (exact-draft → reviewed + lineage)
+    0004_publish_revision.sql             content.publish_revision (compare-and-swap pointer move)
+    0005_invariants_triggers.sql          revision-immutability + block-version triggers
+  bootstrap/                            cluster-level role + privilege provisioning (NOT a migration):
+    0001_roles_and_privileges.sql         run ONCE by the migration owner, after the migrations
 ```
+
+**Operator & order:** apply `migrations/0001..0005` **as the migration owner** (a privileged,
+NON-superuser role that owns the `content` schema — not the runtime login, not `postgres`), then apply
+`bootstrap/0001` as the same owner. The self-check applies the whole ordered set the same way.
 
 ## Connection boundary (§5) — three distinct connections, never shared
 
-| Concern | Connection | Role | Notes |
-|---|---|---|---|
-| **Runtime** (Worker reads/writes) | Cloudflare **Hyperdrive** binding → direct PG endpoint | `thg_cms_runtime` | `postgres.js` with `max:1` (Hyperdrive owns pooling — we do **not** stack a second pooler), prepared statements on, bounded timeouts. |
-| **Schema migrations** | **Direct privileged** connection (not Hyperdrive) | migration owner (separate privileged role, **not** the runtime login, **not** `postgres`) | DDL is transactional; applied by whoever runs `migrations/`. |
-| **Role bootstrap** | **Direct privileged** connection (not Hyperdrive) | a role that can `CREATE ROLE` | Roles are cluster objects, not per-schema DDL — see below. |
+| Concern                           | Connection                                             | Role                                                                                      | Notes                                                                                                                                 |
+| --------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Runtime** (Worker reads/writes) | Cloudflare **Hyperdrive** binding → direct PG endpoint | `thg_cms_runtime`                                                                         | `postgres.js` with `max:1` (Hyperdrive owns pooling — we do **not** stack a second pooler), prepared statements on, bounded timeouts. |
+| **Schema migrations**             | **Direct privileged** connection (not Hyperdrive)      | migration owner (separate privileged role, **not** the runtime login, **not** `postgres`) | DDL is transactional; applied by whoever runs `migrations/`.                                                                          |
+| **Role bootstrap**                | **Direct privileged** connection (not Hyperdrive)      | a role that can `CREATE ROLE`                                                             | Roles are cluster objects, not per-schema DDL — see below.                                                                            |
 
 **Migration execution does not depend on Hyperdrive** — no advisory locks over the pooled binding, no
 reliance on Hyperdrive session state. Migrations and bootstrap use a plain direct connection so that
@@ -61,20 +71,31 @@ are the primary boundary.
     **`reviewed_from_revision_id`** = the draft, and records `reviewed_by`/`reviewed_at`. A `reviewed`
     revision therefore provably corresponds to a specific submitted draft. Only a `draft` is
     reviewable; `uq_reviewed_from` forbids approving one draft twice.
-  - **`publish_revision(...)`** — the *only* publication path; re-checks ownership, rejects any
+  - **`publish_revision(...)`** — the _only_ publication path; re-checks ownership, rejects any
     revision whose `review_status <> 'reviewed'`, applies optional optimistic concurrency, and moves
     the single pointer atomically.
-  The `content` FK `(localization_id, reviewed_from_revision_id) → revisions (localization_id, id)`
-  makes cross-localization review lineage impossible; `CHECK ((review_status='reviewed') =
-  (reviewed_from_revision_id IS NOT NULL))` ties lineage to status. The self-check proves: create-draft
-  always drafts, the caller can't choose status, approve copies exact content + records lineage/reviewer,
-  double-approve and stale/failed/missing approvals are rejected, cross-localization lineage is rejected,
-  an approved revision publishes, and (via `SET ROLE`) the runtime cannot INSERT an arbitrary reviewed
-  revision directly.
-- **Publication ownership + eligibility** — the composite FK `(localization_id, revision_id) →
-  revisions (localization_id, id)` makes a cross-localization pointer impossible. The self-check proves
-  draft/stale/failed and cross-localization publishes are rejected, the live pointer is unchanged after
-  a rejected attempt, an approved move is atomic, and a stale optimistic token is a conflict.
+    The `content` FK `(localization_id, reviewed_from_revision_id) → revisions (localization_id, id)`
+    makes cross-localization review lineage impossible; `CHECK ((review_status='reviewed') =
+(reviewed_from_revision_id IS NOT NULL))` ties lineage to status. The self-check proves: create-draft
+    always drafts, the caller can't choose status, approve copies exact content + records lineage/reviewer,
+    double-approve and stale/failed/missing approvals are rejected, cross-localization lineage is rejected,
+    an approved revision publishes, and (via `SET ROLE`) the runtime cannot INSERT an arbitrary reviewed
+    revision directly.
+- **Publication ownership + eligibility + concurrency** — the composite FK `(localization_id,
+revision_id) → revisions (localization_id, id)` makes a cross-localization pointer impossible.
+  `publish_revision` is a **compare-and-swap**: it locks the **stable localization row** `FOR UPDATE`
+  (which exists before any publication — a publication-row lock cannot serialize the _first_ publish),
+  reads the current pointer, and rejects (conflict) when it `IS DISTINCT FROM` the caller's
+  `expected_revision_id` (`NULL` = "expect none yet"). The self-check proves draft/stale/failed and
+  cross-localization publishes are rejected, the live pointer is unchanged after a rejected attempt, and
+  the compare-and-swap outcomes (two first-publishes can't both win; two republishes with the same
+  expected pointer can't both win; the loser gets conflict; the pointer ends on exactly one revision).
+  _PGlite is single-connection, so true wall-clock concurrency is proven only under the Phase-2 gate._
+- **Block version is DB-owned, not caller-assignable** — a `BEFORE UPDATE` trigger bumps
+  `service_content_blocks.version` by exactly one when a mutable structure column
+  (position/icon/core_config/is_active) actually changes, ignores no-ops, and overwrites any
+  caller-supplied value; the runtime also lacks the `UPDATE (version)` column privilege. This is the
+  optimistic token `approve_revision(expected_version)` checks. Proven both ways.
 - **Revision immutability** — two layers: the runtime has **no** `UPDATE`/`DELETE` on
   `service_content_revisions` (and no direct `INSERT`), and a `BEFORE UPDATE OR DELETE` trigger raises.
   Both are proven. The dedicated `thg_content_fn_owner` role that owns the functions is itself strictly
@@ -101,18 +122,30 @@ exposure, and the **Hyperdrive** path — those are the job of the required runt
 
 ## Runtime smoke gate (§6) — next phase, not run here
 
-`bun run smoke:pg-runtime` is a **bounded, non-production** gate. It **no-ops (exit 0)** unless
-`SMOKE_DATABASE_URL` is set, and **refuses** a host that looks like production. Pointed at a **disposable
-Supabase preview branch**, it exercises what PGlite cannot: the real `postgres.js` driver + TLS + a real
-PG server + prepared statements + typed error mapping, over one real connection and one transaction, with
-**no connection string ever logged**.
+`bun run smoke:pg-runtime` is a **bounded, non-production, FAIL-CLOSED** gate:
+
+- no `SMOKE_DATABASE_URL` → **SKIP** (exit 0): the gate is opt-in;
+- URL set but `SMOKE_PREVIEW_HOSTS` unset → **REFUSE** (exit 2): explicit preview authorization required;
+- URL host not on the allowlist → **REFUSE** (exit 2) — it parses the URL and checks the **hostname only**,
+  never logging the credential or full URL;
+- authorized → **preflight** (health check + prepared parameterized query + host verification; any
+  failure aborts _before_ any write), then the disposable write path (upsert page → block → localization
+  → draft → approve → publish; verify reviewed differs-from/links-to the draft and the pointer equals it;
+  reject publishing the draft with the exact `not_publishable` code; verify the pointer is unchanged;
+  duplicate identity with the exact `duplicate_identity` code) runs inside **one transaction that always
+  rolls back** via an intentional sentinel — **no fixture survives on success or failure** (immutable
+  revision history is never destructively deleted). The refusal paths and the rollback+write-path logic
+  are unit-tested (`scripts/pg-runtime-smoke.test.ts`, and the POC runs the exact write-path against
+  PGlite for a deterministic rollback proof).
 
 It still does **not** prove the **Hyperdrive** hop (pooling/session behavior) — that is a deploy-time
 smoke against a real Hyperdrive binding in a deployed Worker, and remains the gate before any production
 cutover. Do not claim the real path is verified until the smoke has actually run against a preview branch.
 
-```
-SMOKE_DATABASE_URL="postgres://…preview-branch…" bun run smoke:pg-runtime
+```bash
+SMOKE_DATABASE_URL="postgres://…preview-branch…" \
+  SMOKE_PREVIEW_HOSTS="db.abc123.supabase.co" \
+  bun run smoke:pg-runtime
 ```
 
 ### Required Phase-2 gate (documented; not runnable until a preview project exists)
@@ -121,10 +154,10 @@ The optional command above is for local use. The **required** CI gate for the ne
 not skip-on-absent — must:
 
 1. **Fail (not skip)** when the preview database / Hyperdrive configuration is absent.
-2. Run only against a **Supabase preview/dev** environment (never production; the prod-host guard stays).
+2. Run only against a **Supabase preview/dev** environment (never production; the fail-closed preview-host allowlist stays).
 3. Reach PostgreSQL through an **actual non-production Hyperdrive binding** in the **Worker runtime**
    (Miniflare/`wrangler dev` with a preview Hyperdrive), not a direct `postgres://` from Node.
-4. Exercise **one prepared read**, **one transaction**, and a **publication rejection *and* approval**
+4. Exercise **one prepared read**, **one transaction**, and a **publication rejection _and_ approval**
    through `content.publish_revision` (reviewed passes; draft rejected).
 5. Prove **error mapping** (a driver/constraint error surfaces as a typed `ContentError`).
 6. **Log no secret** (assert the connection string never appears in output).

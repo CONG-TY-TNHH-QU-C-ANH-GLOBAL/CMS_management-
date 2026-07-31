@@ -120,13 +120,24 @@ export function validateCoreConfig(kind: string, coreConfig: unknown): void {
   if (!r.success) throw new ContentError("invalid_core_config", `core_config invalid for ${kind}`);
 }
 
+const nullableText = z.string().nullable();
+
 /** Validate a revision's text rule + localized payload for the block's kind (throws ContentError). */
 export function validateRevision(
   kind: string,
   input: { title: string | null; description: string | null; translatedPayload: unknown },
 ): void {
   const d = def(kind);
-  const textErr = d.text(input.title, input.description);
+  // Guard the text inputs as string|null BEFORE any `.trim()` in the rule (a non-string would throw).
+  const title = nullableText.safeParse(input.title);
+  const description = nullableText.safeParse(input.description);
+  if (!title.success || !description.success) {
+    throw new ContentError(
+      "invalid_text",
+      `${kind}: title and description must be a string or null`,
+    );
+  }
+  const textErr = d.text(title.data, description.data);
   if (textErr) throw new ContentError("invalid_text", `${kind}: ${textErr}`);
   const r = d.translatedPayload.safeParse(input.translatedPayload);
   if (!r.success)
