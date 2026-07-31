@@ -60,10 +60,7 @@ import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
 import { leadCreatedResponseSchema } from "@/features/leads/leads.schemas";
-import {
-  policiesResponseSchema,
-  policyResponseSchema,
-} from "@/features/policies/policies.schemas";
+import { policiesResponseSchema, policyResponseSchema } from "@/features/policies/policies.schemas";
 import {
   pricingResponseSchema,
   pricingTableResponseSchema,
@@ -73,12 +70,20 @@ import {
   shippingRouteResponseSchema,
   shippingRoutesResponseSchema,
 } from "@/features/shipping/shipping.schemas";
+import {
+  BAD_LANG,
+  LANG_QUERY,
+  LANG_SCOPE_QUERY,
+  MALFORMED_JSON,
+  SLUG_PARAM,
+  TURNSTILE_FAILED,
+  errorBodySchema,
+  errorResponse,
+  jsonBody,
+  jsonResponse,
+  rateLimited,
+} from "./operations";
 import { openApiRegistry } from "./registry";
-
-// Reused fragments. Inlined here (not extracted to a shared module) until a
-// third call site appears — see D2.1 brief constraint #6: no premature
-// abstraction.
-const errorBodySchema = z.object({ error: z.string() });
 
 // Mirrors the FAQ route at src/routes/api/v1/(public)/faqs/index.ts.
 // Query params reflect the existing handler defaults:
@@ -94,26 +99,11 @@ export const faqsRouteConfig = {
     "`status='reviewed'`. Unreviewed rows are omitted (no cross-locale " +
     "fallback). Landing's static i18n.tsx covers gaps.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-      scope: z.string().optional(),
-    }),
+    query: LANG_SCOPE_QUERY,
   },
   responses: {
-    200: {
-      description: "FAQ list",
-      content: {
-        "application/json": { schema: faqsResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
+    200: jsonResponse("FAQ list", faqsResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -131,23 +121,11 @@ export const testimonialsRouteConfig = {
     "filtered to `status='reviewed'`. Per-row `locale` is stripped from " +
     "the response item — the wrapper's `locale` field carries it instead.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Testimonial list",
-      content: {
-        "application/json": { schema: testimonialsResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Testimonial list", testimonialsResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -164,23 +142,11 @@ export const contactLocationsRouteConfig = {
     "Locations include offices, warehouses, and external channels (phone, " +
     "email, website). Filtered to the requested locale server-side.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Contact locations",
-      content: {
-        "application/json": { schema: contactLocationsResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Contact locations", contactLocationsResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -197,12 +163,7 @@ export const integrationsRouteConfig = {
     "Returns the marquee/logo list of integration partners shown on " +
     "landing. Sorted by `position`. Not localized.",
   responses: {
-    200: {
-      description: "Integration list",
-      content: {
-        "application/json": { schema: integrationsResponseSchema },
-      },
-    },
+    200: jsonResponse("Integration list", integrationsResponseSchema),
   },
 } as const;
 
@@ -224,18 +185,8 @@ export const translationsRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Translation dictionary",
-      content: {
-        "application/json": { schema: translationsResponseSchema },
-      },
-    },
-    400: {
-      description: "Missing or invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Translation dictionary", translationsResponseSchema),
+    400: errorResponse("Missing or invalid `lang` query parameter"),
   },
 } as const;
 
@@ -264,18 +215,8 @@ export const blogListRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Blog post summary list (live posts only)",
-      content: {
-        "application/json": { schema: blogListResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Blog post summary list (live posts only)", blogListResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -293,32 +234,13 @@ export const blogPostRouteConfig = {
     "or if the post status is not `live`. Slide order is preserved from " +
     "the database `position` column.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    params: SLUG_PARAM,
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Blog post detail with slides",
-      content: {
-        "application/json": { schema: blogPostResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Post not found or not published",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Blog post detail with slides", blogPostResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("Post not found or not published"),
   },
 } as const;
 
@@ -335,12 +257,7 @@ export const marqueeImagesRouteConfig = {
     "Returns the sorted marquee image list. Not localized. `src` is " +
     "resolved server-side via INNER JOIN against the media table.",
   responses: {
-    200: {
-      description: "Marquee image list",
-      content: {
-        "application/json": { schema: marqueeImagesResponseSchema },
-      },
-    },
+    200: jsonResponse("Marquee image list", marqueeImagesResponseSchema),
   },
 } as const;
 
@@ -363,18 +280,8 @@ export const jobsListRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Job summary list (open jobs only)",
-      content: {
-        "application/json": { schema: jobsResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Job summary list (open jobs only)", jobsResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -395,32 +302,13 @@ export const jobRouteConfig = {
     "materialized into structured fields (responsibilities, requirements, " +
     "benefits, bonuses). 404 if slug+locale not found, or if status≠open.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    params: SLUG_PARAM,
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Job detail with parsed JSON fields",
-      content: {
-        "application/json": { schema: jobResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Job not found or not open",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Job detail with parsed JSON fields", jobResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("Job not found or not open"),
   },
 } as const;
 
@@ -444,23 +332,11 @@ export const servicesRouteConfig = {
     "locale. gallery[] and products[] media_id references are hydrated to " +
     "resolved URLs server-side. Archived services are filtered out.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Service list (draft + live)",
-      content: {
-        "application/json": { schema: servicesResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Service list (draft + live)", servicesResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -479,23 +355,11 @@ export const homepageRouteConfig = {
     "services_grid, etc.) with their string-keyed payload maps. EN/ZH " +
     "JOIN homepage_block_translations filtered to status='reviewed'.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Homepage block list",
-      content: {
-        "application/json": { schema: homepageResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Homepage block list", homepageResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -517,12 +381,7 @@ export const siteSettingsRouteConfig = {
     "tracking IDs, contact details, and parsed remote_area_links / " +
     "terminology arrays. `settings` is null when the row is missing.",
   responses: {
-    200: {
-      description: "Site settings document or null",
-      content: {
-        "application/json": { schema: siteSettingsResponseSchema },
-      },
-    },
+    200: jsonResponse("Site settings document or null", siteSettingsResponseSchema),
   },
 } as const;
 
@@ -541,12 +400,7 @@ export const pricingListRouteConfig = {
     "slug. Each entry is a summary (no schema/data blobs) — fetch the " +
     "detail endpoint for full table content.",
   responses: {
-    200: {
-      description: "Pricing categories + table summaries",
-      content: {
-        "application/json": { schema: pricingResponseSchema },
-      },
-    },
+    200: jsonResponse("Pricing categories + table summaries", pricingResponseSchema),
   },
 } as const;
 
@@ -566,23 +420,11 @@ export const pricingTableRouteConfig = {
     "data_json produce `null` for the affected field rather than the " +
     "whole table — consumers should defend against partial payloads.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
+    params: SLUG_PARAM,
   },
   responses: {
-    200: {
-      description: "Pricing table detail",
-      content: {
-        "application/json": { schema: pricingTableResponseSchema },
-      },
-    },
-    404: {
-      description: "No pricing table with given slug",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Pricing table detail", pricingTableResponseSchema),
+    404: errorResponse("No pricing table with given slug"),
   },
 } as const;
 
@@ -599,23 +441,11 @@ export const policiesListRouteConfig = {
     "position — no body_md or full content. Fetch the detail endpoint " +
     "for full policy text.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Policy summary list",
-      content: {
-        "application/json": { schema: policiesResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Policy summary list", policiesResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -633,32 +463,13 @@ export const policyRouteConfig = {
     "Returns the full policy including body_md (markdown) and parsed " +
     "image_list + text_blocks arrays. 404 if slug+locale not found.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    params: SLUG_PARAM,
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Policy detail",
-      content: {
-        "application/json": { schema: policyResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Policy not found in locale",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Policy detail", policyResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("Policy not found in locale"),
   },
 } as const;
 
@@ -689,12 +500,7 @@ export const communityQuestionsRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Published question summary list",
-      content: {
-        "application/json": { schema: communityQuestionsResponseSchema },
-      },
-    },
+    200: jsonResponse("Published question summary list", communityQuestionsResponseSchema),
   },
 } as const;
 
@@ -712,23 +518,11 @@ export const communityQuestionRouteConfig = {
     "404 unless the question status is `published`. Includes the THG " +
     "expert answer (nullable) and the computed `indexable` flag.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
+    params: SLUG_PARAM,
   },
   responses: {
-    200: {
-      description: "Published question detail",
-      content: {
-        "application/json": { schema: communityQuestionResponseSchema },
-      },
-    },
-    404: {
-      description: "Question not found or not published",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Published question detail", communityQuestionResponseSchema),
+    404: errorResponse("Question not found or not published"),
   },
 } as const;
 
@@ -743,12 +537,7 @@ export const communityCategoriesRouteConfig = {
   summary: "List community categories",
   description: "Ordered category list used for filtering and the ask-question form.",
   responses: {
-    200: {
-      description: "Category list",
-      content: {
-        "application/json": { schema: communityCategoriesResponseSchema },
-      },
-    },
+    200: jsonResponse("Category list", communityCategoriesResponseSchema),
   },
 } as const;
 
@@ -775,12 +564,7 @@ export const communityReviewsRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Published review summary list",
-      content: {
-        "application/json": { schema: communityReviewsResponseSchema },
-      },
-    },
+    200: jsonResponse("Published review summary list", communityReviewsResponseSchema),
   },
 } as const;
 
@@ -799,23 +583,11 @@ export const communityReviewRouteConfig = {
     "the optional operator `public_summary`, `rating` and the computed " +
     "`indexable` flag.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
+    params: SLUG_PARAM,
   },
   responses: {
-    200: {
-      description: "Published review detail",
-      content: {
-        "application/json": { schema: communityReviewResponseSchema },
-      },
-    },
-    404: {
-      description: "Review not found or not published",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Published review detail", communityReviewResponseSchema),
+    404: errorResponse("Review not found or not published"),
   },
 } as const;
 
@@ -855,18 +627,8 @@ export const serviceBlocksRouteConfig = {
     }),
   },
   responses: {
-    200: {
-      description: "Ordered block list for the page + locale",
-      content: {
-        "application/json": { schema: serviceBlocksResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang`, or missing required `page_slug`",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Ordered block list for the page + locale", serviceBlocksResponseSchema),
+    400: errorResponse("Invalid `lang`, or missing required `page_slug`"),
   },
 } as const;
 
@@ -886,23 +648,11 @@ export const blogCategoriesRouteConfig = {
     "database. `lang` defaults to **vi** on this endpoint. An empty array " +
     "is a valid response, not an error.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Category list",
-      content: {
-        "application/json": { schema: blogCategoriesResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Category list", blogCategoriesResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -919,23 +669,11 @@ export const shippingRoutesListRouteConfig = {
     "same response — it is NOT a pagination total. EN/ZH require a " +
     "`status='reviewed'` translation; there is no cross-locale fallback.",
   request: {
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Live shipping-route summaries",
-      content: {
-        "application/json": { schema: shippingRoutesResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Live shipping-route summaries", shippingRoutesResponseSchema),
+    400: BAD_LANG,
   },
 } as const;
 
@@ -952,32 +690,13 @@ export const shippingRouteRouteConfig = {
     "malformed `notes_json` / `columns_json` / `rows_json` blob degrades to " +
     "an empty array instead of failing the request.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    query: z.object({
-      lang: z.enum(["en", "vi", "zh"]).optional(),
-    }),
+    params: SLUG_PARAM,
+    query: LANG_QUERY,
   },
   responses: {
-    200: {
-      description: "Shipping route detail with rate tables",
-      content: {
-        "application/json": { schema: shippingRouteResponseSchema },
-      },
-    },
-    400: {
-      description: "Invalid `lang` query parameter",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "No live shipping route with that slug in the locale",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Shipping route detail with rate tables", shippingRouteResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("No live shipping route with that slug in the locale"),
   },
 } as const;
 
@@ -996,12 +715,7 @@ export const sitemapRouteConfig = {
     "parameters. `locale` is an unconstrained string here because the " +
     "column carries no CHECK constraint in D1.",
   responses: {
-    200: {
-      description: "Live routes and blog slugs across every locale",
-      content: {
-        "application/json": { schema: sitemapResponseSchema },
-      },
-    },
+    200: jsonResponse("Live routes and blog slugs across every locale", sitemapResponseSchema),
   },
 } as const;
 
@@ -1030,37 +744,13 @@ export const leadsRouteConfig = {
     "No provider or database error is ever surfaced; failures use the " +
     "bounded `{ error }` envelope.",
   request: {
-    body: {
-      content: {
-        "application/json": { schema: leadRequestBaseSchema },
-      },
-    },
+    body: jsonBody(leadRequestBaseSchema),
   },
   responses: {
-    201: {
-      description: "Lead accepted and persisted",
-      content: {
-        "application/json": { schema: leadCreatedResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON, or a field/cross-field validation failure",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    403: {
-      description: "Turnstile verification failed",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (10 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    201: jsonResponse("Lead accepted and persisted", leadCreatedResponseSchema),
+    400: errorResponse("Malformed JSON, or a field/cross-field validation failure"),
+    403: TURNSTILE_FAILED,
+    429: rateLimited(10),
   },
 } as const;
 
@@ -1079,49 +769,15 @@ export const applicantsRouteConfig = {
     "5-per-IP-per-hour rate limit than leads. Upload the CV first via " +
     "POST /api/v1/applicant-cv and pass the returned URL as `cv_url`.",
   request: {
-    body: {
-      content: {
-        "application/json": { schema: applicantRequestSchema },
-      },
-    },
+    body: jsonBody(applicantRequestSchema),
   },
   responses: {
-    200: {
-      description: "Application accepted and persisted",
-      content: {
-        "application/json": { schema: applicantCreatedResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON or field validation failure",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    403: {
-      description: "Turnstile verification failed",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Job does not exist or is not open",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    410: {
-      description: "Application deadline has passed",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (5 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Application accepted and persisted", applicantCreatedResponseSchema),
+    400: MALFORMED_JSON,
+    403: TURNSTILE_FAILED,
+    404: errorResponse("Job does not exist or is not open"),
+    410: errorResponse("Application deadline has passed"),
+    429: rateLimited(5),
   },
 } as const;
 
@@ -1150,36 +806,11 @@ export const applicantCvRouteConfig = {
     },
   },
   responses: {
-    200: {
-      description: "CV stored; URL returned",
-      content: {
-        "application/json": { schema: applicantCvUploadedResponseSchema },
-      },
-    },
-    400: {
-      description: "Body is not multipart/form-data, or `file` is missing",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    413: {
-      description: "File exceeds the 10MB limit",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    415: {
-      description: "Unsupported file type (only PDF, DOC, DOCX)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (5 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("CV stored; URL returned", applicantCvUploadedResponseSchema),
+    400: errorResponse("Body is not multipart/form-data, or `file` is missing"),
+    413: errorResponse("File exceeds the 10MB limit"),
+    415: errorResponse("Unsupported file type (only PDF, DOC, DOCX)"),
+    429: rateLimited(5),
   },
 } as const;
 
@@ -1199,35 +830,16 @@ export const communitySameIssueRouteConfig = {
     "cannot be determined is refused with 400 rather than pooled into a " +
     "shared bucket. Rate limited to 30 per IP per hour. Takes no body.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
+    params: SLUG_PARAM,
   },
   responses: {
-    200: {
-      description: "Reaction recorded, or already present (`deduped: true`)",
-      content: {
-        "application/json": { schema: communitySameIssueResponseSchema },
-      },
-    },
-    400: {
-      description: "Client IP could not be determined",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "No published question with that slug",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (30 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse(
+      "Reaction recorded, or already present (`deduped: true`)",
+      communitySameIssueResponseSchema,
+    ),
+    400: errorResponse("Client IP could not be determined"),
+    404: errorResponse("No published question with that slug"),
+    429: rateLimited(30),
   },
 } as const;
 
@@ -1244,40 +856,14 @@ export const communityQuestionWithdrawRouteConfig = {
     "— deliberately indistinguishable, so the endpoint cannot be used to " +
     "probe which slugs exist. Rate limited to 20 per IP per hour.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    body: {
-      content: {
-        "application/json": { schema: communityWithdrawRequestSchema },
-      },
-    },
+    params: SLUG_PARAM,
+    body: jsonBody(communityWithdrawRequestSchema),
   },
   responses: {
-    200: {
-      description: "Question withdrawn",
-      content: {
-        "application/json": { schema: communityWithdrawResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON or missing `ownerToken`",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Unknown slug or wrong owner token (indistinguishable)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (20 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Question withdrawn", communityWithdrawResponseSchema),
+    400: errorResponse("Malformed JSON or missing `ownerToken`"),
+    404: errorResponse("Unknown slug or wrong owner token (indistinguishable)"),
+    429: rateLimited(20),
   },
 } as const;
 
@@ -1295,40 +881,14 @@ export const communityReviewWithdrawRouteConfig = {
     "the only authorization, and a wrong token is indistinguishable from a " +
     "missing slug (generic 404). Rate limited to 20 per IP per hour.",
   request: {
-    params: z.object({
-      slug: z.string(),
-    }),
-    body: {
-      content: {
-        "application/json": { schema: communityWithdrawRequestSchema },
-      },
-    },
+    params: SLUG_PARAM,
+    body: jsonBody(communityWithdrawRequestSchema),
   },
   responses: {
-    200: {
-      description: "Review withdrawn",
-      content: {
-        "application/json": { schema: communityWithdrawResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON or missing `ownerToken`",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    404: {
-      description: "Unknown slug or wrong owner token (indistinguishable)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (20 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    200: jsonResponse("Review withdrawn", communityWithdrawResponseSchema),
+    400: errorResponse("Malformed JSON or missing `ownerToken`"),
+    404: errorResponse("Unknown slug or wrong owner token (indistinguishable)"),
+    429: rateLimited(20),
   },
 } as const;
 
@@ -1348,37 +908,13 @@ export const communityQuestionSubmitRouteConfig = {
     "again — the client stores it to enable self-service withdrawal. " +
     "Protected by Turnstile and a 5-per-IP-per-hour rate limit.",
   request: {
-    body: {
-      content: {
-        "application/json": { schema: communityQuestionSubmitSchema },
-      },
-    },
+    body: jsonBody(communityQuestionSubmitSchema),
   },
   responses: {
-    201: {
-      description: "Question accepted; awaiting moderation",
-      content: {
-        "application/json": { schema: communitySubmitResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON or field validation failure",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    403: {
-      description: "Turnstile verification failed",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (5 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    201: jsonResponse("Question accepted; awaiting moderation", communitySubmitResponseSchema),
+    400: MALFORMED_JSON,
+    403: TURNSTILE_FAILED,
+    429: rateLimited(5),
   },
 } as const;
 
@@ -1399,37 +935,13 @@ export const communityReviewSubmitRouteConfig = {
     "operator-only context and are never echoed on a public read. " +
     "Protected by Turnstile and a 5-per-IP-per-hour rate limit.",
   request: {
-    body: {
-      content: {
-        "application/json": { schema: communityReviewSubmitSchema },
-      },
-    },
+    body: jsonBody(communityReviewSubmitSchema),
   },
   responses: {
-    201: {
-      description: "Review accepted; awaiting moderation",
-      content: {
-        "application/json": { schema: communitySubmitResponseSchema },
-      },
-    },
-    400: {
-      description: "Malformed JSON or field validation failure",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    403: {
-      description: "Turnstile verification failed",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
-    429: {
-      description: "Rate limit exceeded (5 per IP per hour)",
-      content: {
-        "application/json": { schema: errorBodySchema },
-      },
-    },
+    201: jsonResponse("Review accepted; awaiting moderation", communitySubmitResponseSchema),
+    400: MALFORMED_JSON,
+    403: TURNSTILE_FAILED,
+    429: rateLimited(5),
   },
 } as const;
 

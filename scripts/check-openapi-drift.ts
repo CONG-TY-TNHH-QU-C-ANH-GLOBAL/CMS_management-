@@ -1,348 +1,41 @@
 #!/usr/bin/env bun
-// Anti-drift assertion (constraint #5 of D2.1 brief).
+// Anti-drift assertion (constraint #5 of the D2.1 brief) — CLI runner.
 //
-// For each entry in CHECKS, verifies that the schema reference embedded in
-// the OpenAPI route config is THE SAME OBJECT (`===`) as the canonical
-// schema exported from features/<feature>/<feature>.schemas. This catches
-// the failure mode where someone re-defines a similar-looking Zod schema
-// in src/openapi/paths.ts instead of importing the feature schema. That
-// drift would silently desync the OpenAPI document from the actual runtime
-// shape (the incident-class problem that motivated Phase D).
+// The bindings and the identity rule live in src/openapi/contract-bindings.ts; this file only
+// runs them and maps the result to an exit code. They were split because keeping the table
+// here meant re-importing the ~40 canonical schemas and route configs that src/openapi/paths.ts
+// already imports, and two files listing the same wiring is duplication Sonar correctly
+// counted. The assertion itself is unchanged: a registered schema must be the SAME OBJECT
+// (`===`) as the canonical feature export — the failure mode being someone redefining a
+// similar-looking Zod shape in paths.ts instead of importing it.
 //
 // Run locally:  bun run check:openapi-drift
 // In CI:        same command — exits 1 on drift, 0 on OK.
-//
-// As D2.x rolls out, add one CHECKS entry per migrated endpoint. Keep it a
-// flat list — no abstractions until a real second axis of variation
-// appears (D2.1 brief constraint #6: no premature abstraction).
+// Also asserted by `bun test` (src/openapi/public-surface.test.ts), so drift fails the test
+// suite even if this script is not run.
 
-import {
-  blogCategoriesResponseSchema,
-  blogListResponseSchema,
-  blogPostResponseSchema,
-} from "../src/features/blog/blog.schemas";
-import {
-  applicantCreatedResponseSchema,
-  applicantCvUploadedResponseSchema,
-  applicantRequestSchema,
-  jobResponseSchema,
-  jobsResponseSchema,
-} from "../src/features/careers/careers.schemas";
-import {
-  communityCategoriesResponseSchema,
-  communityQuestionResponseSchema,
-  communityQuestionsResponseSchema,
-  communityReviewResponseSchema,
-  communityReviewsResponseSchema,
-  communityQuestionSubmitSchema,
-  communityReviewSubmitSchema,
-  communitySameIssueResponseSchema,
-  communitySubmitResponseSchema,
-  communityWithdrawRequestSchema,
-  communityWithdrawResponseSchema,
-} from "../src/features/community/community.schemas";
-import {
-  contactLocationsResponseSchema,
-  faqsResponseSchema,
-  integrationsResponseSchema,
-  marqueeImagesResponseSchema,
-  serviceBlocksResponseSchema,
-  servicesResponseSchema,
-  sitemapResponseSchema,
-  testimonialsResponseSchema,
-} from "../src/features/content/content.schemas";
-import { homepageResponseSchema } from "../src/features/homepage/homepage.schemas";
-import { translationsResponseSchema } from "../src/features/i18n/i18n.schemas";
-import { leadRequestBaseSchema } from "../src/features/leads/lead-request";
-import { leadCreatedResponseSchema } from "../src/features/leads/leads.schemas";
-import {
-  policiesResponseSchema,
-  policyResponseSchema,
-} from "../src/features/policies/policies.schemas";
-import {
-  pricingResponseSchema,
-  pricingTableResponseSchema,
-} from "../src/features/pricing/pricing.schemas";
-import { siteSettingsResponseSchema } from "../src/features/settings/settings.schemas";
-import {
-  shippingRouteResponseSchema,
-  shippingRoutesResponseSchema,
-} from "../src/features/shipping/shipping.schemas";
-import {
-  applicantCvRouteConfig,
-  applicantsRouteConfig,
-  blogCategoriesRouteConfig,
-  blogListRouteConfig,
-  blogPostRouteConfig,
-  communityCategoriesRouteConfig,
-  communityQuestionRouteConfig,
-  communityQuestionsRouteConfig,
-  communityQuestionSubmitRouteConfig,
-  communityQuestionWithdrawRouteConfig,
-  communityReviewRouteConfig,
-  communityReviewSubmitRouteConfig,
-  communityReviewWithdrawRouteConfig,
-  communityReviewsRouteConfig,
-  communitySameIssueRouteConfig,
-  contactLocationsRouteConfig,
-  faqsRouteConfig,
-  homepageRouteConfig,
-  integrationsRouteConfig,
-  jobRouteConfig,
-  jobsListRouteConfig,
-  leadsRouteConfig,
-  marqueeImagesRouteConfig,
-  policiesListRouteConfig,
-  policyRouteConfig,
-  pricingListRouteConfig,
-  pricingTableRouteConfig,
-  serviceBlocksRouteConfig,
-  servicesRouteConfig,
-  shippingRouteRouteConfig,
-  shippingRoutesListRouteConfig,
-  siteSettingsRouteConfig,
-  sitemapRouteConfig,
-  testimonialsRouteConfig,
-  translationsRouteConfig,
-} from "../src/openapi/paths";
+import { CONTRACT_BINDINGS, findContractDrift } from "../src/openapi/contract-bindings";
 
-interface Check {
-  name: string;
-  canonical: unknown;
-  registered: unknown;
+const failures = findContractDrift();
+const failed = new Set(failures.map((f) => f.name));
+
+for (const binding of CONTRACT_BINDINGS) {
+  if (!failed.has(binding.name)) console.log(`✓ ${binding.name}`);
 }
 
-const CHECKS: Check[] = [
-  {
-    name: "GET /api/v1/faqs → 200",
-    canonical: faqsResponseSchema,
-    registered: faqsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/testimonials → 200",
-    canonical: testimonialsResponseSchema,
-    registered: testimonialsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/contact-locations → 200",
-    canonical: contactLocationsResponseSchema,
-    registered: contactLocationsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/integrations → 200",
-    canonical: integrationsResponseSchema,
-    registered: integrationsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/translations → 200",
-    canonical: translationsResponseSchema,
-    registered: translationsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/blog → 200",
-    canonical: blogListResponseSchema,
-    registered: blogListRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/blog/{slug} → 200",
-    canonical: blogPostResponseSchema,
-    registered: blogPostRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/marquee-images → 200",
-    canonical: marqueeImagesResponseSchema,
-    registered: marqueeImagesRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/jobs → 200",
-    canonical: jobsResponseSchema,
-    registered: jobsListRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/jobs/{slug} → 200",
-    canonical: jobResponseSchema,
-    registered: jobRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/services → 200",
-    canonical: servicesResponseSchema,
-    registered: servicesRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/homepage → 200",
-    canonical: homepageResponseSchema,
-    registered: homepageRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/site-settings → 200",
-    canonical: siteSettingsResponseSchema,
-    registered: siteSettingsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/pricing → 200",
-    canonical: pricingResponseSchema,
-    registered: pricingListRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/pricing/{slug} → 200",
-    canonical: pricingTableResponseSchema,
-    registered: pricingTableRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/policies → 200",
-    canonical: policiesResponseSchema,
-    registered: policiesListRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/policies/{slug} → 200",
-    canonical: policyResponseSchema,
-    registered: policyRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/community/questions → 200",
-    canonical: communityQuestionsResponseSchema,
-    registered: communityQuestionsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/community/questions/{slug} → 200",
-    canonical: communityQuestionResponseSchema,
-    registered: communityQuestionRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/community/categories → 200",
-    canonical: communityCategoriesResponseSchema,
-    registered: communityCategoriesRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/community/reviews → 200",
-    canonical: communityReviewsResponseSchema,
-    registered: communityReviewsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/community/reviews/{slug} → 200",
-    canonical: communityReviewResponseSchema,
-    registered: communityReviewRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/service-blocks → 200",
-    canonical: serviceBlocksResponseSchema,
-    registered: serviceBlocksRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/blog/categories → 200",
-    canonical: blogCategoriesResponseSchema,
-    registered: blogCategoriesRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/shipping-routes → 200",
-    canonical: shippingRoutesResponseSchema,
-    registered: shippingRoutesListRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/shipping-routes/{slug} → 200",
-    canonical: shippingRouteResponseSchema,
-    registered: shippingRouteRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "GET /api/v1/sitemap → 200",
-    canonical: sitemapResponseSchema,
-    registered: sitemapRouteConfig.responses[200].content["application/json"].schema,
-  },
-  // Request bodies are checked with the same identity rule as responses — a
-  // restated request shape drifts just as silently, and on a write endpoint
-  // the blast radius is a rejected lead rather than a misrendered section.
-  {
-    name: "POST /api/v1/leads → request body",
-    canonical: leadRequestBaseSchema,
-    registered: leadsRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/leads → 201",
-    canonical: leadCreatedResponseSchema,
-    registered: leadsRouteConfig.responses[201].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/applicants → request body",
-    canonical: applicantRequestSchema,
-    registered: applicantsRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/applicants → 200",
-    canonical: applicantCreatedResponseSchema,
-    registered: applicantsRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/applicant-cv → 200",
-    canonical: applicantCvUploadedResponseSchema,
-    registered: applicantCvRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/questions/{slug}/same-issue → 200",
-    canonical: communitySameIssueResponseSchema,
-    registered: communitySameIssueRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/questions/{slug}/withdraw → request body",
-    canonical: communityWithdrawRequestSchema,
-    registered:
-      communityQuestionWithdrawRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/questions/{slug}/withdraw → 200",
-    canonical: communityWithdrawResponseSchema,
-    registered: communityQuestionWithdrawRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/reviews/{slug}/withdraw → request body",
-    canonical: communityWithdrawRequestSchema,
-    registered:
-      communityReviewWithdrawRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/reviews/{slug}/withdraw → 200",
-    canonical: communityWithdrawResponseSchema,
-    registered: communityReviewWithdrawRouteConfig.responses[200].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/questions → request body",
-    canonical: communityQuestionSubmitSchema,
-    registered: communityQuestionSubmitRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/questions → 201",
-    canonical: communitySubmitResponseSchema,
-    registered: communityQuestionSubmitRouteConfig.responses[201].content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/reviews → request body",
-    canonical: communityReviewSubmitSchema,
-    registered: communityReviewSubmitRouteConfig.request.body.content["application/json"].schema,
-  },
-  {
-    name: "POST /api/v1/community/reviews → 201",
-    canonical: communitySubmitResponseSchema,
-    registered: communityReviewSubmitRouteConfig.responses[201].content["application/json"].schema,
-  },
-];
-
-let failed = 0;
-for (const c of CHECKS) {
-  if (c.canonical === c.registered) {
-    console.log(`✓ ${c.name}`);
-  } else {
+if (failures.length > 0) {
+  for (const failure of failures) {
     console.error(
-      `✗ ${c.name}: OpenAPI registration is NOT the canonical schema. ` +
+      `✗ ${failure.name}: OpenAPI registration is NOT the canonical schema. ` +
         `Someone likely redefined a similar Zod shape in src/openapi/paths.ts ` +
         `instead of importing from features/<feature>/<feature>.schemas. ` +
         `Fix: replace the inline schema with the canonical import.`,
     );
-    failed++;
   }
-}
-
-if (failed > 0) {
-  console.error(`\nFAIL: ${failed}/${CHECKS.length} schema identity check(s) failed.`);
+  console.error(
+    `\nFAIL: ${failures.length}/${CONTRACT_BINDINGS.length} schema identity check(s) failed.`,
+  );
   process.exit(1);
 }
 
-console.log(`\nOK — ${CHECKS.length} schema identity check(s) passed.`);
+console.log(`\nOK — ${CONTRACT_BINDINGS.length} schema identity check(s) passed.`);

@@ -20,6 +20,7 @@ import { join, relative, sep } from "node:path";
 
 import { expect, test } from "bun:test";
 
+import { CONTRACT_BINDINGS, findContractDrift } from "./contract-bindings";
 import { generateOpenApiDocument } from "./generate";
 import {
   ROUTE_CLASSIFICATIONS,
@@ -60,6 +61,34 @@ const routeKeys = walkRouteKeys(API_ROUTES_DIR);
 
 const classified = (key: string): RouteClassificationEntry | undefined =>
   ROUTE_CLASSIFICATIONS[key];
+
+// ── Schema identity ─────────────────────────────────────────────────────────────────────────
+
+test("every registered schema is the canonical feature export, not a lookalike", () => {
+  // Same assertion as `bun run check:openapi-drift`, run here too so drift fails the test
+  // suite even when the script is not invoked. The failure mode it catches is someone
+  // redefining a similar-looking Zod shape in paths.ts instead of importing it.
+  expect(CONTRACT_BINDINGS.length).toBeGreaterThan(40);
+  expect(findContractDrift().map((f) => f.name)).toEqual([]);
+});
+
+test("every documented operation has a schema binding", () => {
+  // A route can be declared with a body that nothing asserts identity on. Cross-check the
+  // document against the binding table so a new operation cannot skip drift protection.
+  const bound = new Set(CONTRACT_BINDINGS.map((b) => b.name.replace(/ → .*$/, "")));
+  const unbound: string[] = [];
+  for (const [path, ops] of Object.entries(declared)) {
+    for (const method of Object.keys(ops as Record<string, unknown>)) {
+      const id = `${method.toUpperCase()} ${path}`;
+      if (!bound.has(id)) unbound.push(id);
+    }
+  }
+  expect(
+    unbound,
+    "Documented operations with no entry in src/openapi/contract-bindings.ts — their schema " +
+      "can drift from the canonical feature export undetected.",
+  ).toEqual([]);
+});
 
 // ── The inventory itself must stay honest ───────────────────────────────────────────────────
 
