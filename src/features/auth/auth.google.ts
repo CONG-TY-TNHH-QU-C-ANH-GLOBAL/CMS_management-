@@ -21,7 +21,8 @@ export const OAUTH_REDIRECT_COOKIE = "thg_oauth_redirect";
 /** Raised when a required Google OAuth binding is absent, so callers fail loud with an
  *  actionable server-side message instead of building a broken Google request (an empty
  *  `client_id` makes accounts.google.com return "Missing required parameter: client_id").
- *  The message names the missing variable only — never the value (it is a secret). */
+ *  The message names the missing VARIABLE only — never its value (GOOGLE_CLIENT_SECRET's value is
+ *  confidential; and no config value belongs in an error surfaced to logs or the browser). */
 export class OAuthConfigError extends Error {
   constructor(varName: "GOOGLE_CLIENT_ID" | "GOOGLE_CLIENT_SECRET") {
     super(`Google OAuth is not configured: ${varName} is missing`);

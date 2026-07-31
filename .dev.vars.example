@@ -11,9 +11,15 @@ CORS_ORIGIN=http://localhost:5173,http://localhost:8080
 
 # REQUIRED for admin login. Without a non-empty GOOGLE_CLIENT_ID the app now fails clearly
 # to /login?error=oauth_not_configured instead of redirecting to a broken Google request.
+#
+# GOOGLE_CLIENT_ID is a PUBLIC OAuth identifier: it is placed in the Google authorization URL and
+# is therefore visible to the browser by design (this is expected and safe).
+# GOOGLE_CLIENT_SECRET is CONFIDENTIAL and server-only: it must never reach the browser, client
+# code, redirect parameters, or logs. NEITHER value is committed to the repo.
+#
 # Production: set BOTH via `bunx wrangler secret put GOOGLE_CLIENT_ID` and
-# `... GOOGLE_CLIENT_SECRET` (Cloudflare Worker RUNTIME secrets — not build-time, not sent to
-# the browser). Get them from Google Cloud Console:
+# `... GOOGLE_CLIENT_SECRET` (Cloudflare Worker RUNTIME secrets — not build-time). Get them from
+# Google Cloud Console:
 #   1. Go to https://console.cloud.google.com/apis/credentials
 #   2. Create OAuth 2.0 Client ID (Application type: Web application)
 #   3. Authorized redirect URIs:
