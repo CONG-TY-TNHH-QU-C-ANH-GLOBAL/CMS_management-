@@ -21,5 +21,9 @@ export class ContentError extends Error {
   }
 }
 
-/** Postgres unique-violation SQLSTATE → our bounded duplicate error (identity is DB-enforced). */
+/** SQLSTATEs the repository maps by CODE (never by message text). */
 export const PG_UNIQUE_VIOLATION = "23505";
+export const PG_SERIALIZATION_FAILURE = "40001";
+/** Custom application SQLSTATE raised by the content.* DB functions for "not eligible for this
+ *  operation" (missing/non-draft/non-reviewed/cross-localization). Class 'PT' is user-defined. */
+export const PG_CONTENT_NOT_ELIGIBLE = "PT001";

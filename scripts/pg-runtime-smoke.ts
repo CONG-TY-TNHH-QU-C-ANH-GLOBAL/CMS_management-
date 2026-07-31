@@ -1,75 +1,91 @@
-// BOUNDED, NON-PRODUCTION runtime smoke for the Postgres content path (§6 gate for the NEXT phase).
-// It is a GATE, not part of the POC: it no-ops (exit 0) unless SMOKE_DATABASE_URL is set, so CI and
-// the PGlite POC never touch a real cluster. When pointed at a *disposable Supabase preview branch*
-// (never production — the guard below refuses obvious prod hosts), it exercises the real driver end
-// to end: one real connection, one transaction, one prepared query, and connection-failure MAPPING.
+// BOUNDED, NON-PRODUCTION runtime smoke for the Postgres content path (Phase-2 gate precursor).
+// FAIL-CLOSED: it runs the write path ONLY against a host on an explicit preview allowlist, and only
+// after preflight passes. It never logs a credential or the full connection string (hostname only).
 //
-// What this proves that PGlite cannot: the postgres.js driver + TLS + a real PG server + prepared
-// statements + our error mapping over the wire. What it still does NOT prove until run with a real
-// Hyperdrive binding in a deployed Worker: Hyperdrive pooling/session behavior. That last hop is a
-// deploy-time smoke, called out in db/pg/README.md — this script is the local/CI-preview rung.
+// Configuration (both required to run the write path):
+//   SMOKE_DATABASE_URL   postgres://…  (a disposable Supabase PREVIEW branch — never production)
+//   SMOKE_PREVIEW_HOSTS  comma-separated exact hostnames that are authorized preview databases
 //
-// Run:  SMOKE_DATABASE_URL="postgres://…preview…" bun scripts/pg-runtime-smoke.ts
-import { createRuntimeExec, healthCheck } from "../src/features/content-pg/pg-adapter";
-import { createPage, createBlock, upsertLocalization, createDraftRevision, approveRevision, publish } from "../src/features/content-pg/content.repo";
-import { ContentError } from "../src/features/content-pg/content.errors";
+// Behaviour:
+//   • no SMOKE_DATABASE_URL              → SKIP (exit 0): the gate is opt-in.
+//   • URL set, SMOKE_PREVIEW_HOSTS unset → REFUSE (exit 2): preview authorization is required.
+//   • host not on the allowlist          → REFUSE (exit 2): fail closed before any connection/write.
+//   • authorized                         → preflight (health + prepared query + host verify) then run
+//     the disposable write path inside ONE transaction that always rolls back (no fixture survives).
+//
+// Run:  SMOKE_DATABASE_URL="postgres://…preview…" SMOKE_PREVIEW_HOSTS="db.preview.example" bun scripts/pg-runtime-smoke.ts
+import {
+  createRuntimeExec,
+  healthCheck,
+  closeRuntimeClients,
+} from "../src/features/content-pg/pg-adapter";
+import { runDisposableWritePath } from "./pg-smoke-writepath";
 
 const url = process.env.SMOKE_DATABASE_URL;
+const allowlist = (process.env.SMOKE_PREVIEW_HOSTS ?? "")
+  .split(",")
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+
 if (!url) {
-  console.log("pg-runtime-smoke: SKIPPED (no SMOKE_DATABASE_URL). This gate runs only against a\n" +
-    "disposable Supabase preview branch, never in the POC/CI default path.");
+  console.log(
+    "pg-runtime-smoke: SKIPPED (no SMOKE_DATABASE_URL). This gate is opt-in and runs only\n" +
+      "against a disposable Supabase preview branch.",
+  );
   process.exit(0);
 }
-// Refuse anything that looks like the production project — a disposable preview branch is required.
-if (/prod|production/i.test(url)) {
-  console.error("pg-runtime-smoke: REFUSED — host looks like production. Use a preview branch.");
+
+// Parse the URL and inspect the HOSTNAME ONLY — never log credentials or the full URL.
+let host: string;
+try {
+  host = new URL(url).hostname.toLowerCase();
+} catch {
+  console.error("pg-runtime-smoke: REFUSED — SMOKE_DATABASE_URL is not a valid URL.");
+  process.exit(2);
+}
+if (allowlist.length === 0) {
+  console.error(
+    "pg-runtime-smoke: REFUSED — SMOKE_PREVIEW_HOSTS is not configured. Fail-closed: an\n" +
+      "explicit preview-host allowlist is required before any connection or write.",
+  );
+  process.exit(2);
+}
+if (!allowlist.includes(host)) {
+  console.error(
+    `pg-runtime-smoke: REFUSED — host "${host}" is not on the preview allowlist. Fail-closed.`,
+  );
   process.exit(2);
 }
 
 async function main(): Promise<number> {
-  // Exercise the EXACT runtime factory (max:1, prepared, bounded timeouts). No string is ever logged.
-  const exec = await createRuntimeExec({ DATABASE_URL: url! });
   let failed = 0;
   const ok = (cond: boolean, label: string) => {
     console.log(`  ${cond ? "✓" : "✗"} ${label}`);
     if (!cond) failed += 1;
   };
-  {
-    ok((await healthCheck(exec)).ok, "real connection + health check (SELECT 1)");
+  try {
+    const exec = await createRuntimeExec({ DATABASE_URL: url! });
 
-    // One transaction + one prepared, parameterized query round-trip.
-    const rows = await exec.tx(async (tx) => tx.query<{ two: number }>("SELECT $1::int + $1::int AS two", [1]));
-    ok(rows[0]?.two === 2, "transaction + prepared parameterized query round-trip");
-
-    // A disposable page/block/localization for the write-path checks (unique slug per run).
-    const pageId = await createPage(exec, `smoke-${Date.now()}`);
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 1, coreConfig: {} });
-    const locId = await upsertLocalization(exec, blockId, "en");
-    // Draft → approve → publish (the reviewed revision copies the exact draft).
-    const draft = await createDraftRevision(exec, "capability", { localizationId: locId, title: "wip", description: "d" });
-    const reviewed = await approveRevision(exec, draft, 1);
-
-    // Publication APPROVAL through content.publish_revision (reviewed passes).
-    await publish(exec, locId, reviewed);
-    ok(true, "publication approval: reviewed revision published via content.publish_revision");
-
-    // Publication REJECTION (draft) surfaces as a typed ContentError; no credential leaks in the message.
-    try {
-      await publish(exec, locId, draft);
-      ok(false, "expected draft publish to be rejected");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      ok(e instanceof ContentError && e.code === "not_publishable", "publication rejection: draft rejected as typed ContentError");
-      ok(!msg.includes("@") && !msg.includes(url!), "error message carries no credential/connection string");
+    // Preflight — any failure aborts BEFORE any content write.
+    if (!(await healthCheck(exec)).ok) {
+      console.error(
+        "pg-runtime-smoke: REFUSED — preflight health check failed; aborting before writes.",
+      );
+      return 2;
     }
+    ok(true, `preflight: health check passed (host ${host})`);
+    const two = await exec.query<{ two: number }>("SELECT $1::int + $1::int AS two", [1]);
+    ok(two[0]?.two === 2, "preflight: prepared parameterized query round-trip");
 
-    // Error MAPPING: a duplicate-identity insert surfaces as a typed ContentError, not a raw throw.
-    try {
-      await createBlock(exec, { pageId, kind: "capability", blockKey: "k", position: 2, coreConfig: {} });
-      ok(false, "expected duplicate-identity error on second insert");
-    } catch (e) {
-      ok(e instanceof ContentError, "duplicate insert maps to a typed ContentError");
+    // Disposable write path — one transaction, always rolled back (no fixture survives).
+    const checks = await runDisposableWritePath(exec);
+    for (const line of checks) {
+      console.log(`  ${line}`);
+      if (line.startsWith("✗")) failed += 1;
     }
+    ok(true, "disposable write path rolled back — no fixture survives");
+  } finally {
+    await closeRuntimeClients();
   }
   console.log(`\n${failed === 0 ? "smoke PASSED" : "smoke FAILED"} (${failed} failed)`);
   return failed;
