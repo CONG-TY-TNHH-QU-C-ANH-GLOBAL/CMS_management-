@@ -24,7 +24,8 @@ export function pgliteExec(db: PgliteDb): PgExec {
   const fromQueryable = (h: PgliteQueryable): PgExec => ({
     query: async <T>(text: string, params: unknown[] = []) => (await h.query<T>(text, params)).rows,
     tx: async (fn) => {
-      const sp = `sp_${(savepointSeq += 1)}`;
+      savepointSeq += 1;
+      const sp = `sp_${savepointSeq}`;
       await h.query(`SAVEPOINT ${sp}`);
       try {
         const result = await fn(fromQueryable(h));
@@ -84,9 +85,6 @@ export const RUNTIME_CLIENT_OPTIONS = {
 } as const;
 
 type ClosableSql = SqlLike & { end(opts?: { timeout?: number }): Promise<void> };
-/** One cached client per connection string (per Worker isolate). We never open a new unmanaged client
- *  per repository call. The map key is held only in memory and never logged. */
-const clients = new Map<string, { sql: ClosableSql; exec: PgExec }>();
 
 function connectionStringOf(env: RuntimeEnv): string {
   const cs = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
@@ -99,31 +97,56 @@ async function defaultConnect(connectionString: string): Promise<ClosableSql> {
   return postgres(connectionString, RUNTIME_CLIENT_OPTIONS) as unknown as ClosableSql;
 }
 
-/** Build (or reuse) the runtime `PgExec`. `connect` is injectable for tests; production uses the lazy
- *  dynamic import so PGlite-only paths never load postgres.js. */
-export async function createRuntimeExec(
-  env: RuntimeEnv,
-  connect: (connectionString: string) => Promise<ClosableSql> = defaultConnect,
-): Promise<PgExec> {
-  const cs = connectionStringOf(env);
-  const cached = clients.get(cs);
-  if (cached) return cached.exec;
-  const sql = await connect(cs);
-  const exec = postgresExec(sql);
-  clients.set(cs, { sql, exec });
-  return exec;
+/** A REQUEST-scoped Postgres handle. In a Cloudflare Worker, an I/O object (the postgres.js client)
+ *  must NOT be retained across requests — so there is deliberately NO module/isolate-level client
+ *  cache. One scope is created inside the request handler and passed through services/repositories,
+ *  then closed in `finally`. Hyperdrive owns cross-request pooling. */
+export interface RequestPgScope {
+  /** Lazily obtain this request's PgExec; concurrent calls share ONE connection attempt. */
+  getExec(): Promise<PgExec>;
+  /** Wait for any in-flight connection, then close this request's client. Idempotent. */
+  close(): Promise<void>;
 }
 
-/** Close and drop every cached runtime client (smoke/local teardown). No-op if none were opened. */
-export async function closeRuntimeClients(): Promise<void> {
-  for (const { sql } of clients.values()) {
+export function createRequestPgScope(
+  env: RuntimeEnv,
+  connect: (connectionString: string) => Promise<ClosableSql> = defaultConnect,
+): RequestPgScope {
+  let sqlPromise: Promise<ClosableSql> | null = null;
+  let exec: PgExec | null = null;
+  let closed = false;
+
+  const getExec = async (): Promise<PgExec> => {
+    if (closed)
+      throw new ContentError("db_unavailable", "request database scope is already closed");
+    if (exec) return exec;
+    const cs = connectionStringOf(env); // throws db_unavailable when no binding/URL is configured
+    if (!sqlPromise) {
+      // Store the in-flight promise BEFORE awaiting so concurrent getExec() calls share one attempt;
+      // clear it on failure so the request-local state is not left poisoned.
+      sqlPromise = connect(cs).catch((err) => {
+        sqlPromise = null;
+        throw err;
+      });
+    }
+    const sql = await sqlPromise;
+    exec ??= postgresExec(sql);
+    return exec;
+  };
+
+  const close = async (): Promise<void> => {
+    if (closed) return;
+    closed = true;
+    if (!sqlPromise) return;
     try {
+      const sql = await sqlPromise;
       await sql.end({ timeout: 5 });
     } catch {
-      /* ignore teardown errors */
+      /* ignore teardown / never-connected errors */
     }
-  }
-  clients.clear();
+  };
+
+  return { getExec, close };
 }
 
 /** Secret-free health probe (maps any failure to a bounded error state). */

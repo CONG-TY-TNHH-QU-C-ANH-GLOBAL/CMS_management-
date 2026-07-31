@@ -8,13 +8,16 @@
 CREATE SCHEMA IF NOT EXISTS content;
 
 -- ── Closed lifecycle domains as ENUM types — the DB enforces the allowed set (stronger than a text
---    column + CHECK IN-list) and each value is defined EXACTLY ONCE here, so the literals are not
---    repeated across columns, constraints, and functions. page_status and review_status are distinct
---    domains that happen to share the label 'draft' — intentionally NOT unified (different lifecycles).
+--    column + CHECK IN-list) and each value is defined EXACTLY ONCE here. Domain-specific names keep
+--    the lifecycles distinct: a page is `published`, a locale reaches `public` — no shared literal
+--    across domains except a semantically-real 'draft' (page vs revision), which is not unified.
+--    review_status is deliberately just draft|reviewed: an immutable revision only ever exists as a
+--    submitted draft or its approved copy. Staleness is DERIVED (source hash/revision divergence) and
+--    failure belongs to a future translation-attempt record — neither is a stored revision status.
 CREATE TYPE content.locale_direction AS ENUM ('ltr', 'rtl');
-CREATE TYPE content.locale_rollout   AS ENUM ('planned', 'beta', 'ga', 'retired');
-CREATE TYPE content.page_status       AS ENUM ('draft', 'live', 'archived');
-CREATE TYPE content.review_status     AS ENUM ('draft', 'reviewed', 'stale', 'failed');
+CREATE TYPE content.locale_rollout   AS ENUM ('planned', 'preview', 'public', 'retired');
+CREATE TYPE content.page_status       AS ENUM ('draft', 'published', 'archived');
+CREATE TYPE content.review_status     AS ENUM ('draft', 'reviewed');
 
 -- ── Locale governance ──────────────────────────────────────────────────────────────────────────
 CREATE TABLE content.content_locales (
@@ -32,7 +35,7 @@ CREATE TABLE content.content_locales (
 CREATE TABLE content.service_content_pages (
   id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   slug       text NOT NULL UNIQUE,
-  status     content.page_status NOT NULL DEFAULT 'live',
+  status     content.page_status NOT NULL DEFAULT 'published',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -83,7 +86,7 @@ CREATE TABLE content.service_content_revisions (
   translated_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
   source_locale      text REFERENCES content.content_locales (code),
   source_hash        text NOT NULL DEFAULT '',
-  review_status      content.review_status NOT NULL DEFAULT 'draft',
+  review_status      content.review_status NOT NULL,   -- no column default: set explicitly by the workflow
   reviewed_from_revision_id bigint,                 -- set ONLY on a reviewed revision → its source draft
   reviewed_by        bigint,
   reviewed_at        timestamptz,

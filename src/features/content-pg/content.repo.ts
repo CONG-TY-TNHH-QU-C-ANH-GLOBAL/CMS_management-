@@ -6,6 +6,7 @@ import {
   PG_UNIQUE_VIOLATION,
   PG_SERIALIZATION_FAILURE,
   PG_CONTENT_NOT_ELIGIBLE,
+  PG_CONTENT_CONFLICT,
 } from "./content.errors";
 import { validateCoreConfig, validateRevision, type Kind } from "./content.kinds";
 import type { PgExec } from "./pg-adapter";
@@ -15,6 +16,8 @@ export interface LocaleSeed {
   nativeName: string;
   isActive: boolean;
   isSource: boolean;
+  /** locale_rollout enum value; defaults to 'planned' (not publicly served) when omitted. */
+  rolloutStatus?: "planned" | "preview" | "public" | "retired";
 }
 
 export interface NewBlock {
@@ -67,8 +70,14 @@ function mapDbError(err: unknown): ContentError {
   if (code === PG_CONTENT_NOT_ELIGIBLE) {
     return new ContentError("not_publishable", "revision is not eligible for this operation");
   }
-  // Concurrency: a serialization failure (pointer/version moved) or the double-approve unique index.
-  if (code === PG_SERIALIZATION_FAILURE || constraint === "uq_reviewed_from") {
+  // Workflow conflict (PT409, e.g. a draft already approved) or an optimistic serialization failure
+  // (pointer/version moved). The double-approve unique index is mapped inside the DB function to PT409;
+  // the constraint check remains as defense-in-depth.
+  if (
+    code === PG_CONTENT_CONFLICT ||
+    code === PG_SERIALIZATION_FAILURE ||
+    constraint === "uq_reviewed_from"
+  ) {
     return new ContentError("conflict", "content changed concurrently; retry with current state");
   }
   if (code === PG_UNIQUE_VIOLATION) {
@@ -86,11 +95,12 @@ function mapDbError(err: unknown): ContentError {
 export async function upsertLocale(exec: PgExec, l: LocaleSeed): Promise<void> {
   try {
     await exec.query(
-      `INSERT INTO content.content_locales (code, native_name, is_active, is_source)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO content.content_locales (code, native_name, is_active, is_source, rollout_status)
+       VALUES ($1, $2, $3, $4, $5::content.locale_rollout)
        ON CONFLICT (code) DO UPDATE SET native_name = EXCLUDED.native_name,
-         is_active = EXCLUDED.is_active, is_source = EXCLUDED.is_source`,
-      [l.code, l.nativeName, l.isActive, l.isSource],
+         is_active = EXCLUDED.is_active, is_source = EXCLUDED.is_source,
+         rollout_status = EXCLUDED.rollout_status`,
+      [l.code, l.nativeName, l.isActive, l.isSource, l.rolloutStatus ?? "planned"],
     );
   } catch (err) {
     throw mapDbError(err);
@@ -238,15 +248,20 @@ export async function getPublishedBlocks(
   pageSlug: string,
   locale: string,
 ): Promise<PublishedBlockRow[]> {
+  // Public read: the page is published, the requested locale is active AND at public rollout, the block
+  // is active, and a publication pointer exists for that localization. No cross-locale fallback: a
+  // missing/non-public locale simply omits the block. Uses the schema's actual enum values.
   return exec.query<PublishedBlockRow>(
     `SELECT b.id, b.block_key, b.kind, b.position, b.icon, b.core_config,
             r.title, r.description, r.translated_payload
        FROM content.service_content_pages p
        JOIN content.service_content_blocks b ON b.page_id = p.id AND b.is_active = true
        JOIN content.service_content_localizations l ON l.block_id = b.id AND l.locale = $2
+       JOIN content.content_locales cl ON cl.code = l.locale
+        AND cl.is_active = true AND cl.rollout_status = 'public'
        JOIN content.service_content_publications pub ON pub.localization_id = l.id
        JOIN content.service_content_revisions r ON r.id = pub.revision_id
-      WHERE p.slug = $1
+      WHERE p.slug = $1 AND p.status = 'published'
       ORDER BY b.kind, b.position, b.id`,
     [pageSlug, locale],
   );

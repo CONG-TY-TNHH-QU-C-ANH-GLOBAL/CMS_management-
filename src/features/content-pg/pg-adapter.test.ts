@@ -1,11 +1,7 @@
 import { test, expect } from "bun:test";
 
-import {
-  postgresExec,
-  createRuntimeExec,
-  closeRuntimeClients,
-  RUNTIME_CLIENT_OPTIONS,
-} from "./pg-adapter";
+import { postgresExec, createRequestPgScope, RUNTIME_CLIENT_OPTIONS } from "./pg-adapter";
+import { ContentError } from "./content.errors";
 
 /** Minimal fake of the postgres.js surface the adapter uses; records the calls it makes. */
 function makeFakeSql() {
@@ -53,25 +49,81 @@ test("queries run as prepared statements", async () => {
   expect(calls).toContain("unsafe:prepared");
 });
 
-test("runtime client options: single connection, prepared, bounded timeouts", () => {
-  expect(RUNTIME_CLIENT_OPTIONS.max).toBe(1);
-  expect(RUNTIME_CLIENT_OPTIONS.prepare).toBe(true);
-  expect(RUNTIME_CLIENT_OPTIONS.connect_timeout).toBeGreaterThan(0);
-  expect(RUNTIME_CLIENT_OPTIONS.connection.statement_timeout).toBeDefined();
-  expect(RUNTIME_CLIENT_OPTIONS.connection.idle_in_transaction_session_timeout).toBeDefined();
+test("runtime client options: bounded numeric timeouts, prepared, single connection", () => {
+  const o = RUNTIME_CLIENT_OPTIONS;
+  expect(o.max).toBe(1); // explicitly bounded
+  expect(o.prepare).toBe(true);
+  expect(typeof o.connect_timeout).toBe("number");
+  expect(o.connect_timeout).toBeGreaterThan(0);
+  expect(typeof o.connection.statement_timeout).toBe("number");
+  expect(o.connection.statement_timeout).toBeGreaterThan(0);
+  expect(Number.isNaN(o.connection.statement_timeout)).toBe(false);
+  expect(typeof o.connection.idle_in_transaction_session_timeout).toBe("number");
+  expect(o.connection.idle_in_transaction_session_timeout).toBeGreaterThan(0);
 });
 
-test("one client is cached per config; closeRuntimeClients ends it", async () => {
-  const { sql, calls } = makeFakeSql();
+test("request scope: missing HYPERDRIVE and DATABASE_URL → ContentError db_unavailable", async () => {
+  const scope = createRequestPgScope({});
+  await expect(scope.getExec()).rejects.toMatchObject({
+    code: "db_unavailable",
+  } as Partial<ContentError>);
+});
+
+test("request scope: concurrent getExec() share ONE connection attempt", async () => {
+  const { sql } = makeFakeSql();
   let connects = 0;
   const connect = async () => {
     connects += 1;
     return sql as never;
   };
-  const a = await createRuntimeExec({ DATABASE_URL: "postgres://x/y" }, connect);
-  const b = await createRuntimeExec({ DATABASE_URL: "postgres://x/y" }, connect);
+  const scope = createRequestPgScope({ DATABASE_URL: "postgres://u:p@h/db" }, connect);
+  const [a, b] = await Promise.all([scope.getExec(), scope.getExec()]);
+  expect(connects).toBe(1);
   expect(a).toBe(b);
-  expect(connects).toBe(1); // no new unmanaged client per call
-  await closeRuntimeClients();
-  expect(calls).toContain("end");
+  await scope.close();
+});
+
+test("request scope: separate scopes do NOT share a client", async () => {
+  let connects = 0;
+  const connect = async () => {
+    connects += 1;
+    return makeFakeSql().sql as never;
+  };
+  const env = { DATABASE_URL: "postgres://u:p@h/db" };
+  const s1 = createRequestPgScope(env, connect);
+  const s2 = createRequestPgScope(env, connect);
+  const e1 = await s1.getExec();
+  const e2 = await s2.getExec();
+  expect(connects).toBe(2);
+  expect(e1).not.toBe(e2);
+  await s1.close();
+  await s2.close();
+});
+
+test("request scope: a failed connect is not retained (retryable)", async () => {
+  let attempts = 0;
+  const connect = async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error("connect boom");
+    return makeFakeSql().sql as never;
+  };
+  const scope = createRequestPgScope({ DATABASE_URL: "postgres://u:p@h/db" }, connect);
+  await expect(scope.getExec()).rejects.toThrow("connect boom");
+  await expect(scope.getExec()).resolves.toBeDefined(); // state was cleared; second attempt succeeds
+  expect(attempts).toBe(2);
+  await scope.close();
+});
+
+test("request scope: close is idempotent and waits for an in-flight connection", async () => {
+  const { sql, calls } = makeFakeSql();
+  let release: (v: typeof sql) => void = () => {};
+  const connect = () => new Promise<typeof sql>((r) => (release = r));
+  const scope = createRequestPgScope({ DATABASE_URL: "postgres://u:p@h/db" }, connect as never);
+  const pending = scope.getExec();
+  const closing = scope.close(); // starts while connect is in flight
+  release(sql); // resolve the connection
+  await pending.catch(() => {});
+  await closing;
+  await scope.close(); // idempotent — no throw, no double end
+  expect(calls.filter((c) => c === "end")).toHaveLength(1);
 });

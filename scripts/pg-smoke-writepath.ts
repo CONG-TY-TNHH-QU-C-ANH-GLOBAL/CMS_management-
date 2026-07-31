@@ -33,7 +33,7 @@ export async function runDisposableWritePath(exec: PgExec): Promise<string[]> {
 
   try {
     await exec.tx(async (tx) => {
-      const slug = `smoke-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const slug = `smoke-${globalThis.crypto.randomUUID()}`;
       const pageId = await upsertPage(tx, slug);
       const blockId = await createBlock(tx, {
         pageId,

@@ -14,11 +14,7 @@
 //     the disposable write path inside ONE transaction that always rolls back (no fixture survives).
 //
 // Run:  SMOKE_DATABASE_URL="postgres://…preview…" SMOKE_PREVIEW_HOSTS="db.preview.example" bun scripts/pg-runtime-smoke.ts
-import {
-  createRuntimeExec,
-  healthCheck,
-  closeRuntimeClients,
-} from "../src/features/content-pg/pg-adapter";
+import { createRequestPgScope, healthCheck } from "../src/features/content-pg/pg-adapter";
 import { runDisposableWritePath } from "./pg-smoke-writepath";
 
 const url = process.env.SMOKE_DATABASE_URL;
@@ -63,8 +59,10 @@ async function main(): Promise<number> {
     console.log(`  ${cond ? "✓" : "✗"} ${label}`);
     if (!cond) failed += 1;
   };
+  // One request-scoped client, created here and closed in finally (no module-level cache).
+  const scope = createRequestPgScope({ DATABASE_URL: url! });
   try {
-    const exec = await createRuntimeExec({ DATABASE_URL: url! });
+    const exec = await scope.getExec();
 
     // Preflight — any failure aborts BEFORE any content write.
     if (!(await healthCheck(exec)).ok) {
@@ -85,7 +83,7 @@ async function main(): Promise<number> {
     }
     ok(true, "disposable write path rolled back — no fixture survives");
   } finally {
-    await closeRuntimeClients();
+    await scope.close();
   }
   console.log(`\n${failed === 0 ? "smoke PASSED" : "smoke FAILED"} (${failed} failed)`);
   return failed;

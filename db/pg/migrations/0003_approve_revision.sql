@@ -20,19 +20,24 @@ CREATE FUNCTION content.approve_revision(
   SET search_path = content, pg_temp
 AS $$
 DECLARE
+  -- Function-local constants (used more than once) — the not-eligible and workflow-conflict SQLSTATEs.
+  -- content.repo maps 'PT001' → not_publishable and 'PT409' → conflict, by CODE.
+  c_not_eligible CONSTANT text := 'PT001';
+  c_conflict     CONSTANT text := 'PT409';
   d               content.service_content_revisions%ROWTYPE;
   v_new_id        bigint;
   v_block_version integer;
+  v_constraint    text;
 BEGIN
   SELECT * INTO d FROM content.service_content_revisions
    WHERE id = p_draft_revision_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'approve rejected: revision % does not exist', p_draft_revision_id
-      USING ERRCODE = 'PT001';
+      USING ERRCODE = c_not_eligible;
   END IF;
   IF d.review_status <> 'draft' THEN
     RAISE EXCEPTION 'approve rejected: revision % is "%", only a draft is reviewable',
-      p_draft_revision_id, d.review_status USING ERRCODE = 'PT001';
+      p_draft_revision_id, d.review_status USING ERRCODE = c_not_eligible;
   END IF;
 
   IF p_expected_version IS NOT NULL THEN
@@ -47,13 +52,24 @@ BEGIN
   END IF;
 
   -- Append a reviewed revision copying the draft's EXACT content + preserving source provenance.
-  INSERT INTO content.service_content_revisions
-      (localization_id, title, description, translated_payload, source_locale, source_hash,
-       review_status, reviewed_from_revision_id, reviewed_by, reviewed_at, created_by)
-    VALUES
-      (d.localization_id, d.title, d.description, d.translated_payload, d.source_locale, d.source_hash,
-       'reviewed', d.id, p_reviewer_id, now(), d.created_by)
-    RETURNING id INTO v_new_id;
+  -- A concurrent/duplicate approval trips uq_reviewed_from; surface THAT as a workflow conflict
+  -- (PT409), not a duplicate-identity error, and re-raise any UNRELATED unique violation unchanged.
+  BEGIN
+    INSERT INTO content.service_content_revisions
+        (localization_id, title, description, translated_payload, source_locale, source_hash,
+         review_status, reviewed_from_revision_id, reviewed_by, reviewed_at, created_by)
+      VALUES
+        (d.localization_id, d.title, d.description, d.translated_payload, d.source_locale, d.source_hash,
+         'reviewed', d.id, p_reviewer_id, now(), d.created_by)
+      RETURNING id INTO v_new_id;
+  EXCEPTION WHEN unique_violation THEN
+    GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME;
+    IF v_constraint = 'uq_reviewed_from' THEN
+      RAISE EXCEPTION 'approve rejected: draft % has already been approved', p_draft_revision_id
+        USING ERRCODE = c_conflict;
+    END IF;
+    RAISE;  -- unrelated unique violation → propagate unchanged
+  END;
   RETURN v_new_id;
 END;
 $$;

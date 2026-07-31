@@ -25,6 +25,10 @@ CREATE FUNCTION content.publish_revision(
   SET search_path = content, pg_temp
 AS $$
 DECLARE
+  -- Function-local constants (used more than once below) — the not-eligible SQLSTATE and the one
+  -- publishable status. content.repo maps 'PT001' → not_publishable by CODE.
+  c_not_eligible CONSTANT text                  := 'PT001';
+  v_reviewed     CONSTANT content.review_status := 'reviewed';
   v_owner   bigint;
   v_status  content.review_status;
   v_current bigint;
@@ -33,7 +37,7 @@ BEGIN
   PERFORM 1 FROM content.service_content_localizations WHERE id = p_localization_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'publish rejected: localization % does not exist', p_localization_id
-      USING ERRCODE = 'PT001';
+      USING ERRCODE = c_not_eligible;
   END IF;
 
   -- Eligibility: the revision must exist, belong to this localization, and be reviewed.
@@ -41,11 +45,11 @@ BEGIN
     FROM content.service_content_revisions WHERE id = p_revision_id;
   IF v_owner IS NULL OR v_owner <> p_localization_id THEN
     RAISE EXCEPTION 'publish rejected: revision % is not owned by localization %',
-      p_revision_id, p_localization_id USING ERRCODE = 'PT001';
+      p_revision_id, p_localization_id USING ERRCODE = c_not_eligible;
   END IF;
-  IF v_status <> 'reviewed' THEN
+  IF v_status <> v_reviewed THEN
     RAISE EXCEPTION 'publish rejected: revision % is "%", only reviewed revisions may be published',
-      p_revision_id, v_status USING ERRCODE = 'PT001';
+      p_revision_id, v_status USING ERRCODE = c_not_eligible;
   END IF;
 
   -- 2–4. Compare-and-swap against the EXACT expected pointer (NULL = expect none yet).

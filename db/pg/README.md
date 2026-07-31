@@ -21,6 +21,13 @@ db/pg/
 NON-superuser role that owns the `content` schema — not the runtime login, not `postgres`), then apply
 `bootstrap/0001` as the same owner. The self-check applies the whole ordered set the same way.
 
+**Runtime client lifecycle (Cloudflare):** the postgres.js client is created **inside the Worker
+request handler** via `createRequestPgScope(env)` and passed through services/repositories, then closed
+in `finally`. There is **no module/isolate-level client cache** — a Cloudflare I/O object must not be
+reused across requests. Within one request scope, concurrent `getExec()` calls share one connection
+attempt (the in-flight promise is stored before awaiting); a failed attempt clears the state; `close()`
+waits for any in-flight connection and is idempotent. **Hyperdrive owns cross-request pooling.**
+
 ## Connection boundary (§5) — three distinct connections, never shared
 
 | Concern                           | Connection                                             | Role                                                                                      | Notes                                                                                                                                 |
@@ -78,7 +85,7 @@ are the primary boundary.
     makes cross-localization review lineage impossible; `CHECK ((review_status='reviewed') =
 (reviewed_from_revision_id IS NOT NULL))` ties lineage to status. The self-check proves: create-draft
     always drafts, the caller can't choose status, approve copies exact content + records lineage/reviewer,
-    double-approve and stale/failed/missing approvals are rejected, cross-localization lineage is rejected,
+    double-approve (PT409 conflict), already-reviewed and missing approvals are rejected, cross-localization lineage is rejected,
     an approved revision publishes, and (via `SET ROLE`) the runtime cannot INSERT an arbitrary reviewed
     revision directly.
 - **Publication ownership + eligibility + concurrency** — the composite FK `(localization_id,
@@ -86,7 +93,7 @@ revision_id) → revisions (localization_id, id)` makes a cross-localization poi
   `publish_revision` is a **compare-and-swap**: it locks the **stable localization row** `FOR UPDATE`
   (which exists before any publication — a publication-row lock cannot serialize the _first_ publish),
   reads the current pointer, and rejects (conflict) when it `IS DISTINCT FROM` the caller's
-  `expected_revision_id` (`NULL` = "expect none yet"). The self-check proves draft/stale/failed and
+  `expected_revision_id` (`NULL` = "expect none yet"). The self-check proves draft and
   cross-localization publishes are rejected, the live pointer is unchanged after a rejected attempt, and
   the compare-and-swap outcomes (two first-publishes can't both win; two republishes with the same
   expected pointer can't both win; the loser gets conflict; the pointer ends on exactly one revision).

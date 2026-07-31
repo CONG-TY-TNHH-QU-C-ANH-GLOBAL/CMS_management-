@@ -24,6 +24,8 @@ export class ContentError extends Error {
 /** SQLSTATEs the repository maps by CODE (never by message text). */
 export const PG_UNIQUE_VIOLATION = "23505";
 export const PG_SERIALIZATION_FAILURE = "40001";
-/** Custom application SQLSTATE raised by the content.* DB functions for "not eligible for this
- *  operation" (missing/non-draft/non-reviewed/cross-localization). Class 'PT' is user-defined. */
+/** Custom application SQLSTATEs raised by the content.* DB functions (class 'PT' is user-defined):
+ *  PT001 = "not eligible for this operation" (missing/non-draft/non-reviewed/cross-localization);
+ *  PT409 = "workflow conflict" (a draft was already approved — a duplicate, not a duplicate identity). */
 export const PG_CONTENT_NOT_ELIGIBLE = "PT001";
+export const PG_CONTENT_CONFLICT = "PT409";
