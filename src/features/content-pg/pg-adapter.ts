@@ -128,6 +128,10 @@ export function createRequestPgScope(
       throw err;
     });
     const sql = await sqlPromise;
+    // close() may have started during acquisition. If so, do NOT construct or return an exec, and do
+    // NOT call end here — close() is the sole client-lifecycle owner and will end() this connection.
+    if (closed)
+      throw new ContentError("db_unavailable", "request database scope was closed during connect");
     exec ??= postgresExec(sql);
     return exec;
   };

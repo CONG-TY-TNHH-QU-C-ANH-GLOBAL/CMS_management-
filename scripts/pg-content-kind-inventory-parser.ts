@@ -167,11 +167,20 @@ export interface KindExtraction {
   errors: string[];
 }
 
-/** The explicit INSERT column list (lower-cased identifiers), or null if not a parsable shape. */
-function readInsertColumns(statement: string): string[] | null {
+/** The parsed `service_blocks (…) VALUES` header: the explicit column list (lower-cased identifiers)
+ *  AND the exact end offset of the matched VALUES boundary. The caller slices the tuple list from
+ *  `valuesOffset` — there is NO second scan for VALUES and no second source of truth for its location. */
+interface SeedInsertHeader {
+  columns: string[];
+  valuesOffset: number;
+}
+function parseInsertHeader(statement: string): SeedInsertHeader | null {
   const m = /service_blocks\s*\(([^)]*)\)\s*values/i.exec(statement);
   if (!m) return null;
-  return m[1].split(",").map((c) => c.trim().toLowerCase());
+  return {
+    columns: m[1].split(",").map((c) => c.trim().toLowerCase()),
+    valuesOffset: m.index + m[0].length, // right after the matched "…) VALUES"
+  };
 }
 
 /** Extract every `kind` value inserted into `service_blocks` in one seed file. Returns discovered kinds
@@ -181,20 +190,19 @@ export function extractKindsFromSeedSql(sql: string): KindExtraction {
   const errors: string[] = [];
   for (const stmt of splitStatements(sql)) {
     if (!/insert\s+into\s+service_blocks/i.test(stmt)) continue;
-    const cols = readInsertColumns(stmt);
-    if (!cols) {
+    const header = parseInsertHeader(stmt);
+    if (!header) {
       errors.push("service_blocks INSERT without a parsable column list");
       continue;
     }
-    const kindIdx = cols.indexOf("kind");
+    const kindIdx = header.columns.indexOf("kind");
     if (kindIdx === -1) {
       errors.push("service_blocks INSERT has no `kind` column");
       continue;
     }
-    const valuesSection = stmt.slice(/\bvalues\b/i.exec(stmt)!.index + "values".length);
-    for (const tuple of readTupleList(valuesSection)) {
-      if (tuple.length !== cols.length)
-        errors.push(`tuple arity ${tuple.length} != column count ${cols.length}`);
+    for (const tuple of readTupleList(stmt.slice(header.valuesOffset))) {
+      if (tuple.length !== header.columns.length)
+        errors.push(`tuple arity ${tuple.length} != column count ${header.columns.length}`);
       else kinds.push(tuple[kindIdx]);
     }
   }

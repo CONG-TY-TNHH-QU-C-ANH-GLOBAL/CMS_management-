@@ -979,10 +979,16 @@ async function main(): Promise<void> {
       blockKey: "scratch",
       position: 9,
     });
-    await exec.query("DELETE FROM service_content_blocks WHERE id = $1", [emptyBlock]);
     await runCheck(
       "empty block with no localizations can be deleted (documented cleanup path)",
-      () => assert.ok(true),
+      async () => {
+        await exec.query("DELETE FROM content.service_content_blocks WHERE id = $1", [emptyBlock]);
+        const remaining = await exec.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM content.service_content_blocks WHERE id = $1",
+          [emptyBlock],
+        );
+        assert.equal(remaining[0].n, 0);
+      },
     );
   });
 

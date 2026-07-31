@@ -157,8 +157,9 @@ SMOKE_DATABASE_URL="postgres://…preview-branch…" \
 
 ### Required Phase-2 gate (documented; not runnable until a preview project exists)
 
-The optional command above is for local use. The **required** CI gate for the next phase — **blocking**,
-not skip-on-absent — must:
+The optional command above is a **local** convenience (skip when unconfigured; fail-closed host checks
+when a URL is given). The **required** CI gate for the next phase is a different thing — **blocking**
+(not skip-on-absent) and it **must pass before any migration/importer work proceeds**. It must:
 
 1. **Fail (not skip)** when the preview database / Hyperdrive configuration is absent.
 2. Run only against a **Supabase preview/dev** environment (never production; the fail-closed preview-host allowlist stays).

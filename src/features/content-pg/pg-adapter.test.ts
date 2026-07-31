@@ -114,16 +114,17 @@ test("request scope: a failed connect is not retained (retryable)", async () => 
   await scope.close();
 });
 
-test("request scope: close is idempotent and waits for an in-flight connection", async () => {
+test("request scope: close during acquisition — getExec rejects, no executor, end runs exactly once", async () => {
   const { sql, calls } = makeFakeSql();
   let release: (v: typeof sql) => void = () => {};
   const connect = () => new Promise<typeof sql>((r) => (release = r));
   const scope = createRequestPgScope({ DATABASE_URL: "postgres://u:p@h/db" }, connect as never);
-  const pending = scope.getExec();
-  const closing = scope.close(); // starts while connect is in flight
-  release(sql); // resolve the connection
-  await pending.catch(() => {});
-  await closing;
-  await scope.close(); // idempotent — no throw, no double end
-  expect(calls.filter((c) => c === "end")).toHaveLength(1);
+  const getting = scope.getExec(); // acquisition begins
+  const closing = scope.close(); // close begins BEFORE connect resolves
+  release(sql); // connect resolves
+  // getExec must REJECT (bounded db_unavailable) and return no executor…
+  await expect(getting).rejects.toMatchObject({ code: "db_unavailable" });
+  await closing; // …and close (the sole lifecycle owner) completes,
+  await scope.close(); // is idempotent,
+  expect(calls.filter((c) => c === "end")).toHaveLength(1); // …ending the client exactly once.
 });

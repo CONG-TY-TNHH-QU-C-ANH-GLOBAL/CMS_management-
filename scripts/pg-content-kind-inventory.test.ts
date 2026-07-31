@@ -2,6 +2,7 @@ import { test, expect } from "bun:test";
 
 import { extractKindsFromSeedSql } from "./pg-content-kind-inventory-parser";
 import { discoverKinds } from "./pg-content-kind-inventory";
+import { isKnownKind } from "../src/features/content-pg/content.kinds";
 
 test("multi-row INSERT: every tuple's kind is captured", () => {
   const sql = `INSERT INTO service_blocks (page_slug, kind, position) VALUES
@@ -55,6 +56,15 @@ test("RETURNING after VALUES is not scanned as a tuple", () => {
   expect(errors).toEqual([]);
 });
 
+test("a quoted 'values' token in a tuple does not mislocate the VALUES boundary", () => {
+  // page_slug is the literal string 'values'; the header offset (not a second \bvalues\b scan) must
+  // point past the real VALUES keyword so the kind is still read from the correct column.
+  const sql = `INSERT INTO service_blocks (page_slug, kind, position) VALUES ('values', 'policy', 1);`;
+  const { kinds, errors } = extractKindsFromSeedSql(sql);
+  expect(kinds).toEqual(["policy"]);
+  expect(errors).toEqual([]);
+});
+
 test("an unregistered kind in a later tuple is still surfaced", () => {
   const sql = `INSERT INTO service_blocks (page_slug, kind, position) VALUES
     ('p', 'solution', 1),
@@ -78,4 +88,6 @@ test("real seed files parse cleanly and every discovered kind is registered", ()
   const { discovered, errors } = discoverKinds(); // scans the actual db/seeds
   expect(errors).toEqual([]);
   expect(discovered.size).toBeGreaterThan(0);
+  // Use the registry's public predicate (isKnownKind → Object.hasOwn under the hood), not `in`.
+  for (const kind of discovered.keys()) expect(isKnownKind(kind)).toBe(true);
 });
