@@ -106,7 +106,7 @@ export const KIND_REGISTRY = {
 export type Kind = keyof typeof KIND_REGISTRY;
 
 export function isKnownKind(kind: string): kind is Kind {
-  return Object.prototype.hasOwnProperty.call(KIND_REGISTRY, kind);
+  return Object.hasOwn(KIND_REGISTRY, kind);
 }
 
 function def(kind: string): KindDef {

@@ -26,7 +26,7 @@ if (/prod|production/i.test(url)) {
   process.exit(2);
 }
 
-async function main(): Promise<void> {
+async function main(): Promise<number> {
   // Exercise the EXACT runtime factory (max:1, prepared, bounded timeouts). No string is ever logged.
   const exec = await createRuntimeExec({ DATABASE_URL: url! });
   let failed = 0;
@@ -72,10 +72,17 @@ async function main(): Promise<void> {
     }
   }
   console.log(`\n${failed === 0 ? "smoke PASSED" : "smoke FAILED"} (${failed} failed)`);
-  process.exit(failed > 0 ? 1 : 0);
+  return failed;
 }
 
-main().catch((e) => {
-  console.error("pg-runtime-smoke: unexpected error:", e instanceof Error ? e.message : e);
+// Top-level await with an explicit error boundary. Any error text is scrubbed of the connection string
+// before logging, so an unexpected DB/driver error can never leak a credential. Non-zero exit preserved.
+try {
+  const failed = await main();
+  process.exit(failed > 0 ? 1 : 0);
+} catch (e) {
+  const raw = e instanceof Error ? e.message : String(e);
+  const safe = url ? raw.split(url).join("[redacted]") : raw;
+  console.error("pg-runtime-smoke: unexpected error:", safe);
   process.exit(1);
-});
+}

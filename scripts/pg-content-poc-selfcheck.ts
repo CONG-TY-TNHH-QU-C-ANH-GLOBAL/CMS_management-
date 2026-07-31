@@ -8,7 +8,7 @@ import { PGlite } from "@electric-sql/pglite";
 
 import { computeSourceHash } from "../src/features/translations/translations.hash";
 import { pgliteExec, type PgExec } from "../src/features/content-pg/pg-adapter";
-import { ContentError } from "../src/features/content-pg/content.errors";
+import { ContentError, type ContentErrorCode } from "../src/features/content-pg/content.errors";
 import { toPublicDto } from "../src/features/content-pg/content.dto";
 import {
   upsertLocale,
@@ -29,6 +29,7 @@ import {
 
 let passed = 0;
 let failed = 0;
+/** Record a single boolean assertion result. (A value check — it does not select an action.) */
 function ok(cond: boolean, label: string): void {
   if (cond) {
     passed += 1;
@@ -38,9 +39,20 @@ function ok(cond: boolean, label: string): void {
     console.error(`  ✗ ${label}`);
   }
 }
-async function expectContentError(
+
+// ── Intent-named negative assertions. Each expects ONE specific failure mode; none takes a
+//    behaviour-selecting flag. ────────────────────────────────────────────────────────────────────
+async function expectThrowMatching(fn: () => Promise<unknown>, matcher: RegExp, label: string): Promise<void> {
+  try {
+    await fn();
+    ok(false, `${label} (expected a rejection, none thrown)`);
+  } catch (e) {
+    ok(matcher.test(e instanceof Error ? e.message : String(e)), label);
+  }
+}
+async function expectContentErrorCode(
   fn: () => Promise<unknown>,
-  code: string,
+  code: ContentErrorCode,
   label: string,
 ): Promise<void> {
   try {
@@ -50,13 +62,28 @@ async function expectContentError(
     ok(e instanceof ContentError && e.code === code, `${label} (${(e as ContentError).code ?? e})`);
   }
 }
-async function expectThrows(fn: () => Promise<unknown>, matcher: RegExp, label: string): Promise<void> {
-  try {
-    await fn();
-    ok(false, `${label} (expected throw, none)`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    ok(matcher.test(msg), `${label}`);
+const expectConstraintViolation = (fn: () => Promise<unknown>, label: string) =>
+  expectThrowMatching(fn, /foreign key|violates|duplicate key|23503/i, label);
+const expectImmutableRejection = (fn: () => Promise<unknown>, label: string) =>
+  expectThrowMatching(fn, /append-only|immutable/i, label);
+const expectPermissionDenied = (fn: () => Promise<unknown>, label: string) =>
+  expectThrowMatching(fn, /permission denied|not.*allowed/i, label);
+const expectValidationError = (fn: () => Promise<unknown>, code: ContentErrorCode, label: string) =>
+  expectContentErrorCode(fn, code, label);
+const expectNotPublishable = (fn: () => Promise<unknown>, label: string) =>
+  expectContentErrorCode(fn, "not_publishable", label);
+const expectConflict = (fn: () => Promise<unknown>, label: string) =>
+  expectContentErrorCode(fn, "conflict", label);
+
+// ── Fixtures ─────────────────────────────────────────────────────────────────────────────────────
+async function seedLocales(exec: PgExec, locales: readonly string[]): Promise<void> {
+  const meta: Record<string, { nativeName: string; isSource: boolean }> = {
+    vi: { nativeName: "Tiếng Việt", isSource: true },
+    en: { nativeName: "English", isSource: false },
+    zh: { nativeName: "中文", isSource: false },
+  };
+  for (const code of locales) {
+    await upsertLocale(exec, { code, nativeName: meta[code].nativeName, isActive: true, isSource: meta[code].isSource });
   }
 }
 
@@ -66,17 +93,10 @@ async function freshDb(): Promise<PgExec> {
     fileURLToPath(new URL("../db/pg/migrations/0001_service_content.sql", import.meta.url)),
     "utf8",
   );
-  await db.exec(schema); // §7: migrations apply cleanly (private `content` schema)
+  await db.exec(schema); // migrations apply cleanly (private `content` schema)
   await db.exec("SET search_path TO content, public;"); // mirrors the runtime role's pinned path
   const exec = pgliteExec(db);
-  await upsertLocale(exec, {
-    code: "vi",
-    nativeName: "Tiếng Việt",
-    isActive: true,
-    isSource: true,
-  });
-  await upsertLocale(exec, { code: "en", nativeName: "English", isActive: true, isSource: false });
-  await upsertLocale(exec, { code: "zh", nativeName: "中文", isActive: true, isSource: false });
+  await seedLocales(exec, ["vi", "en", "zh"]);
   return exec;
 }
 
@@ -90,34 +110,46 @@ async function freshDbWithRoles(): Promise<{ db: PGlite; exec: PgExec }> {
   await db.exec(read("../db/pg/bootstrap/0001_roles_and_privileges.sql"));
   await db.exec("SET search_path TO content, public;"); // session path persists across SET ROLE
   const exec = pgliteExec(db);
-  await upsertLocale(exec, { code: "vi", nativeName: "Tiếng Việt", isActive: true, isSource: true });
-  await upsertLocale(exec, { code: "en", nativeName: "English", isActive: true, isSource: false });
+  await seedLocales(exec, ["vi", "en"]);
   return { db, exec };
 }
 
-/** Draft → approve in one step: the ONLY way to a reviewed revision (approval copies the exact draft). */
-async function reviewedRevision(
+/** Create a page + one block + one localization in one step (the common "arrange" for many tests). */
+async function seedLocalizedBlock(
   exec: PgExec,
-  kind: Kind,
-  r: NewRevision,
-  reviewerId = 1,
-): Promise<number> {
-  const draftId = await createDraftRevision(exec, kind, r);
-  return approveRevision(exec, draftId, reviewerId);
+  opts: { pageSlug?: string; kind?: Kind; blockKey?: string; position?: number; locale?: string; icon?: string },
+): Promise<{ pageId: number; blockId: number; locId: number }> {
+  const pageId = await createPage(exec, opts.pageSlug ?? "thg-fulfill");
+  const blockId = await createBlock(exec, {
+    pageId,
+    kind: opts.kind ?? "capability",
+    blockKey: opts.blockKey ?? "hub",
+    position: opts.position ?? 1,
+    icon: opts.icon,
+  });
+  const locId = await upsertLocalization(exec, blockId, opts.locale ?? "vi");
+  return { pageId, blockId, locId };
+}
+
+/** Draft → approve in one step: the ONLY way to a reviewed revision (approval copies the exact draft). */
+async function reviewedRevision(exec: PgExec, kind: Kind, r: NewRevision, reviewerId = 1): Promise<number> {
+  return approveRevision(exec, await createDraftRevision(exec, kind, r), reviewerId);
+}
+
+/** Draft → approve → publish, the full happy path, returning the published revision id. */
+async function publishReviewed(exec: PgExec, kind: Kind, locId: number, r: NewRevision): Promise<number> {
+  const revId = await reviewedRevision(exec, kind, { ...r, localizationId: locId });
+  await publish(exec, locId, revId);
+  return revId;
 }
 
 /** Raw INSERT of a revision at an arbitrary status — used ONLY to fabricate stale/failed fixtures (no
  *  runtime path creates those). Runs as the PGlite superuser; the immutability trigger only blocks
- *  UPDATE/DELETE, not INSERT. */
-async function insertRawRevision(
-  exec: PgExec,
-  localizationId: number,
-  status: string,
-  title = "raw",
-): Promise<number> {
+ *  UPDATE/DELETE, not INSERT. The status is cast to the review_status enum. */
+async function insertRawRevision(exec: PgExec, localizationId: number, status: string, title = "raw"): Promise<number> {
   const rows = await exec.query<{ id: number }>(
     `INSERT INTO service_content_revisions (localization_id, title, description, review_status)
-     VALUES ($1, $2, 'd', $3) RETURNING id`,
+     VALUES ($1, $2, 'd', $3::content.review_status) RETURNING id`,
     [localizationId, title, status],
   );
   return rows[0].id;
@@ -145,7 +177,7 @@ async function importManifest(exec: PgExec, m: ContentManifest): Promise<void> {
       for (const locale of ["vi", "en", "zh"] as const) {
         const loc = b.localizations[locale];
         const localizationId = await upsertLocalization(tx, blockId, locale);
-        const reviewedId = await reviewedRevision(tx, b.kind, {
+        await publishReviewed(tx, b.kind, localizationId, {
           localizationId,
           title: loc.title,
           description: loc.description,
@@ -153,7 +185,6 @@ async function importManifest(exec: PgExec, m: ContentManifest): Promise<void> {
           sourceLocale: locale === "vi" ? null : "vi",
           sourceHash,
         });
-        await publish(tx, localizationId, reviewedId);
       }
     }
   });
@@ -166,21 +197,13 @@ async function main(): Promise<void> {
   {
     const exec = await freshDb();
     const { pageId, locId, revId } = await exec.tx(async (tx) => {
-      const pageId = await createPage(tx, "thg-fulfill");
-      const blockId = await createBlock(tx, {
-        pageId,
-        kind: "journey_step",
-        blockKey: "design-input",
-        position: 1,
-      });
-      const locId = await upsertLocalization(tx, blockId, "vi");
-      const revId = await reviewedRevision(tx, "journey_step", {
-        localizationId: locId,
+      const seeded = await seedLocalizedBlock(tx, { kind: "journey_step", blockKey: "design-input" });
+      const revId = await publishReviewed(tx, "journey_step", seeded.locId, {
+        localizationId: seeded.locId,
         title: "Design Input",
         description: "v1 desc",
       });
-      await publish(tx, locId, revId);
-      return { pageId, blockId, locId, revId };
+      return { pageId: seeded.pageId, locId: seeded.locId, revId };
     });
     const blocks = await getPublishedBlocks(exec, "thg-fulfill", "vi");
     ok(
@@ -188,7 +211,7 @@ async function main(): Promise<void> {
       "transactional create → 1 published VI block",
     );
 
-    // §7: reviewed != published — an extra reviewed revision that is NOT the pointer is not served.
+    // reviewed != published — an extra reviewed revision that is NOT the pointer is not served.
     const otherLocId = await upsertLocalization(exec, blocks[0].id, "en");
     await reviewedRevision(exec, "journey_step", {
       localizationId: otherLocId,
@@ -200,7 +223,7 @@ async function main(): Promise<void> {
       "reviewed revision without publish pointer is NOT served",
     );
 
-    // §7: a NEW draft does not alter published content, and publishing a draft is rejected by the DB.
+    // a NEW draft does not alter published content, and publishing a draft is rejected by the DB.
     const rev2draft = await createDraftRevision(exec, "journey_step", {
       localizationId: locId,
       title: "Design Input EDITED",
@@ -210,9 +233,8 @@ async function main(): Promise<void> {
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Design Input",
       "new draft does NOT change published content",
     );
-    await expectContentError(
+    await expectNotPublishable(
       () => publish(exec, locId, rev2draft),
-      "not_publishable",
       "publishing a draft revision is rejected by content.publish_revision",
     );
     ok(
@@ -233,17 +255,17 @@ async function main(): Promise<void> {
     const exec = await freshDb();
     const pageId = await createPage(exec, "thg-fulfill");
     await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 4 });
-    await expectContentError(
+    await expectValidationError(
       () => createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 9 }),
       "duplicate_identity",
       "duplicate (page,kind,block_key) rejected by PostgreSQL",
     );
-    await expectContentError(
+    await expectValidationError(
       () => createBlock(exec, { pageId, kind: "nope" as never, blockKey: "x", position: 1 }),
       "unknown_kind",
       "unknown kind rejected on write",
     );
-    await expectContentError(
+    await expectValidationError(
       () =>
         createBlock(exec, {
           pageId,
@@ -255,14 +277,9 @@ async function main(): Promise<void> {
       "invalid_core_config",
       "invalid core_config rejected",
     );
-    const blockId = await createBlock(exec, {
-      pageId,
-      kind: "solution",
-      blockKey: "sol1",
-      position: 1,
-    });
+    const blockId = await createBlock(exec, { pageId, kind: "solution", blockKey: "sol1", position: 1 });
     const locId = await upsertLocalization(exec, blockId, "vi");
-    await expectContentError(
+    await expectValidationError(
       () =>
         createDraftRevision(exec, "solution", {
           localizationId: locId,
@@ -273,7 +290,7 @@ async function main(): Promise<void> {
       "invalid_payload",
       "invalid translated_payload rejected",
     );
-    await expectContentError(
+    await expectValidationError(
       () => createDraftRevision(exec, "process_step", { localizationId: locId, title: "only title" }),
       "invalid_text",
       "missing required description rejected (process_step)",
@@ -283,26 +300,19 @@ async function main(): Promise<void> {
   // ── VI/EN/ZH symmetry + locale isolation + no cross-fallback ────────────────────────────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, {
-      pageId,
-      kind: "capability",
-      blockKey: "hub",
-      position: 1,
-    });
+    const { pageId, blockId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
     for (const [locale, title] of [
       ["vi", "Hub VI"],
       ["en", "Hub EN"],
       ["zh", "Hub ZH"],
     ] as const) {
       const locId = await upsertLocalization(exec, blockId, locale);
-      const rev = await reviewedRevision(exec, "capability", {
+      await publishReviewed(exec, "capability", locId, {
         localizationId: locId,
         title,
         description: `${locale} desc`,
         sourceLocale: locale === "vi" ? null : "vi",
       });
-      await publish(exec, locId, rev);
     }
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "Hub VI",
@@ -313,22 +323,9 @@ async function main(): Promise<void> {
       "ZH resolves its own published revision (symmetric model)",
     );
     // A second block published only in VI must NOT appear for EN (no cross-locale fallback).
-    const b2 = await createBlock(exec, {
-      pageId,
-      kind: "capability",
-      blockKey: "network",
-      position: 2,
-    });
+    const b2 = await createBlock(exec, { pageId, kind: "capability", blockKey: "network", position: 2 });
     const l2 = await upsertLocalization(exec, b2, "vi");
-    await publish(
-      exec,
-      l2,
-      await reviewedRevision(exec, "capability", {
-        localizationId: l2,
-        title: "VI only",
-        description: "d",
-      }),
-    );
+    await publishReviewed(exec, "capability", l2, { localizationId: l2, title: "VI only", description: "d" });
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi")).length === 2, "VI sees both blocks");
     ok(
       (await getPublishedBlocks(exec, "thg-fulfill", "en")).length === 1,
@@ -336,28 +333,22 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── DTO compatibility + §8 shadow-read parity (D1-V1 fixture vs PG compat DTO) ───────────────
+  // ── DTO compatibility + shadow-read parity (D1-V1 fixture vs PG compat DTO) ───────────────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-order");
-    const blockId = await createBlock(exec, {
-      pageId,
+    const { locId } = await seedLocalizedBlock(exec, {
+      pageSlug: "thg-order",
       kind: "solution",
       blockKey: "trust",
-      position: 1,
+      locale: "en",
       icon: "🛡️",
     });
-    const locId = await upsertLocalization(exec, blockId, "en");
-    await publish(
-      exec,
-      locId,
-      await reviewedRevision(exec, "solution", {
-        localizationId: locId,
-        title: "Real business",
-        description: "Registered.",
-        translatedPayload: { tag: "Trust & Safety" },
-      }),
-    );
+    await publishReviewed(exec, "solution", locId, {
+      localizationId: locId,
+      title: "Real business",
+      description: "Registered.",
+      translatedPayload: { tag: "Trust & Safety" },
+    });
     const pgDto = toPublicDto((await getPublishedBlocks(exec, "thg-order", "en"))[0]);
     // What the current D1 V1 endpoint emits for the same content (fixture).
     const v1Dto = {
@@ -384,7 +375,7 @@ async function main(): Promise<void> {
     );
   }
 
-  // ── §9 Fulfill manifest import round-trips (draft → approve → publish per locale) ────────────
+  // ── Fulfill manifest import round-trips (draft → approve → publish per locale) ────────────────
   {
     const exec = await freshDb();
     await importManifest(exec, FULFILL_CONTENT_MANIFEST);
@@ -407,16 +398,14 @@ async function main(): Promise<void> {
   // ── Publication ownership enforced by the DB (composite FK), not by service code ─────────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
+    const { blockId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
     const locVi = await upsertLocalization(exec, blockId, "vi");
     const locEn = await upsertLocalization(exec, blockId, "en");
     await reviewedRevision(exec, "capability", { localizationId: locVi, title: "VI", description: "d" });
     const revEn = await reviewedRevision(exec, "capability", { localizationId: locEn, title: "EN", description: "d" });
     // Publish localization A (vi) pointing at revision R that belongs to localization B (en).
-    await expectThrows(
+    await expectConstraintViolation(
       () => exec.query("INSERT INTO service_content_publications (localization_id, revision_id) VALUES ($1, $2)", [locVi, revEn]),
-      /foreign key|violates/i,
       "publication cannot point to a revision from another localization (composite FK rejects)",
     );
   }
@@ -424,18 +413,14 @@ async function main(): Promise<void> {
   // ── Revisions are immutable at the DB level (append-only) ────────────────────────────────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
-    const locId = await upsertLocalization(exec, blockId, "vi");
+    const { locId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
     const revId = await reviewedRevision(exec, "capability", { localizationId: locId, title: "orig", description: "d" });
-    await expectThrows(
+    await expectImmutableRejection(
       () => exec.query("UPDATE service_content_revisions SET title = 'mutated' WHERE id = $1", [revId]),
-      /append-only|immutable/i,
       "UPDATE of a revision is rejected (immutable history)",
     );
-    await expectThrows(
+    await expectImmutableRejection(
       () => exec.query("DELETE FROM service_content_revisions WHERE id = $1", [revId]),
-      /append-only|immutable/i,
       "DELETE of a revision is rejected (immutable history)",
     );
   }
@@ -443,9 +428,7 @@ async function main(): Promise<void> {
   // ── Review provenance: draft → approve lineage, enforced in the DB ───────────────────────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-order");
-    const blockId = await createBlock(exec, { pageId, kind: "solution", blockKey: "hub", position: 1 });
-    const locId = await upsertLocalization(exec, blockId, "vi");
+    const { blockId, locId } = await seedLocalizedBlock(exec, { pageSlug: "thg-order", kind: "solution", blockKey: "hub", locale: "vi" });
 
     // create_draft_revision ALWAYS creates a draft (caller cannot choose status).
     const draftId = await createDraftRevision(exec, "solution", {
@@ -487,46 +470,41 @@ async function main(): Promise<void> {
     ok(rev.reviewed_by === 42 && rev.reviewed_at !== null, "reviewed revision records reviewer + reviewed_at");
 
     // approving the SAME draft twice is rejected (uq_reviewed_from → conflict).
-    await expectContentError(() => approveRevision(exec, draftId, 42), "conflict", "a draft cannot be approved twice");
+    await expectConflict(() => approveRevision(exec, draftId, 42), "a draft cannot be approved twice");
 
-    // a stale or failed draft is not reviewable.
+    // a stale or failed draft is not reviewable; nor is a missing revision.
     const staleId = await insertRawRevision(exec, locId, "stale");
     const failedId = await insertRawRevision(exec, locId, "failed");
-    await expectContentError(() => approveRevision(exec, staleId, 1), "not_publishable", "a stale revision cannot be approved");
-    await expectContentError(() => approveRevision(exec, failedId, 1), "not_publishable", "a failed revision cannot be approved");
-    // approving a non-existent revision is rejected.
-    await expectContentError(() => approveRevision(exec, 999999, 1), "not_publishable", "approving a missing revision is rejected");
+    await expectNotPublishable(() => approveRevision(exec, staleId, 1), "a stale revision cannot be approved");
+    await expectNotPublishable(() => approveRevision(exec, failedId, 1), "a failed revision cannot be approved");
+    await expectNotPublishable(() => approveRevision(exec, 999999, 1), "approving a missing revision is rejected");
 
     // cross-localization lineage is impossible: a reviewed row cannot claim a draft from another
     // localization (composite FK on (localization_id, reviewed_from_revision_id)).
     const enLoc = await upsertLocalization(exec, blockId, "en");
     const enDraft = await createDraftRevision(exec, "solution", { localizationId: enLoc, title: "EN", description: "d", translatedPayload: { tag: "e" } });
-    await expectThrows(
+    await expectConstraintViolation(
       () =>
         exec.query(
           `INSERT INTO service_content_revisions (localization_id, title, description, review_status, reviewed_from_revision_id)
            VALUES ($1, 'x', 'y', 'reviewed', $2)`,
           [locId, enDraft], // vi localization claiming an en draft
         ),
-      /foreign key|violates/i,
       "cross-localization review lineage is rejected by the composite FK",
     );
 
-    // the approved revision publishes; a rejected publish leaves the pointer unchanged.
+    // the approved revision publishes.
     await publish(exec, locId, reviewedId);
     ok((await getPublishedBlocks(exec, "thg-order", "vi"))[0].title === "Hub", "an approved revision publishes successfully");
   }
 
-  // ── §2 Publication eligibility enforced by content.publish_revision (not service code) ──────────
+  // ── Publication eligibility enforced by content.publish_revision (not service code) ──────────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
-    const locId = await upsertLocalization(exec, blockId, "vi");
+    const { blockId, locId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
 
     // reviewed → publishes; establishes the baseline pointer.
-    const reviewed = await reviewedRevision(exec, "capability", { localizationId: locId, title: "t-reviewed", description: "d" });
-    await publish(exec, locId, reviewed);
+    const reviewed = await publishReviewed(exec, "capability", locId, { localizationId: locId, title: "t-reviewed", description: "d" });
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed", "reviewed revision publishes");
 
     // every non-reviewed state is rejected, and the baseline pointer never moves.
@@ -534,7 +512,7 @@ async function main(): Promise<void> {
     const stale = await insertRawRevision(exec, locId, "stale", "t-stale");
     const failed = await insertRawRevision(exec, locId, "failed", "t-failed");
     for (const [bad, rev] of [["draft", draft], ["stale", stale], ["failed", failed]] as const) {
-      await expectContentError(() => publish(exec, locId, rev), "not_publishable", `${bad} revision is rejected`);
+      await expectNotPublishable(() => publish(exec, locId, rev), `${bad} revision is rejected`);
       ok(
         (await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed",
         `published pointer unchanged after rejected ${bad} publish`,
@@ -543,36 +521,28 @@ async function main(): Promise<void> {
 
     // cross-localization publish stays rejected through the function too (ownership re-checked).
     const enLoc = await upsertLocalization(exec, blockId, "en");
-    await expectContentError(() => publish(exec, enLoc, reviewed), "not_publishable", "cross-localization publish rejected by function");
+    await expectNotPublishable(() => publish(exec, enLoc, reviewed), "cross-localization publish rejected by function");
 
     // approved move is atomic: pointer flips to the new reviewed revision in one call.
     const reviewed2 = await reviewedRevision(exec, "capability", { localizationId: locId, title: "t-reviewed2", description: "d" });
     await publish(exec, locId, reviewed2, reviewed);
     ok((await getPublishedBlocks(exec, "thg-fulfill", "vi"))[0].title === "t-reviewed2", "atomic move: pointer now on reviewed2");
     // optimistic concurrency: a stale expected-pointer is rejected as a conflict.
-    await expectContentError(() => publish(exec, locId, reviewed2, reviewed), "conflict", "stale optimistic token rejected");
+    await expectConflict(() => publish(exec, locId, reviewed2, reviewed), "stale optimistic token rejected");
   }
 
-  // ── §3 Deletion / history semantics — RESTRICT boundaries, soft-delete + archive lifecycle ──────
+  // ── Deletion / history semantics — RESTRICT boundaries, soft-delete + archive lifecycle ──────
   {
     const exec = await freshDb();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
-    const locId = await upsertLocalization(exec, blockId, "vi");
-    await publish(
-      exec,
-      locId,
-      await reviewedRevision(exec, "capability", { localizationId: locId, title: "keep", description: "d" }),
-    );
+    const { pageId, blockId, locId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
+    await publishReviewed(exec, "capability", locId, { localizationId: locId, title: "keep", description: "d" });
     // Historical boundaries reject hard delete PREDICTABLY (FK RESTRICT → 23503), not via the trigger.
-    await expectThrows(
+    await expectConstraintViolation(
       () => exec.query("DELETE FROM service_content_blocks WHERE id = $1", [blockId]),
-      /foreign key|violates|23503/i,
       "deleting a block that has localizations/revisions is rejected (RESTRICT)",
     );
-    await expectThrows(
+    await expectConstraintViolation(
       () => exec.query("DELETE FROM service_content_pages WHERE id = $1", [pageId]),
-      /foreign key|violates|23503/i,
       "deleting a page that owns blocks is rejected (RESTRICT)",
     );
     // Supported lifecycle: disable the block, archive the page — history stays intact.
@@ -587,15 +557,12 @@ async function main(): Promise<void> {
     ok(true, "empty block with no localizations can be deleted (documented cleanup path)");
   }
 
-  // ── §1 Least-privilege runtime role — real column-level GRANTs + function-only revision path ─────
+  // ── Least-privilege runtime role — real column-level GRANTs + function-only revision path ─────
   {
     const { db, exec } = await freshDbWithRoles();
-    const pageId = await createPage(exec, "thg-fulfill");
-    const blockId = await createBlock(exec, { pageId, kind: "capability", blockKey: "hub", position: 1 });
-    const locId = await upsertLocalization(exec, blockId, "vi");
+    const { pageId, blockId, locId } = await seedLocalizedBlock(exec, { kind: "capability", blockKey: "hub", locale: "vi" });
     const draftId = await createDraftRevision(exec, "capability", { localizationId: locId, title: "t", description: "d" });
     const reviewedId = await approveRevision(exec, draftId, 1);
-    // A second, un-approved draft for the runtime approve test below.
     const draft2 = await createDraftRevision(exec, "capability", { localizationId: locId, title: "t2", description: "d" });
 
     const asRuntime = async (sql: string) => {
@@ -606,8 +573,7 @@ async function main(): Promise<void> {
         await db.exec("RESET ROLE;");
       }
     };
-    const denied = async (sql: string, label: string) =>
-      expectThrows(() => asRuntime(sql), /permission denied|not.*allowed/i, label);
+    const denied = (sql: string, label: string) => expectPermissionDenied(() => asRuntime(sql), label);
     const allowed = async (sql: string, label: string) => {
       try {
         await asRuntime(sql);
@@ -640,11 +606,14 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
-  // Explicit exit — PGlite keeps a WASM handle open, so the event loop would not drain on its own.
-  process.exit(failed > 0 ? 1 : 0);
 }
 
-main().catch((e) => {
+// Top-level await with an explicit error boundary. PGlite keeps a WASM handle open, so the event loop
+// would not drain on its own — exit explicitly, preserving the non-zero code on any failure.
+try {
+  await main();
+  process.exit(failed > 0 ? 1 : 0);
+} catch (e) {
   console.error(e);
   process.exit(1);
-});
+}

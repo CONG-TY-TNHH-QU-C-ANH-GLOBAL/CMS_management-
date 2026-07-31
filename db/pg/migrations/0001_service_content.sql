@@ -7,16 +7,24 @@
 
 CREATE SCHEMA IF NOT EXISTS content;
 
+-- ── Closed lifecycle domains as ENUM types — the DB enforces the allowed set (stronger than a text
+--    column + CHECK IN-list) and each value is defined EXACTLY ONCE here, so the literals are not
+--    repeated across columns, constraints, and functions. page_status and review_status are distinct
+--    domains that happen to share the label 'draft' — intentionally NOT unified (different lifecycles).
+CREATE TYPE content.locale_direction AS ENUM ('ltr', 'rtl');
+CREATE TYPE content.locale_rollout   AS ENUM ('planned', 'beta', 'ga', 'retired');
+CREATE TYPE content.page_status       AS ENUM ('draft', 'live', 'archived');
+CREATE TYPE content.review_status     AS ENUM ('draft', 'reviewed', 'stale', 'failed');
+
 -- ── Locale governance ──────────────────────────────────────────────────────────────────────────
 CREATE TABLE content.content_locales (
   code           text PRIMARY KEY,
   native_name    text NOT NULL,
-  direction      text NOT NULL DEFAULT 'ltr' CHECK (direction IN ('ltr', 'rtl')),
+  direction      content.locale_direction NOT NULL DEFAULT 'ltr',
   is_active      boolean NOT NULL DEFAULT false,
   is_source      boolean NOT NULL DEFAULT false,
   fallback_code  text REFERENCES content.content_locales (code),
-  rollout_status text NOT NULL DEFAULT 'planned'
-                 CHECK (rollout_status IN ('planned', 'beta', 'ga', 'retired')),
+  rollout_status content.locale_rollout NOT NULL DEFAULT 'planned',
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 
@@ -24,7 +32,7 @@ CREATE TABLE content.content_locales (
 CREATE TABLE content.service_content_pages (
   id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   slug       text NOT NULL UNIQUE,
-  status     text NOT NULL DEFAULT 'live' CHECK (status IN ('draft', 'live', 'archived')),
+  status     content.page_status NOT NULL DEFAULT 'live',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -76,8 +84,7 @@ CREATE TABLE content.service_content_revisions (
   translated_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
   source_locale      text REFERENCES content.content_locales (code),
   source_hash        text NOT NULL DEFAULT '',
-  review_status      text NOT NULL DEFAULT 'draft'
-                     CHECK (review_status IN ('draft', 'reviewed', 'stale', 'failed')),
+  review_status      content.review_status NOT NULL DEFAULT 'draft',
   reviewed_from_revision_id bigint,                 -- set ONLY on a reviewed revision → its source draft
   reviewed_by        bigint,
   reviewed_at        timestamptz,
@@ -248,8 +255,9 @@ CREATE FUNCTION content.publish_revision(
   SET search_path = content, pg_temp
 AS $$
 DECLARE
+  c_bad_ref constant text := 'foreign_key_violation';  -- ownership/existence failures (used twice below)
   v_owner   bigint;
-  v_status  text;
+  v_status  content.review_status;
   v_current bigint;
 BEGIN
   SELECT localization_id, review_status
@@ -259,11 +267,11 @@ BEGIN
 
   IF v_owner IS NULL THEN
     RAISE EXCEPTION 'publish rejected: revision % does not exist', p_revision_id
-      USING ERRCODE = 'foreign_key_violation';
+      USING ERRCODE = c_bad_ref;
   END IF;
   IF v_owner <> p_localization_id THEN
     RAISE EXCEPTION 'publish rejected: revision % belongs to localization %, not %',
-      p_revision_id, v_owner, p_localization_id USING ERRCODE = 'foreign_key_violation';
+      p_revision_id, v_owner, p_localization_id USING ERRCODE = c_bad_ref;
   END IF;
   IF v_status <> 'reviewed' THEN
     RAISE EXCEPTION 'publish rejected: revision % is "%", only reviewed revisions may be published',
