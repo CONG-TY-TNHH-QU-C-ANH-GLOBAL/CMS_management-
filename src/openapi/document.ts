@@ -23,6 +23,23 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 const HTTP_METHOD_SET: ReadonlySet<string> = new Set(HTTP_METHODS);
 
+/** Canonical order for HTTP methods: the order HTTP_METHODS declares, which reads
+ *  read-then-write (get, post, put, patch, delete) rather than alphabetically (delete first).
+ *  Methods are a closed semantic set, so lexical ordering would be arbitrary here. */
+export function compareHttpMethods(a: HttpMethod, b: HttpMethod): number {
+  return HTTP_METHODS.indexOf(a) - HTTP_METHODS.indexOf(b);
+}
+
+/** Canonical order for contract KEY STRINGS — path templates, path-item keys, field names.
+ *
+ *  A PINNED locale, deliberately. Bare `localeCompare()` uses the host's default collation, so
+ *  the same document could order differently on a developer machine and in CI, making
+ *  diagnostics and any snapshot environment-dependent. "en-US" matches the convention already
+ *  established by `byMigrationFilename` in the PostgreSQL migration runner. */
+export function compareContractKeys(a: string, b: string): number {
+  return a.localeCompare(b, "en-US");
+}
+
 /** Path Item keys that are metadata, not operations. Listed explicitly so an unexpected key is
  *  reported rather than silently ignored — see `pathItemMetadataKeys`. */
 export const PATH_ITEM_METADATA_KEYS = [
@@ -56,21 +73,26 @@ export type PathItem = Record<string, unknown>;
 export function openApiOperations(pathItem: PathItem): [HttpMethod, OpenApiOperation][] {
   return Object.entries(pathItem)
     .filter(([key]) => HTTP_METHOD_SET.has(key))
-    .map(([key, value]) => [key as HttpMethod, value as OpenApiOperation]);
+    .map(([key, value]) => [key as HttpMethod, value as OpenApiOperation] as const)
+    .sort(([a], [b]) => compareHttpMethods(a, b))
+    .map(([key, value]) => [key, value]);
 }
 
-/** Path-level metadata keys present on this item. */
+/** Path-level metadata keys present on this item, in canonical key order so a diagnostic does
+ *  not depend on the order the document happened to be built in. */
 export function pathItemMetadataKeys(pathItem: PathItem): string[] {
-  return Object.keys(pathItem).filter((key) => PATH_ITEM_METADATA_SET.has(key));
+  return Object.keys(pathItem)
+    .filter((key) => PATH_ITEM_METADATA_SET.has(key))
+    .sort(compareContractKeys);
 }
 
 /** Keys that are neither a supported method nor known metadata. Any result here means the
  *  document grew a shape this gate does not understand, and the gate must fail rather than
  *  guess. */
 export function unknownPathItemKeys(pathItem: PathItem): string[] {
-  return Object.keys(pathItem).filter(
-    (key) => !HTTP_METHOD_SET.has(key) && !PATH_ITEM_METADATA_SET.has(key),
-  );
+  return Object.keys(pathItem)
+    .filter((key) => !HTTP_METHOD_SET.has(key) && !PATH_ITEM_METADATA_SET.has(key))
+    .sort(compareContractKeys);
 }
 
 // ── Response status policy ──────────────────────────────────────────────────────────────────
@@ -164,7 +186,26 @@ export function isErrorStatus(key: string): boolean {
 /** The only locale set this platform serves. A `lang` parameter offering anything else is a
  *  contract break, not a per-endpoint choice. */
 export const APPROVED_LOCALES = ["en", "vi", "zh"] as const;
-const APPROVED_LOCALE_KEY = [...APPROVED_LOCALES].sort().join("|");
+const APPROVED_LOCALE_SET: ReadonlySet<string> = new Set(APPROVED_LOCALES);
+
+/**
+ * Whether a declared enum is exactly the approved locale set.
+ *
+ * The previous implementation sorted both sides and compared the joined strings. That worked,
+ * but sorting was only ever a PROXY for order-insensitive comparison — locale codes have no
+ * meaningful alphabetical order, and Sonar was right that an implicit `.sort()` here has no
+ * stated policy. Comparing as a set says what is actually meant, and removes the question.
+ *
+ * Duplicates still FAIL. `["en","en","vi","zh"]` is a malformed enum even though its set is
+ * correct, so the length check is load-bearing, not defensive noise — a pure set comparison
+ * would have silently accepted it.
+ */
+export function isApprovedLocaleEnum(values: readonly unknown[]): boolean {
+  if (values.length !== APPROVED_LOCALES.length) return false;
+  const declared = new Set(values.map(String));
+  if (declared.size !== values.length) return false; // duplicate entries
+  return [...declared].every((value) => APPROVED_LOCALE_SET.has(value));
+}
 
 export interface OpenApiDocumentLike {
   paths?: Record<string, PathItem>;
@@ -184,25 +225,47 @@ export interface OpenApiDocumentLike {
  * revisited deliberately rather than the locale check silently validating a subset.
  */
 export function findParameterPolicyViolations(document: OpenApiDocumentLike): string[] {
+  const violations = [
+    ...componentParameterViolations(document),
+    ...Object.entries(document.paths ?? {}).flatMap(([path, item]) =>
+      pathItemParameterViolations(path, item),
+    ),
+  ];
+  // Canonical order so the same document always reports the same diagnostic, whatever order
+  // its paths were registered in.
+  return violations.sort(compareContractKeys);
+}
+
+/** Declaration site 1: reusable parameter components. */
+function componentParameterViolations(document: OpenApiDocumentLike): string[] {
+  return Object.keys(document.components?.parameters ?? {}).map(
+    (name) => `components.parameters.${name} — parameter components are prohibited`,
+  );
+}
+
+/** Declaration site 2: the path item itself — a shared `parameters` block or a `$ref` that
+ *  would move the whole item somewhere this gate cannot see. */
+function pathItemParameterViolations(path: string, item: PathItem): string[] {
   const violations: string[] = [];
-
-  for (const name of Object.keys(document.components?.parameters ?? {})) {
-    violations.push(`components.parameters.${name} — parameter components are prohibited`);
+  if ("parameters" in item) violations.push(`${path} — path-level parameters are prohibited`);
+  if ("$ref" in item) violations.push(`${path} — path item $ref is prohibited`);
+  for (const [method, operation] of openApiOperations(item)) {
+    violations.push(...operationParameterViolations(path, method, operation));
   }
-
-  for (const [path, item] of Object.entries(document.paths ?? {})) {
-    if ("parameters" in item) violations.push(`${path} — path-level parameters are prohibited`);
-    if ("$ref" in item) violations.push(`${path} — path item $ref is prohibited`);
-    for (const [method, operation] of openApiOperations(item)) {
-      for (const parameter of operation.parameters ?? []) {
-        if (parameter && typeof parameter === "object" && "$ref" in parameter) {
-          violations.push(`${method.toUpperCase()} ${path} — $ref parameter is prohibited`);
-        }
-      }
-    }
-  }
-
   return violations;
+}
+
+/** Declaration site 3: an operation's own parameter list. */
+function operationParameterViolations(
+  path: string,
+  method: HttpMethod,
+  operation: OpenApiOperation,
+): string[] {
+  return (operation.parameters ?? [])
+    .filter(
+      (parameter) => parameter !== null && typeof parameter === "object" && "$ref" in parameter,
+    )
+    .map(() => `${method.toUpperCase()} ${path} — $ref parameter is prohibited`);
 }
 
 /**
@@ -219,12 +282,14 @@ export function findLocaleEnumViolations(document: OpenApiDocumentLike): string[
       for (const parameter of operation.parameters ?? []) {
         const param = parameter as { name?: string; schema?: { enum?: unknown[] } };
         if (param.name !== "lang") continue;
-        const values = [...(param.schema?.enum ?? [])].map(String).sort().join("|");
-        if (values !== APPROVED_LOCALE_KEY) {
-          offenders.push(`${method.toUpperCase()} ${path}: lang enum = [${values}]`);
+        const declared = param.schema?.enum ?? [];
+        if (!isApprovedLocaleEnum(declared)) {
+          // Reported in DECLARATION order — that is what the author wrote and has to fix.
+          offenders.push(`${method.toUpperCase()} ${path}: lang enum = [${declared.join("|")}]`);
         }
       }
     }
   }
-  return offenders;
+  // Canonical order, same reasoning as findParameterPolicyViolations.
+  return offenders.sort(compareContractKeys);
 }

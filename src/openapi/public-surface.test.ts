@@ -35,6 +35,8 @@ import { CONTRACT_BINDINGS, checkContractBindings } from "./contract-bindings";
 import {
   HTTP_METHODS,
   classifyResponseStatus,
+  compareContractKeys,
+  compareHttpMethods,
   findLocaleEnumViolations,
   findParameterPolicyViolations,
   openApiOperations,
@@ -60,7 +62,8 @@ function walkRouteKeys(dir: string): string[] {
     if (statSync(full).isDirectory()) out.push(...walkRouteKeys(full));
     else if (entry.endsWith(".ts")) out.push(relative(API_ROUTES_DIR, full).split(sep).join("/"));
   }
-  return out.sort();
+  // Route-file keys are contract key strings — canonical, host-independent order.
+  return out.sort(compareContractKeys);
 }
 
 const routeKeys = walkRouteKeys(API_ROUTES_DIR);
@@ -95,7 +98,8 @@ async function loadRoute(key: string): Promise<LoadedRoute> {
     methods.push(method as HttpMethod);
     roles.set(method as HttpMethod, requiredRoleOf(handler));
   }
-  methods.sort();
+  // Canonical HTTP order, matching openApiOperations, so the three sources compare directly.
+  methods.sort(compareHttpMethods);
   return { methods, roles };
 }
 
@@ -164,7 +168,7 @@ test("the recorded method set matches the handlers the module actually REGISTERS
     const entry = classified(key);
     if (!entry) continue;
     const actual = loadedRoutes.get(key)!.methods;
-    if (actual.join(",") !== [...entry.methods].sort().join(",")) {
+    if (actual.join(",") !== [...entry.methods].sort(compareHttpMethods).join(",")) {
       mismatches.push(`${key}: registers [${actual}] but inventory says [${entry.methods}]`);
     }
   }
@@ -255,9 +259,8 @@ test("every documented method matches a handler the module registers", () => {
   for (const key of routeKeys) {
     const entry = classified(key);
     if (!entry?.inPublicOpenApi) continue;
-    const documented = openApiOperations(declared[entry.path] ?? {})
-      .map(([method]) => method)
-      .sort();
+    // openApiOperations already returns canonical HTTP order, so no re-sort is needed.
+    const documented = openApiOperations(declared[entry.path] ?? {}).map(([method]) => method);
     const actual = loadedRoutes.get(key)!.methods;
     if (actual.join(",") !== documented.join(",")) {
       mismatches.push(`${entry.path}: registers [${actual}] but OpenAPI declares [${documented}]`);
@@ -428,7 +431,9 @@ test("site-settings exposes exactly the approved fields and no operator configur
     }
   )?.content?.["application/json"]?.schema;
 
-  const fields = Object.keys(schema?.properties?.settings?.properties ?? {}).sort();
+  const fields = Object.keys(schema?.properties?.settings?.properties ?? {}).sort(
+    compareContractKeys,
+  );
   expect(fields).toEqual(
     [
       "about_video_url",
@@ -445,7 +450,7 @@ test("site-settings exposes exactly the approved fields and no operator configur
       "remote_area_links",
       "terminology",
       "tiktok_pixel_id",
-    ].sort(),
+    ].sort(compareContractKeys),
   );
   expect(fields).not.toContain("lead_form_destination");
 });

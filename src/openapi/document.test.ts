@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 
 import {
+  APPROVED_LOCALES,
   HTTP_METHODS,
+  compareContractKeys,
+  compareHttpMethods,
+  isApprovedLocaleEnum,
   classifyResponseStatus,
   findLocaleEnumViolations,
   findParameterPolicyViolations,
@@ -43,7 +47,7 @@ test("a path item of pure metadata yields no operations at all", () => {
     parameters: [],
   };
   expect(openApiOperations(item)).toEqual([]);
-  expect(pathItemMetadataKeys(item).sort()).toEqual([
+  expect(pathItemMetadataKeys(item)).toEqual([
     "$ref",
     "description",
     "parameters",
@@ -54,11 +58,8 @@ test("a path item of pure metadata yields no operations at all", () => {
 
 test("every supported method is recognized, and only those", () => {
   const item = Object.fromEntries(HTTP_METHODS.map((m) => [m, operation]));
-  expect(
-    openApiOperations(item)
-      .map(([m]) => m)
-      .sort(),
-  ).toEqual([...HTTP_METHODS].sort());
+  // Canonical HTTP order, not alphabetical — `delete` does not come first.
+  expect(openApiOperations(item).map(([m]) => m)).toEqual([...HTTP_METHODS]);
 });
 
 test("an unsupported method is reported, not silently skipped", () => {
@@ -66,7 +67,7 @@ test("an unsupported method is reported, not silently skipped", () => {
   // must surface as unknown keys so the gate fails rather than quietly ignoring an operation.
   const item = { get: operation, head: operation, trace: operation, "x-internal": true };
   expect(openApiOperations(item).map(([m]) => m)).toEqual(["get"]);
-  expect(unknownPathItemKeys(item).sort()).toEqual(["head", "trace", "x-internal"]);
+  expect(unknownPathItemKeys(item)).toEqual(["head", "trace", "x-internal"]);
 });
 
 test("known metadata is not reported as unknown", () => {
@@ -192,4 +193,86 @@ test("path-level metadata cannot create a fake locale violation", () => {
     paths: { "/x": { summary: "s", servers: [{ url: "https://e.test" }], get: okOperation() } },
   };
   expect(findLocaleEnumViolations(doc)).toEqual([]);
+});
+
+// ── Deterministic ordering ──────────────────────────────────────────────────────────────────
+// Every order-sensitive collection here has an explicit comparator chosen for its domain. The
+// point is observable determinism: the same logical document must produce the same output
+// whatever order it was assembled in, so diagnostics are diffable and comparisons are stable.
+
+test("operations come back in canonical HTTP order, not insertion order", () => {
+  const shuffled = { delete: operation, get: operation, patch: operation, post: operation };
+  expect(openApiOperations(shuffled).map(([m]) => m)).toEqual(["get", "post", "patch", "delete"]);
+});
+
+test("HTTP methods are ordered semantically, which is NOT alphabetical", () => {
+  expect(compareHttpMethods("get", "delete")).toBeLessThan(0);
+  // Alphabetically "delete" < "get"; the canonical policy deliberately disagrees.
+  expect("delete".localeCompare("get", "en-US")).toBeLessThan(0);
+  expect(compareHttpMethods("post", "post")).toBe(0);
+});
+
+test("metadata and unknown keys are canonically ordered regardless of insertion order", () => {
+  const a = { servers: [], $ref: "#/x", get: operation, "x-b": 1, "x-a": 1 };
+  const b = { "x-a": 1, get: operation, $ref: "#/x", "x-b": 1, servers: [] };
+  expect(pathItemMetadataKeys(a)).toEqual(pathItemMetadataKeys(b));
+  expect(unknownPathItemKeys(a)).toEqual(unknownPathItemKeys(b));
+  expect(unknownPathItemKeys(a)).toEqual(["x-a", "x-b"]);
+});
+
+test("the contract-key comparator is host-independent", () => {
+  // A pinned locale, so CI and a developer machine agree. Bare localeCompare() would not
+  // guarantee this.
+  expect(compareContractKeys("/api/v1/blog", "/api/v1/careers")).toBeLessThan(0);
+  expect(compareContractKeys("/a", "/a")).toBe(0);
+  const keys = ["/z", "/a", "/m"];
+  expect([...keys].sort(compareContractKeys)).toEqual(["/a", "/m", "/z"]);
+});
+
+test("violations are canonically ordered, so equivalent documents diff identically", () => {
+  const bad = (path: string) => ({ [path]: { parameters: [], get: operation } });
+  const forward = { paths: { ...bad("/a"), ...bad("/b"), ...bad("/c") } };
+  const reversed = { paths: { ...bad("/c"), ...bad("/b"), ...bad("/a") } };
+  expect(findParameterPolicyViolations(forward)).toEqual(findParameterPolicyViolations(reversed));
+  expect(findParameterPolicyViolations(forward)[0]).toContain("/a");
+});
+
+test("locale violations are canonically ordered too", () => {
+  const wrong = (path: string) => ({ [path]: { get: okOperation(["en"]) } });
+  const forward = { paths: { ...wrong("/a"), ...wrong("/b") } };
+  const reversed = { paths: { ...wrong("/b"), ...wrong("/a") } };
+  expect(findLocaleEnumViolations(forward)).toEqual(findLocaleEnumViolations(reversed));
+});
+
+// ── Locale enum: a SET comparison, not a sort ───────────────────────────────────────────────
+
+test("the approved enum matches in any declaration order", () => {
+  // This is why sorting was the wrong tool: order is irrelevant to the contract.
+  for (const order of [
+    ["en", "vi", "zh"],
+    ["zh", "vi", "en"],
+    ["vi", "zh", "en"],
+  ]) {
+    expect(isApprovedLocaleEnum(order), order.join()).toBe(true);
+  }
+  expect(isApprovedLocaleEnum([...APPROVED_LOCALES])).toBe(true);
+});
+
+test("a DUPLICATE entry is rejected even though its set is correct", () => {
+  // A pure set comparison would have accepted this; the length check is load-bearing.
+  expect(isApprovedLocaleEnum(["en", "en", "vi", "zh"])).toBe(false);
+  expect(isApprovedLocaleEnum(["en", "vi", "vi"])).toBe(false);
+});
+
+test("missing, extra and foreign locales are rejected", () => {
+  expect(isApprovedLocaleEnum([])).toBe(false);
+  expect(isApprovedLocaleEnum(["en", "vi"])).toBe(false);
+  expect(isApprovedLocaleEnum(["en", "vi", "zh", "ja"])).toBe(false);
+  expect(isApprovedLocaleEnum(["en", "vi", "ja"])).toBe(false);
+});
+
+test("a locale violation reports the values as DECLARED, not reordered", () => {
+  const doc = { paths: { "/x": { get: okOperation(["zh", "en"]) } } };
+  // The author wrote ["zh","en"]; showing them sorted would obscure what to fix.
+  expect(findLocaleEnumViolations(doc)[0]).toContain("[zh|en]");
 });
