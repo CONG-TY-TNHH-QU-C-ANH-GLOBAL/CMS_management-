@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Mail, Phone, Trash2, FileText } from "lucide-react";
+import { hrCvPathFrom } from "@/features/careers/careers.cv";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,15 +22,28 @@ export const Route = createFileRoute("/admin/content/careers/applicants")({
 
 const STATUS_LIST: { value: ApplicantStatus; label: string; tone: string }[] = [
   { value: "new", label: "Mới", tone: "bg-blue-100 text-blue-700 border-blue-200" },
-  { value: "reviewing", label: "Đang xem", tone: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  { value: "interview", label: "Phỏng vấn", tone: "bg-purple-100 text-purple-700 border-purple-200" },
+  {
+    value: "reviewing",
+    label: "Đang xem",
+    tone: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  },
+  {
+    value: "interview",
+    label: "Phỏng vấn",
+    tone: "bg-purple-100 text-purple-700 border-purple-200",
+  },
   { value: "offer", label: "Offer", tone: "bg-green-100 text-green-700 border-green-200" },
   { value: "rejected", label: "Từ chối", tone: "bg-red-100 text-red-700 border-red-200" },
   { value: "archived", label: "Lưu trữ", tone: "bg-muted text-muted-foreground border-border" },
 ];
 
 function formatDate(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+  return new Date(seconds * 1000).toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+  });
 }
 
 function ApplicantsPage() {
@@ -48,7 +62,8 @@ function ApplicantsPage() {
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: applicants.length };
-    for (const s of STATUS_LIST) map[s.value] = applicants.filter((a) => a.status === s.value).length;
+    for (const s of STATUS_LIST)
+      map[s.value] = applicants.filter((a) => a.status === s.value).length;
     return map;
   }, [applicants]);
 
@@ -126,7 +141,10 @@ function ApplicantsPage() {
                     <span className="font-mono text-muted-foreground">{a.job_slug}</span>
                   </td>
                   <td className="px-3 py-3 text-xs space-y-0.5">
-                    <a href={`mailto:${a.email}`} className="inline-flex items-center gap-1 hover:text-primary">
+                    <a
+                      href={`mailto:${a.email}`}
+                      className="inline-flex items-center gap-1 hover:text-primary"
+                    >
                       <Mail className="w-3 h-3" /> {a.email}
                     </a>
                     {a.phone && (
@@ -134,12 +152,25 @@ function ApplicantsPage() {
                         <Phone className="w-3 h-3" /> {a.phone}
                       </div>
                     )}
-                    {a.cv_url && (
+                    {/* The stored cv_url may be a legacy public /api/v1/media/... link, which
+                        no longer resolves — the proxy denies the applicant namespace. Link
+                        through the authenticated route instead so HR keeps access to
+                        historical CVs; render nothing actionable when the value is not a
+                        recognizable CV rather than a button that 404s. */}
+                    {hrCvPathFrom(a.cv_url) ? (
                       <div>
-                        <a href={a.cv_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                        <a
+                          href={hrCvPathFrom(a.cv_url)!}
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
                           <FileText className="w-3 h-3" /> CV
                         </a>
                       </div>
+                    ) : (
+                      a.cv_url && (
+                        <div className="text-muted-foreground text-xs">CV unavailable</div>
+                      )
                     )}
                   </td>
                   <td className="px-3 py-3">
@@ -149,11 +180,15 @@ function ApplicantsPage() {
                       className="h-8 px-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       {STATUS_LIST.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-3 text-xs text-muted-foreground">{formatDate(a.created_at)}</td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">
+                    {formatDate(a.created_at)}
+                  </td>
                   <td className="px-5 py-3">
                     <button
                       onClick={() => setConfirmDelete(a)}

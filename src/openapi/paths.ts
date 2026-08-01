@@ -766,7 +766,8 @@ export const applicantsRouteConfig = {
     "whose deadline has passed is treated as closed (410) even when its " +
     "status is still `open`. Protected by Turnstile and a stricter " +
     "5-per-IP-per-hour rate limit than leads. Upload the CV first via " +
-    "POST /api/v1/applicant-cv and pass the returned URL as `cv_url`.",
+    "POST /api/v1/applicant-cv and pass the returned URL as `cv_url`. That URL " +
+    "requires an authenticated CMS session to read.",
   request: {
     body: jsonBody(applicantRequestSchema),
   },
@@ -791,8 +792,11 @@ export const applicantCvRouteConfig = {
   summary: "Upload an applicant CV and get its URL",
   description:
     "Accepts `multipart/form-data` with a single `file` field: PDF, DOC or " +
-    "DOCX, at most 10MB. Returns the CMS media URL to pass as `cv_url` on " +
-    "POST /api/v1/applicants. Rate limited to 5 uploads per IP per hour.",
+    "DOCX, at most 10MB. Returns an AUTHENTICATED retrieval URL to pass as " +
+    "`cv_url` on POST /api/v1/applicants — it is not a public link and not a " +
+    "bearer URL: reading the CV requires a CMS session, and the public media " +
+    "proxy refuses the applicant namespace. Rate limited to 5 uploads per IP " +
+    "per hour.",
   request: {
     body: {
       content: {

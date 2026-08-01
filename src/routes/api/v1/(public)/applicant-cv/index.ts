@@ -1,15 +1,19 @@
-// Public CV upload endpoint for applicants. Accepts multipart/form-data
-// with a single "file" field (PDF/DOC/DOCX, ≤10MB), uploads to R2 under
-// applicants/<nanoid>-<safe-filename>, returns the public URL. The URL
-// is later attached to the application via POST /api/v1/applicants → cv_url.
+// Public CV upload endpoint for applicants. Accepts multipart/form-data with a single "file"
+// field (PDF/DOC/DOCX, ≤10MB), stores it in R2 under the PRIVATE `applicants/` namespace, and
+// returns the AUTHENTICATED retrieval URL. That URL is attached to the application via
+// POST /api/v1/applicants → cv_url.
 //
-// Random key acts as security-through-obscurity — only HR + applicant who
-// submitted have the URL. Adequate for a low-volume careers funnel.
+// The returned URL is NOT a bearer URL. It points at /api/v1/applicant-cv/{key}, which
+// requires an authenticated CMS session; the public media proxy refuses the `applicants/`
+// prefix outright. The random key remains a collision-resistant private identifier — it is no
+// longer the access control, which is what it used to be described as and never was.
 
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit } from "@/core/middlewares/rate-limit";
+import { APPLICANT_CV_PREFIX } from "@/features/media/media.private";
+import { applicantCvUrlPath } from "@/features/careers/careers.cv";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_MIMES = new Set([
@@ -82,13 +86,16 @@ export const Route = createFileRoute("/api/v1/(public)/applicant-cv/")({
 
         const ext = EXT_BY_MIME[file.type] ?? "bin";
         const baseName = slugify(file.name.replace(/\.[^.]+$/, "")) || "cv";
-        const key = `applicants/${shortId()}-${baseName}.${ext}`;
+        // APPLICANT_CV_PREFIX is the same constant the public media proxy denies, so the write
+        // location and the deny rule cannot drift apart.
+        const key = `${APPLICANT_CV_PREFIX}${shortId()}-${baseName}.${ext}`;
 
         await env.MEDIA.put(key, file.stream(), {
           httpMetadata: { contentType: file.type },
         });
 
-        const url = `${env.BASE_URL}/api/v1/media/${encodeURIComponent(key)}`;
+        // Authenticated retrieval path — never the public media proxy.
+        const url = `${env.BASE_URL}${applicantCvUrlPath(key)}`;
         return corsJson(request, { ok: true, url, filename: file.name, size: file.size });
       },
     },

@@ -140,8 +140,9 @@ export type ApplicantCreatedResponse = z.infer<typeof applicantCreatedResponseSc
 // is multipart/form-data with a single `file` field, so there is no Zod
 // request schema — the constraints (PDF/DOC/DOCX, ≤10MB) are enforced
 // imperatively in the handler and documented on the OpenAPI operation.
-// `url` points back at the CMS media proxy and is what the caller then sends
-// as `cv_url` on POST /api/v1/applicants.
+// `url` is the AUTHENTICATED retrieval URL (/api/v1/applicant-cv/{key}); it is
+// what the caller sends as `cv_url` on POST /api/v1/applicants, and reading it
+// requires a CMS session. It is deliberately NOT a public media-proxy URL.
 export const applicantCvUploadedResponseSchema = z.object({
   ok: z.literal(true),
   url: z.string(),

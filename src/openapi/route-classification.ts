@@ -157,12 +157,13 @@ const undocumented = (
 
 const adminApi = (
   path: string,
+  methods: readonly HttpMethod[],
   owningFeature: string,
   consumer: string,
   note: string,
 ): RouteClassificationEntry => ({
   path,
-  methods: ["post"],
+  methods,
   classification: "AUTHENTICATED_ADMIN_API",
   auth: "session",
   inPublicOpenApi: false,
@@ -322,11 +323,10 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "/api/v1/applicant-cv",
     "careers",
     `${LANDING} job application dialog`,
-    "The stored object is served through the public /api/v1/media/{key} proxy, so the random " +
-      "key IS the access control on an applicant CV. That key now comes from " +
-      "crypto.getRandomValues (128 bits), not Math.random — a seeded PRNG whose output is " +
-      "predictable from observed values would let someone holding one CV URL derive others. " +
-      "The key shape is unchanged, so issued URLs keep working. " +
+    "Writes to the PRIVATE `applicants/` namespace and returns the AUTHENTICATED retrieval " +
+      "URL (/api/v1/applicant-cv/{key}), never a public bearer URL. The 128-bit " +
+      "crypto.getRandomValues key is a collision-resistant private identifier only — it is no " +
+      "longer the access control, which it was previously described as and never was. " +
       "STILL OPEN: this is an unauthenticated R2 write with NO Turnstile (only 5/IP/hour plus " +
       "MIME and 10MB caps) while every sibling public write verifies one. Adding it changes " +
       "the request contract and needs a coordinated landing change, so it stays reported.",
@@ -359,10 +359,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "media",
     `${LANDING} <img> tags; applicant CV links`,
     "Not in the document because it returns image/document BYTES over an unbounded splat key — " +
-      "there is no response schema to type, and consumers use it as a URL. PRIVACY CONCERN: " +
-      "the same proxy also serves `applicants/<random>-<name>.<ext>` CV uploads, so applicant " +
-      "PII is protected only by key unguessability (the handler's own comment says so). " +
-      "Pre-existing; flagged, not changed.",
+      "there is no response schema to type, and consumers use it as a URL. It now REFUSES the " +
+      "private `applicants/` namespace (404, so it cannot be used to probe which keys exist); " +
+      "applicant CVs are served only by the authenticated /api/v1/applicant-cv/{splat} route. " +
+      "This proxy is the sole public exposure of the R2 bucket — wrangler.jsonc binds MEDIA " +
+      "with no public bucket domain — so the deny is a complete boundary, not a speed bump.",
   ),
   "v1/(public)/openapi/index.ts": undocumented(
     "/api/v1/openapi",
@@ -376,9 +377,22 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
   // ── Not public ────────────────────────────────────────────────────────────────────────────
   "v1/(admin)/media/upload.ts": adminApi(
     "/api/v1/media/upload",
+    ["post"],
     "media",
     "CMS admin Media Library (same-origin, no CORS)",
-    "requireSession('editor'). Must never enter the public document.",
+    "withRequiredSession('editor'). Must never enter the public document.",
+  ),
+  "v1/(admin)/applicant-cv/$.ts": adminApi(
+    "/api/v1/applicant-cv/{splat}",
+    ["get"],
+    "careers",
+    "CMS admin applicants table (same-origin, no CORS)",
+    "The ONLY way to read an applicant CV. withRequiredSession('viewer') — the same level " +
+      "that already returns the applicant's name, email, phone and cover letter, so the CV " +
+      "inherits the authorization of the record it belongs to. Streams with " +
+      "Cache-Control: private, no-store, Content-Disposition: attachment and nosniff, and " +
+      "answers a uniform 404 for an out-of-namespace key or a missing object so neither " +
+      "reveals what exists in storage.",
   ),
   "auth/google/start.ts": authCallback(
     "/api/auth/google/start",
