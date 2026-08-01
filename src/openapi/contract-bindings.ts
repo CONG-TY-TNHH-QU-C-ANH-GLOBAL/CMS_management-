@@ -106,10 +106,17 @@ export interface ContractBinding {
   registered: unknown;
 }
 
+/** A response entry as the route configs declare it. */
+interface JsonResponse {
+  content: { "application/json": { schema: unknown } };
+}
+
+/** The shape `response()` needs. The generic below keeps the STATUS KEYS of the concrete
+ *  config, which is what makes an unregistered status a compile error. */
 interface ResponseConfig {
   path: string;
   method: string;
-  responses: Record<number, { content: { "application/json": { schema: unknown } } }>;
+  responses: Readonly<Record<number, unknown>>;
 }
 
 interface RequestBodyConfig {
@@ -118,15 +125,63 @@ interface RequestBodyConfig {
   request: { body: { content: { "application/json": { schema: unknown } } } };
 }
 
-/** Bind a response schema. `status` picks the documented response; the registered value is
- *  READ OUT of the config, never reconstructed — that is what keeps the comparison meaningful. */
-function response(config: ResponseConfig, status: number, canonical: unknown): ContractBinding {
+/** Thrown at module load when a binding names a response the config does not declare. Module
+ *  init is the right moment: an unresolvable binding is a build-time authoring mistake, and
+ *  failing there stops both the drift script and the test suite with the same diagnostic. */
+export class ContractBindingError extends Error {
+  constructor(method: string, path: string, status: number, problem: string) {
+    super(
+      `Contract binding ${method.toUpperCase()} ${path} → ${status}: ${problem}. ` +
+        `A binding may only reference a response that the route config in src/openapi/paths.ts ` +
+        `actually registers with an application/json schema.`,
+    );
+    this.name = "ContractBindingError";
+  }
+}
+
+/**
+ * Bind a response schema.
+ *
+ * TWO layers, deliberately:
+ *
+ *   1. COMPILE TIME — `status` is `keyof C["responses"] & number`. Because every route config
+ *      is declared `as const`, its `responses` object has literal keys, so binding a status
+ *      the config never registered does not typecheck. The previous signature used a broad
+ *      `Record<number, …>`, which made arbitrary numeric access look safe.
+ *   2. RUNTIME — the guard below. Types cannot see through a config that is widened somewhere,
+ *      and the failure mode being replaced was a bare `TypeError: Cannot read properties of
+ *      undefined` at module init with no indication of WHICH binding was wrong.
+ *
+ * The registered schema is still READ OUT of the config and never reconstructed, so
+ * identity-based drift comparison is unchanged.
+ */
+export function bindResponse<C extends ResponseConfig>(
+  config: C,
+  status: keyof C["responses"] & number,
+  canonical: unknown,
+): ContractBinding {
+  const entry = config.responses[status] as JsonResponse | undefined;
+  if (entry === undefined) {
+    throw new ContractBindingError(config.method, config.path, status, "no such response status");
+  }
+  const schema = entry.content?.["application/json"]?.schema;
+  if (schema === undefined) {
+    throw new ContractBindingError(
+      config.method,
+      config.path,
+      status,
+      "the response declares no application/json schema",
+    );
+  }
   return {
     name: `${config.method.toUpperCase()} ${config.path} → ${status}`,
     canonical,
-    registered: config.responses[status].content["application/json"].schema,
+    registered: schema,
   };
 }
+
+/** Local alias so the ~45-entry table below reads as data. */
+const response = bindResponse;
 
 /** Bind a request body schema. Request bodies drift as silently as responses, and on a write
  *  endpoint the blast radius is a rejected lead rather than a misrendered section. */
@@ -182,13 +237,45 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(communityReviewSubmitRouteConfig, 201, communitySubmitResponseSchema),
 ];
 
-export interface DriftFailure {
-  name: string;
-}
+export type ContractCheckFailure =
+  | { kind: "empty-binding-set"; message: string }
+  | { kind: "schema-drift"; message: string };
 
-/** Every binding whose registered schema is not the canonical object. Empty means no drift. */
-export function findContractDrift(
+/**
+ * The ONE contract-binding gate. Both `scripts/check-openapi-drift.ts` and
+ * `src/openapi/public-surface.test.ts` call this, so the rules cannot diverge between the CLI
+ * and the suite — which is exactly how the empty-set hole existed: the non-empty assertion
+ * lived only in the test, while CI also runs the script on its own.
+ *
+ * Two rules:
+ *
+ *   1. FAIL CLOSED ON AN EMPTY TABLE. A gate that validates zero bindings and reports success
+ *      is worse than no gate: it makes a green check mean nothing. If the table is ever
+ *      emptied — by a bad merge, a refactor, or a conditional import — this says so.
+ *   2. Every registered schema must be the SAME OBJECT as the canonical feature export.
+ */
+export function checkContractBindings(
   bindings: readonly ContractBinding[] = CONTRACT_BINDINGS,
-): DriftFailure[] {
-  return bindings.filter((b) => b.canonical !== b.registered).map((b) => ({ name: b.name }));
+): ContractCheckFailure[] {
+  if (bindings.length === 0) {
+    return [
+      {
+        kind: "empty-binding-set",
+        message:
+          "No contract bindings to check. A contract gate that validates zero bindings must " +
+          "fail closed — a green result here would prove nothing about the public API.",
+      },
+    ];
+  }
+
+  return bindings
+    .filter((b) => b.canonical !== b.registered)
+    .map((b) => ({
+      kind: "schema-drift" as const,
+      message:
+        `${b.name}: OpenAPI registration is NOT the canonical schema. Someone likely redefined ` +
+        `a similar Zod shape in src/openapi/paths.ts instead of importing from ` +
+        `features/<feature>/<feature>.schemas. Fix: replace the inline schema with the ` +
+        `canonical import.`,
+    }));
 }

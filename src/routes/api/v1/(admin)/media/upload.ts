@@ -1,16 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { withRequiredSession } from "@/features/auth/auth.guard";
+
 // Admin-only multipart upload endpoint. Stores file in R2 + metadata in D1.
 // The admin Media Library page POSTs FormData here (file + alt_text + tag).
-// We don't put this behind CORS — same-origin from /admin/* SPA. Auth gates
-// via session cookie via `requireSession`.
+// We don't put this behind CORS — same-origin from /admin/* SPA.
+//
+// Authorization is `withRequiredSession("editor")`, which runs the session + CSRF check before
+// the handler body and brands the handler with the role it enforces. The brand is what
+// src/openapi/public-surface.test.ts reads — it verifies authorization against the actual
+// registered handler value rather than by grepping this file for `requireSession(`.
 export const Route = createFileRoute("/api/v1/(admin)/media/upload")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
-        const { requireSession } = await import("@/features/auth");
+      POST: withRequiredSession("editor", async ({ request }: { request: Request }, me) => {
         const { uploadMedia } = await import("@/features/media");
-        const me = await requireSession("editor");
 
         const form = await request.formData();
         const file = form.get("file");
@@ -50,7 +54,7 @@ export const Route = createFileRoute("/api/v1/(admin)/media/upload")({
           status: 201,
           headers: { "Content-Type": "application/json" },
         });
-      },
+      }),
     },
   },
 });

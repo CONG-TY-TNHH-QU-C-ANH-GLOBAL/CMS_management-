@@ -64,7 +64,10 @@ export interface RouteClassificationEntry {
   /** Whether this route belongs in the PUBLIC OpenAPI document. */
   inPublicOpenApi: boolean;
   owningFeature: string;
-  /** Who calls it. "none (unconsumed)" is a real and important answer. */
+  /** Who calls it. Every route in this Worker has a consumer today, so there is no
+   *  "unconsumed" state and no sentinel for one — the gate simply requires a named consumer.
+   *  If a genuinely unconsumed route ever appears, model the absence explicitly rather than
+   *  encoding it as free text. */
   consumer: string;
   /** Required whenever a public route is NOT documented, or a shape needs a caveat. */
   note?: string;
@@ -123,11 +126,21 @@ const readWrite = (
   note,
 });
 
-/** Public in fact, but serving no typed JSON — so it cannot be documented. `note` is
- *  MANDATORY here, not optional: this is the only shape that could decay into an ignore list. */
+/** Classifications `undocumented()` may construct.
+ *
+ *  The helper hardcodes `auth: "none"`, so it must not accept a classification that implies a
+ *  credential — an AUTHENTICATED_ADMIN_API recorded as unauthenticated is exactly the
+ *  impossible state the inventory exists to prevent. Narrowed to the two the callers actually
+ *  use (the binary media proxy and the OpenAPI document route), both genuinely unauthenticated.
+ *  Widen it only alongside an auth parameter. */
+type UnauthenticatedClassification = "PUBLIC_CONTENT_API" | "HEALTH_OR_DIAGNOSTIC";
+
+/** Public or diagnostic in fact, but serving no typed JSON — so it cannot be documented.
+ *  `note` is MANDATORY here, not optional: this is the only shape that could decay into an
+ *  ignore list. */
 const undocumented = (
   path: string,
-  classification: RouteClassification,
+  classification: UnauthenticatedClassification,
   owningFeature: string,
   consumer: string,
   note: string,

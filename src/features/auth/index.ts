@@ -18,3 +18,5 @@ export {
   generateStateToken,
 } from "./auth.google";
 export type { GoogleUserInfo } from "./auth.google";
+export { withRequiredSession, requiredRoleOf } from "./auth.guard";
+export type { GuardedHandler } from "./auth.guard";

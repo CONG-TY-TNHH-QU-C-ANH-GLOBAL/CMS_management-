@@ -1,26 +1,48 @@
 // THE contract-freeze gate.
 //
-// scripts/check-openapi-drift.ts proves that a DECLARED endpoint's schema is the canonical one.
-// It cannot prove that an endpoint was declared at all — and that is exactly how
-// /api/v1/service-blocks and POST /api/v1/leads, both live landing dependencies, shipped for
-// months with no contract.
+// It answers one question: does the public API this Worker actually serves match the contract
+// this repository claims? Three sources are compared — the route modules on disk, the
+// code-owned classification inventory, and the generated OpenAPI document — and every
+// disagreement is a failure.
 //
-// This file closes that hole. It walks the real route tree on disk and checks it against
-// ./route-classification, the code-owned inventory of what every route IS. The expectations are
-// DERIVED from the classification, so the gate distinguishes "public and declared" from "admin
-// endpoint that happens to be a route file" — and adding a route forces a classification
-// decision instead of letting it inherit "public" from its directory.
+// Two things changed after review, both because the previous gate proved less than it claimed:
 //
-// The earlier version used an `UNDECLARED_BY_DESIGN` ignore list. That mechanism only records
-// what someone remembered to exempt, and the natural way to silence it is to add an entry,
-// which weakens the gate every time it fires. It is gone.
+//   1. METHODS AND AUTHORIZATION ARE READ FROM THE REAL MODULES. The gate used to grep route
+//      files for `^      GET:` and `requireSession(`. Source text is not a security boundary:
+//      a comment, a string literal, a reformat, an alias or dead code all change the answer.
+//      It now imports each route module and reads `Route.options.server.handlers` — the object
+//      the router registers — and reads the enforced role off the handler value itself, which
+//      `withRequiredSession` brands at the same moment it performs the check.
+//   2. DOCUMENT TRAVERSAL GOES THROUGH src/openapi/document. Path Items may carry `$ref`,
+//      `summary`, `servers` and `parameters`, and response keys may be `default` or `4XX`.
+//      Treating every path-item key as a method invented operations; `Number(status) < 400`
+//      silently skipped every non-numeric key. One canonical utility now owns both.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 
-import { CONTRACT_BINDINGS, findContractDrift } from "./contract-bindings";
+// The route modules reach `cloudflare:workers` through the CORS helper, which does not exist
+// outside the Worker runtime. Stubbing it is what lets this gate inspect the REAL handler
+// objects instead of the files' text. Nothing is asserted against the stub.
+mock.module("cloudflare:workers", () => ({ env: {} }));
+
+import { requiredRoleOf } from "@/features/auth/auth.guard";
+import type { Role } from "@/features/auth/auth.session";
+
+import { CONTRACT_BINDINGS, checkContractBindings } from "./contract-bindings";
+import {
+  HTTP_METHODS,
+  classifyResponseStatus,
+  findLocaleEnumViolations,
+  findParameterPolicyViolations,
+  openApiOperations,
+  unknownPathItemKeys,
+  type HttpMethod,
+  type OpenApiDocumentLike,
+  type PathItem,
+} from "./document";
 import { generateOpenApiDocument } from "./generate";
 import {
   ROUTE_CLASSIFICATIONS,
@@ -41,44 +63,69 @@ function walkRouteKeys(dir: string): string[] {
   return out.sort();
 }
 
-/**
- * The HTTP methods a route file serves, read from its `handlers` object. OPTIONS is excluded
- * everywhere: it is CORS preflight plumbing, identical on every route, and not part of the
- * content contract.
- */
-function handlerMethods(key: string): string[] {
-  const source = readFileSync(join(API_ROUTES_DIR, key), "utf8");
-  const methods = new Set<string>();
-  for (const m of source.matchAll(/^\s{6}(GET|POST|PUT|PATCH|DELETE):/gm)) {
-    methods.add(m[1].toLowerCase());
-  }
-  return [...methods].sort();
-}
-
-const document = generateOpenApiDocument();
-const declared = document.paths ?? {};
 const routeKeys = walkRouteKeys(API_ROUTES_DIR);
-
 const classified = (key: string): RouteClassificationEntry | undefined =>
   ROUTE_CLASSIFICATIONS[key];
 
+interface LoadedRoute {
+  /** Methods the registered handler object actually exposes, excluding OPTIONS. */
+  methods: HttpMethod[];
+  /** Enforced role per method, read from the branded handler. null = not a guarded handler. */
+  roles: Map<HttpMethod, Role | null>;
+}
+
+/**
+ * Load a route module and read what it REGISTERS.
+ *
+ * OPTIONS is excluded everywhere: it is CORS preflight plumbing, identical on every route, and
+ * not part of the content contract.
+ */
+async function loadRoute(key: string): Promise<LoadedRoute> {
+  const module = (await import(join(API_ROUTES_DIR, key))) as {
+    Route?: { options?: { server?: { handlers?: Record<string, unknown> } } };
+  };
+  const handlers = module.Route?.options?.server?.handlers ?? {};
+  const methods: HttpMethod[] = [];
+  const roles = new Map<HttpMethod, Role | null>();
+
+  for (const [name, handler] of Object.entries(handlers)) {
+    const method = name.toLowerCase();
+    if (method === "options") continue;
+    if (!(HTTP_METHODS as readonly string[]).includes(method)) continue;
+    methods.push(method as HttpMethod);
+    roles.set(method as HttpMethod, requiredRoleOf(handler));
+  }
+  methods.sort();
+  return { methods, roles };
+}
+
+const loadedRoutes = new Map<string, LoadedRoute>(
+  await Promise.all(routeKeys.map(async (key) => [key, await loadRoute(key)] as const)),
+);
+
+// The generator's own PathItemObject type is narrower than the document a policy check must
+// tolerate, so both views are taken once here.
+const document = generateOpenApiDocument() as unknown as OpenApiDocumentLike;
+const declared = (document.paths ?? {}) as Record<string, PathItem>;
+
 // ── Schema identity ─────────────────────────────────────────────────────────────────────────
 
-test("every registered schema is the canonical feature export, not a lookalike", () => {
-  // Same assertion as `bun run check:openapi-drift`, run here too so drift fails the test
-  // suite even when the script is not invoked. The failure mode it catches is someone
-  // redefining a similar-looking Zod shape in paths.ts instead of importing it.
+test("the contract-binding gate passes, and fails closed on an empty table", () => {
+  // Same function `bun run check:openapi-drift` calls, so the CLI and the suite cannot
+  // diverge — which is how a gate validating zero bindings could once report success.
+  expect(checkContractBindings().map((f) => f.message)).toEqual([]);
   expect(CONTRACT_BINDINGS.length).toBeGreaterThan(40);
-  expect(findContractDrift().map((f) => f.name)).toEqual([]);
+
+  const empty = checkContractBindings([]);
+  expect(empty).toHaveLength(1);
+  expect(empty[0].kind).toBe("empty-binding-set");
 });
 
 test("every documented operation has a schema binding", () => {
-  // A route can be declared with a body that nothing asserts identity on. Cross-check the
-  // document against the binding table so a new operation cannot skip drift protection.
   const bound = new Set(CONTRACT_BINDINGS.map((b) => b.name.replace(/ → .*$/, "")));
   const unbound: string[] = [];
-  for (const [path, ops] of Object.entries(declared)) {
-    for (const method of Object.keys(ops as Record<string, unknown>)) {
+  for (const [path, item] of Object.entries(declared)) {
+    for (const [method] of openApiOperations(item)) {
       const id = `${method.toUpperCase()} ${path}`;
       if (!bound.has(id)) unbound.push(id);
     }
@@ -93,7 +140,6 @@ test("every documented operation has a schema binding", () => {
 // ── The inventory itself must stay honest ───────────────────────────────────────────────────
 
 test("the route tree is non-empty (guards against a broken walker)", () => {
-  // Without this, a wrong API_ROUTES_DIR would make every coverage test below pass vacuously.
   expect(routeKeys.length).toBeGreaterThan(30);
 });
 
@@ -112,58 +158,84 @@ test("every classified route still exists on disk", () => {
   expect(stale, "Inventory entries for deleted routes — remove them.").toEqual([]);
 });
 
-test("the recorded method set matches the handlers each file actually exports", () => {
+test("the recorded method set matches the handlers the module actually REGISTERS", () => {
   const mismatches: string[] = [];
   for (const key of routeKeys) {
     const entry = classified(key);
-    if (!entry) continue; // reported above
-    const actual = handlerMethods(key);
+    if (!entry) continue;
+    const actual = loadedRoutes.get(key)!.methods;
     if (actual.join(",") !== [...entry.methods].sort().join(",")) {
-      mismatches.push(`${key}: handlers=[${actual}] but inventory says [${entry.methods}]`);
+      mismatches.push(`${key}: registers [${actual}] but inventory says [${entry.methods}]`);
     }
   }
   expect(mismatches).toEqual([]);
 });
 
-test("a public route that is not documented must say why, and a private one must not be documented", () => {
+test("every route registers at least one non-OPTIONS handler", () => {
+  // A route file that exports no usable handler is either dead or misread by the loader; both
+  // would make every method assertion above vacuously true for it.
+  const empty = routeKeys.filter((key) => loadedRoutes.get(key)!.methods.length === 0);
+  expect(empty).toEqual([]);
+});
+
+test("every entry names a consumer", () => {
+  // The inventory has no "unconsumed" state and no route is unconsumed today, so the rule is
+  // simply that a consumer must be named. (An earlier comment claimed a route with no consumer
+  // needed a written note; nothing enforced it and no entry used it — the prose was wrong, and
+  // inventing a sentinel for a state that does not exist would have been worse.)
+  const missing = Object.entries(ROUTE_CLASSIFICATIONS)
+    .filter(([, entry]) => entry.consumer.trim().length === 0)
+    .map(([key]) => key);
+  expect(missing).toEqual([]);
+});
+
+// ── Authorization, read from the registered handler ─────────────────────────────────────────
+
+test("every AUTHENTICATED_ADMIN_API handler is a guarded handler carrying its role", () => {
   const problems: string[] = [];
   for (const key of routeKeys) {
     const entry = classified(key);
-    if (!entry) continue;
-    if (isPublicClassification(entry.classification) && !entry.inPublicOpenApi && !entry.note) {
-      problems.push(`${key}: public but excluded from OpenAPI with no reason given`);
-    }
-    if (!isPublicClassification(entry.classification) && entry.inPublicOpenApi) {
-      problems.push(`${key}: ${entry.classification} must not be in the public document`);
-    }
-  }
-  expect(problems).toEqual([]);
-});
-
-test("every AUTHENTICATED_ADMIN_API actually carries a session guard", () => {
-  // Classification is a claim; this checks the code backs it up.
-  const unguarded: string[] = [];
-  for (const key of routeKeys) {
-    const entry = classified(key);
     if (entry?.classification !== "AUTHENTICATED_ADMIN_API") continue;
-    const source = readFileSync(join(API_ROUTES_DIR, key), "utf8");
-    if (!/requireSession\s*\(/.test(source)) unguarded.push(key);
+    for (const [method, role] of loadedRoutes.get(key)!.roles) {
+      if (role === null) {
+        problems.push(`${key} ${method.toUpperCase()}: not wrapped in withRequiredSession`);
+      }
+    }
   }
   expect(
-    unguarded,
-    "Routes classified as authenticated admin APIs with no requireSession() call.",
+    problems,
+    "An admin route must compose its handler with withRequiredSession(role, …). That call IS " +
+      "the session check, so the brand cannot be present without the check running.",
   ).toEqual([]);
 });
 
-test("no public route silently requires a session (which would make it private)", () => {
+test("no route classified public carries an authorization brand", () => {
   const misclassified: string[] = [];
   for (const key of routeKeys) {
     const entry = classified(key);
     if (!entry || !isPublicClassification(entry.classification)) continue;
-    const source = readFileSync(join(API_ROUTES_DIR, key), "utf8");
-    if (/requireSession\s*\(/.test(source)) misclassified.push(key);
+    for (const [method, role] of loadedRoutes.get(key)!.roles) {
+      if (role !== null) misclassified.push(`${key} ${method.toUpperCase()} enforces ${role}`);
+    }
   }
   expect(misclassified).toEqual([]);
+});
+
+test("the brand cannot be forged by a comment, a string, or an unwrapped function", () => {
+  // These are the exact shapes that satisfied the old source-text check. The property this
+  // gate reads is a symbol set by withRequiredSession itself, so none of them can produce it.
+  const comment = () => {
+    // requireSession("admin")
+    return new Response(null);
+  };
+  const stringLiteral = () => new Response('requireSession("admin")');
+  const plain = async () => new Response(null);
+
+  for (const candidate of [comment, stringLiteral, plain]) {
+    expect(requiredRoleOf(candidate)).toBeNull();
+  }
+  expect(requiredRoleOf('requireSession("admin")')).toBeNull();
+  expect(requiredRoleOf(undefined)).toBeNull();
 });
 
 // ── Document coverage, driven by the classification ─────────────────────────────────────────
@@ -175,23 +247,20 @@ test("every route marked inPublicOpenApi is present in the generated document", 
     if (!entry?.inPublicOpenApi) continue;
     if (!(entry.path in declared)) missing.push(`${entry.path}  (${key})`);
   }
-  expect(
-    missing,
-    "Public endpoints with no OpenAPI declaration. Add a route config to src/openapi/paths.ts " +
-      "and a drift check — or, if it genuinely serves no typed JSON, set inPublicOpenApi:false " +
-      "with a reason in the inventory.",
-  ).toEqual([]);
+  expect(missing).toEqual([]);
 });
 
-test("every documented method matches a handler the route file actually exports", () => {
+test("every documented method matches a handler the module registers", () => {
   const mismatches: string[] = [];
   for (const key of routeKeys) {
     const entry = classified(key);
     if (!entry?.inPublicOpenApi) continue;
-    const documented = Object.keys(declared[entry.path] ?? {}).sort();
-    const actual = handlerMethods(key);
+    const documented = openApiOperations(declared[entry.path] ?? {})
+      .map(([method]) => method)
+      .sort();
+    const actual = loadedRoutes.get(key)!.methods;
     if (actual.join(",") !== documented.join(",")) {
-      mismatches.push(`${entry.path}: handlers=[${actual}] but OpenAPI declares [${documented}]`);
+      mismatches.push(`${entry.path}: registers [${actual}] but OpenAPI declares [${documented}]`);
     }
   }
   expect(mismatches, "OpenAPI method set drifted from the route handlers.").toEqual([]);
@@ -203,40 +272,93 @@ test("the document declares nothing that is not a route classified for it", () =
       .filter((e) => e.inPublicOpenApi)
       .map((e) => e.path),
   );
-  const phantom = Object.keys(declared).filter((p) => !publicPaths.has(p));
-  expect(
-    phantom,
-    "OpenAPI declares an endpoint that no classified public route serves — consumers would " +
-      "code against a 404, or an internal route was promoted by mistake.",
-  ).toEqual([]);
+  expect(Object.keys(declared).filter((p) => !publicPaths.has(p))).toEqual([]);
 });
 
 test("no admin or auth route path leaks into the public document", () => {
-  // Belt-and-braces over the classification check: catches a hand-written paths.ts entry that
-  // points at an admin URL even if the inventory is momentarily wrong.
   const privatePaths = Object.values(ROUTE_CLASSIFICATIONS)
     .filter((e) => !isPublicClassification(e.classification))
     .map((e) => e.path);
-  const leaked = privatePaths.filter((p) => p in declared);
-  expect(leaked).toEqual([]);
+  expect(privatePaths.filter((p) => p in declared)).toEqual([]);
 });
 
-// ── Contract-ownership rules on the documented surface ──────────────────────────────────────
+test("a public route that is not documented must say why, and a private one must not be documented", () => {
+  const problems: string[] = [];
+  for (const [key, entry] of Object.entries(ROUTE_CLASSIFICATIONS)) {
+    if (isPublicClassification(entry.classification) && !entry.inPublicOpenApi && !entry.note) {
+      problems.push(`${key}: public but excluded from OpenAPI with no reason given`);
+    }
+    if (!isPublicClassification(entry.classification) && entry.inPublicOpenApi) {
+      problems.push(`${key}: ${entry.classification} must not be in the public document`);
+    }
+  }
+  expect(problems).toEqual([]);
+});
 
-test("every locale parameter uses the same en|vi|zh contract", () => {
-  // Locale is a platform-wide contract, not a per-endpoint choice. A route that quietly accepts
-  // a different set (or types it as a bare string) is how a future locale rollout turns into a
-  // public DTO redesign.
+// ── Document shape policy ───────────────────────────────────────────────────────────────────
+
+test("no path item carries a key this gate does not understand", () => {
+  // Neither a supported method nor known metadata. A `head`/`trace` operation or an unexpected
+  // extension lands here rather than being silently skipped.
+  const unknown: string[] = [];
+  for (const [path, item] of Object.entries(declared)) {
+    for (const key of unknownPathItemKeys(item)) unknown.push(`${path} → ${key}`);
+  }
+  expect(unknown).toEqual([]);
+});
+
+test("PARAMETER REFERENCES AND COMPONENTS ARE PROHIBITED — every parameter is inline", () => {
+  // Policy decision, not an omission — see findParameterPolicyViolations for the reasoning and
+  // src/openapi/document.test.ts for the negative cases.
+  expect(
+    findParameterPolicyViolations(document),
+    "Referenced or path-level parameters are not supported by this contract. Declare the " +
+      "parameter inline on the operation, or change this policy deliberately and teach the " +
+      "locale check to resolve references.",
+  ).toEqual([]);
+});
+
+test("every effective lang parameter is exactly the en|vi|zh contract", () => {
+  // Inspecting operation-level inline parameters IS complete coverage, because the test above
+  // rejects every other declaration form. The claim and the coverage match.
+  expect(findLocaleEnumViolations(document)).toEqual([]);
+});
+
+test("every response key is an exact numeric status — ranges and `default` are prohibited", () => {
+  // The previous check used `Number(status) < 400`, and `Number("default")` is NaN, so
+  // `default`, `2XX`, `4XX` and `5XX` were all silently treated as "not an error" and skipped.
+  // Passing was an accident of NaN. classifyResponseStatus states the policy instead.
+  const unsupported: string[] = [];
+  for (const [path, item] of Object.entries(declared)) {
+    for (const [method, operation] of openApiOperations(item)) {
+      for (const key of Object.keys(operation.responses ?? {})) {
+        const classification = classifyResponseStatus(key);
+        if (classification.kind === "unsupported") {
+          unsupported.push(`${method.toUpperCase()} ${path} → "${key}": ${classification.reason}`);
+        }
+      }
+    }
+  }
+  expect(unsupported).toEqual([]);
+});
+
+test("every error response uses the bounded { error } envelope", () => {
+  // A raw provider or database message must never reach a public consumer.
   const offenders: string[] = [];
-  for (const [path, ops] of Object.entries(declared)) {
-    for (const [method, op] of Object.entries(ops as Record<string, unknown>)) {
-      const params = (op as { parameters?: Array<Record<string, unknown>> }).parameters ?? [];
-      for (const param of params) {
-        if (param.name !== "lang") continue;
-        const schema = param.schema as { enum?: string[] } | undefined;
-        const values = [...(schema?.enum ?? [])].sort().join("|");
-        if (values !== "en|vi|zh") {
-          offenders.push(`${method.toUpperCase()} ${path}: lang enum = [${values}]`);
+  for (const [path, item] of Object.entries(declared)) {
+    for (const [method, operation] of openApiOperations(item)) {
+      for (const [key, body] of Object.entries(operation.responses ?? {})) {
+        if (classifyResponseStatus(key).kind !== "error") continue;
+        const schema = (
+          body as {
+            content?: {
+              "application/json"?: { schema?: { properties?: Record<string, unknown> } };
+            };
+          }
+        ).content?.["application/json"]?.schema;
+        const keys = Object.keys(schema?.properties ?? {});
+        if (keys.length !== 1 || keys[0] !== "error") {
+          offenders.push(`${method.toUpperCase()} ${path} → ${key}: [${keys}]`);
         }
       }
     }
@@ -245,9 +367,6 @@ test("every locale parameter uses the same en|vi|zh contract", () => {
 });
 
 test("no public response shape exposes an internal or raw-database field", () => {
-  // The public API owns DTOs; the landing owns view models. Neither may depend on a column
-  // name, a moderation-workflow field, or an unparsed JSON blob. Editorial `status` is included:
-  // publication gating is applied server-side, so a public consumer must never branch on it.
   const FORBIDDEN = [
     "payload_json",
     "notes_json",
@@ -270,9 +389,8 @@ test("no public response shape exposes an internal or raw-database field", () =>
 
   function scan(node: unknown, where: string): void {
     if (!node || typeof node !== "object") return;
-    if (seen.has(node as object)) return;
-    seen.add(node as object);
-
+    if (seen.has(node)) return;
+    seen.add(node);
     const props = (node as { properties?: Record<string, unknown> }).properties;
     if (props) {
       for (const key of Object.keys(props)) {
@@ -282,11 +400,10 @@ test("no public response shape exposes an internal or raw-database field", () =>
     for (const value of Object.values(node as Record<string, unknown>)) scan(value, where);
   }
 
-  for (const [path, ops] of Object.entries(declared)) {
-    for (const [method, op] of Object.entries(ops as Record<string, unknown>)) {
-      const responses = (op as { responses?: Record<string, unknown> }).responses ?? {};
-      for (const [status, body] of Object.entries(responses)) {
-        scan(body, `${method.toUpperCase()} ${path} → ${status}`);
+  for (const [path, item] of Object.entries(declared)) {
+    for (const [method, operation] of openApiOperations(item)) {
+      for (const [key, body] of Object.entries(operation.responses ?? {})) {
+        scan(body, `${method.toUpperCase()} ${path} → ${key}`);
       }
     }
   }
@@ -295,29 +412,21 @@ test("no public response shape exposes an internal or raw-database field", () =>
 });
 
 test("site-settings exposes exactly the approved fields and no operator configuration", () => {
-  // `lead_form_destination` was REMOVED from this response: it is operator configuration (an
-  // admin-set URL naming where leads are routed) that was published on an unauthenticated
-  // endpoint with no consumer in either landing app. The column and the admin editor are
-  // untouched; only the public projection dropped it.
-  //
-  // The list is asserted EXACTLY so the removal cannot silently regress and no second config
-  // field can join unnoticed. Analytics ids stay: they are rendered into the browser anyway,
-  // so publishing them discloses nothing.
+  // `lead_form_destination` was REMOVED from this response: operator configuration (an
+  // admin-set URL naming where leads are routed) published on an unauthenticated endpoint with
+  // no consumer in either landing app. The list is asserted EXACTLY so the removal cannot
+  // regress and no second config field can join unnoticed. Analytics ids stay — they are
+  // rendered into the browser anyway.
+  const [, operation] = openApiOperations(declared["/api/v1/site-settings"] ?? {})[0] ?? [];
   const schema = (
-    declared["/api/v1/site-settings"] as {
-      get?: {
-        responses?: {
-          200?: {
-            content?: {
-              "application/json"?: {
-                schema?: { properties?: { settings?: { properties?: Record<string, unknown> } } };
-              };
-            };
-          };
+    operation?.responses?.["200"] as {
+      content?: {
+        "application/json"?: {
+          schema?: { properties?: { settings?: { properties?: Record<string, unknown> } } };
         };
       };
     }
-  )?.get?.responses?.[200]?.content?.["application/json"]?.schema;
+  )?.content?.["application/json"]?.schema;
 
   const fields = Object.keys(schema?.properties?.settings?.properties ?? {}).sort();
   expect(fields).toEqual(
@@ -341,37 +450,9 @@ test("site-settings exposes exactly the approved fields and no operator configur
   expect(fields).not.toContain("lead_form_destination");
 });
 
-test("every error response uses the bounded { error } envelope", () => {
-  // A raw provider or database message must never reach a public consumer.
-  const offenders: string[] = [];
-  for (const [path, ops] of Object.entries(declared)) {
-    for (const [method, op] of Object.entries(ops as Record<string, unknown>)) {
-      const responses = (op as { responses?: Record<string, unknown> }).responses ?? {};
-      for (const [status, body] of Object.entries(responses)) {
-        if (Number(status) < 400) continue;
-        const schema = (
-          body as {
-            content?: {
-              "application/json"?: { schema?: { properties?: Record<string, unknown> } };
-            };
-          }
-        ).content?.["application/json"]?.schema;
-        const keys = Object.keys(schema?.properties ?? {});
-        if (keys.length !== 1 || keys[0] !== "error") {
-          offenders.push(`${method.toUpperCase()} ${path} → ${status}: [${keys}]`);
-        }
-      }
-    }
-  }
-  expect(offenders).toEqual([]);
-});
-
 // ── Inventory hygiene ───────────────────────────────────────────────────────────────────────
 
 test("every unconventional decision in the inventory carries a written reason", () => {
-  // A public route kept out of the document, a non-standard auth mode, or a route with no
-  // consumer are each judgement calls. Requiring a note is what stops the inventory decaying
-  // into the ignore list it replaced.
   const undocumented: string[] = [];
   for (const [key, entry] of Object.entries(ROUTE_CLASSIFICATIONS)) {
     const unconventional =
