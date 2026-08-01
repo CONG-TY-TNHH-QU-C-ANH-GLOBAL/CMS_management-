@@ -1,23 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createApplicant, getCareersJob, isPastDeadline } from "@/features/careers";
+import { applicantRequestSchema } from "@/features/careers/careers.schemas";
 import { dispatchEvent } from "@/features/telegram";
-
-const applicantSchema = z.object({
-  job_slug: z.string().trim().min(1).max(200),
-  name: z.string().trim().min(1, "Tên không được rỗng").max(120),
-  email: z.string().trim().email("Email không hợp lệ").max(254),
-  phone: z.string().trim().max(40).optional().nullable(),
-  cv_url: z.string().trim().url("CV URL không hợp lệ").max(1000).optional().nullable(),
-  cover_letter: z.string().trim().max(5000).optional().nullable(),
-  locale: z.enum(["en", "vi", "zh"]),
-  source_page: z.string().trim().max(500).optional().nullable(),
-  utm: z.record(z.string()).optional().nullable(),
-  turnstile_token: z.string().min(1, "Missing Turnstile token"),
-});
 
 export const Route = createFileRoute("/api/v1/(public)/applicants/")({
   server: {
@@ -39,7 +26,7 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
           return corsError(request, 400, "Body phải là JSON hợp lệ");
         }
 
-        const parsed = applicantSchema.safeParse(body);
+        const parsed = applicantRequestSchema.safeParse(body);
         if (!parsed.success) {
           return corsError(request, 400, parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ");
         }

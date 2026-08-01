@@ -1,25 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { corsJson, corsOptions } from "@/core/middlewares/cors";
 import { guardCommunitySubmit, handleCommunityList } from "@/features/community/community.http";
+import { communityQuestionSubmitSchema } from "@/features/community/community.schemas";
 import {
   createCommunityQuestion,
   listPublishedCommunityQuestions,
   toPublicSummary,
 } from "@/features/community";
 import { dispatchEvent } from "@/features/telegram";
-
-const submitSchema = z.object({
-  title: z.string().trim().min(8, "Tiêu đề tối thiểu 8 ký tự").max(200),
-  body: z.string().trim().min(20, "Nội dung tối thiểu 20 ký tự").max(5000),
-  category_slug: z.string().trim().max(80).optional().nullable(),
-  author_name: z.string().trim().min(1, "Tên không được rỗng").max(80),
-  author_email: z.string().trim().email("Email không hợp lệ").max(254),
-  locale: z.enum(["en", "vi", "zh"]).optional().nullable(),
-  utm: z.record(z.string()).optional().nullable(),
-  turnstile_token: z.string().min(1, "Missing Turnstile token"),
-});
 
 export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
   server: {
@@ -29,7 +18,11 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
         handleCommunityList(request, "questions", listPublishedCommunityQuestions, toPublicSummary),
       POST: async ({ request }) => {
         // Rate limit (5/hr), JSON, schema + Turnstile — shared guard.
-        const guard = await guardCommunitySubmit(request, "community-questions", submitSchema);
+        const guard = await guardCommunitySubmit(
+          request,
+          "community-questions",
+          communityQuestionSubmitSchema,
+        );
         if (guard instanceof Response) return guard;
         const { ip, data } = guard;
 

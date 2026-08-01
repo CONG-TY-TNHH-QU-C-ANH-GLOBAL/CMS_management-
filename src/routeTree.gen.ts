@@ -81,6 +81,7 @@ import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
+import { Route as ApiV1adminApplicantCvSplatRouteImport } from './routes/api/v1/(admin)/applicant-cv/$'
 import { Route as ApiV1publicCommunityReviewsIndexRouteImport } from './routes/api/v1/(public)/community/reviews/index'
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
@@ -490,6 +491,12 @@ const ApiV1adminMediaUploadRoute = ApiV1adminMediaUploadRouteImport.update({
   path: '/api/v1/media/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1adminApplicantCvSplatRoute =
+  ApiV1adminApplicantCvSplatRouteImport.update({
+    id: '/api/v1/(admin)/applicant-cv/$',
+    path: '/api/v1/applicant-cv/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicCommunityReviewsIndexRoute =
   ApiV1publicCommunityReviewsIndexRouteImport.update({
     id: '/api/v1/(public)/community/reviews/',
@@ -583,6 +590,7 @@ export interface FileRoutesByFullPath {
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
+  '/api/v1/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
@@ -662,6 +670,7 @@ export interface FileRoutesByTo {
   '/admin/system/settings': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users': typeof AdminSystemUsersIndexRoute
+  '/api/v1/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
@@ -745,6 +754,7 @@ export interface FileRoutesById {
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
+  '/api/v1/(admin)/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/(admin)/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/(public)/blog/categories': typeof ApiV1publicBlogCategoriesRoute
@@ -829,6 +839,7 @@ export interface FileRouteTypes {
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
     | '/admin/system/users/'
+    | '/api/v1/applicant-cv/$'
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
@@ -908,6 +919,7 @@ export interface FileRouteTypes {
     | '/admin/system/settings'
     | '/admin/system/telegram'
     | '/admin/system/users'
+    | '/api/v1/applicant-cv/$'
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
@@ -990,6 +1002,7 @@ export interface FileRouteTypes {
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
     | '/admin/system/users/'
+    | '/api/v1/(admin)/applicant-cv/$'
     | '/api/v1/(admin)/media/upload'
     | '/api/v1/(public)/blog/$slug'
     | '/api/v1/(public)/blog/categories'
@@ -1066,6 +1079,7 @@ export interface RootRouteChildren {
   AdminSystemSettingsIndexRoute: typeof AdminSystemSettingsIndexRoute
   AdminSystemTelegramIndexRoute: typeof AdminSystemTelegramIndexRoute
   AdminSystemUsersIndexRoute: typeof AdminSystemUsersIndexRoute
+  ApiV1adminApplicantCvSplatRoute: typeof ApiV1adminApplicantCvSplatRoute
   ApiV1adminMediaUploadRoute: typeof ApiV1adminMediaUploadRoute
   ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
   ApiV1publicBlogCategoriesRoute: typeof ApiV1publicBlogCategoriesRoute
@@ -1608,6 +1622,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1adminMediaUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(admin)/applicant-cv/$': {
+      id: '/api/v1/(admin)/applicant-cv/$'
+      path: '/api/v1/applicant-cv/$'
+      fullPath: '/api/v1/applicant-cv/$'
+      preLoaderRoute: typeof ApiV1adminApplicantCvSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/community/reviews/': {
       id: '/api/v1/(public)/community/reviews/'
       path: '/api/v1/community/reviews'
@@ -1787,6 +1808,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSystemSettingsIndexRoute: AdminSystemSettingsIndexRoute,
   AdminSystemTelegramIndexRoute: AdminSystemTelegramIndexRoute,
   AdminSystemUsersIndexRoute: AdminSystemUsersIndexRoute,
+  ApiV1adminApplicantCvSplatRoute: ApiV1adminApplicantCvSplatRoute,
   ApiV1adminMediaUploadRoute: ApiV1adminMediaUploadRoute,
   ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
   ApiV1publicBlogCategoriesRoute: ApiV1publicBlogCategoriesRoute,

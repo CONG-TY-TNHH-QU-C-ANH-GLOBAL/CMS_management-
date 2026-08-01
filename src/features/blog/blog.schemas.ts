@@ -81,3 +81,16 @@ export const blogPostResponseSchema = z.object({
 });
 
 export type BlogPostResponse = z.infer<typeof blogPostResponseSchema>;
+
+// /api/v1/blog/categories?lang= response body.
+// Built in blog/categories.ts:17 as `{ locale, categories }`, where
+// `categories` is the DISTINCT non-null `category` column of live posts,
+// already sorted by the SQL (blog.service.ts:166-196). VI reads the source
+// column; EN/ZH prefer reviewed translations and fall back to the legacy
+// per-locale rows. An empty array is a valid, non-error response.
+export const blogCategoriesResponseSchema = z.object({
+  locale: localeSchema,
+  categories: z.array(z.string()),
+});
+
+export type BlogCategoriesResponse = z.infer<typeof blogCategoriesResponseSchema>;

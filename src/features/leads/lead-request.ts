@@ -50,7 +50,13 @@ export type SurfaceKey = (typeof SURFACE_KEYS)[number];
 
 // Common envelope + the multi-intent dimensions (all optional so the migration deploys before the
 // new client; the cross-field rules below enforce a coherent shape).
-const leadRequestBaseSchema = z.object({
+//
+// EXPORTED as the canonical POST /api/v1/leads request body for OpenAPI. It describes the FIELD
+// shape only; the cross-field rules (primary ∈ interests, no duplicate interests, per-service
+// details) live in parseLeadRequest below and are documented on the OpenAPI operation. Exporting
+// the same object — rather than restating it in src/openapi/paths.ts — is what makes the drift
+// check able to assert identity.
+export const leadRequestBaseSchema = z.object({
   name: z.string().trim().min(1, "Tên không được rỗng").max(120),
   email: z.string().trim().email("Email không hợp lệ").max(254),
   phone: z.string().trim().max(40).optional().nullable(),
