@@ -38,9 +38,36 @@ waits for any in-flight connection and is idempotent. **Hyperdrive owns cross-re
 
 **Migration execution does not depend on Hyperdrive** — no advisory locks over the pooled binding, no
 reliance on Hyperdrive session state. Migrations and bootstrap use a plain direct connection so that
-pooling/session multiplexing can never interfere with DDL or `CREATE ROLE`. The full migration runner is
-intentionally **not** built here (YAGNI until CI needs it); applying a `.sql` file over a direct
-connection is the whole contract.
+pooling/session multiplexing can never interfere with DDL or `CREATE ROLE`.
+
+### Migration runner
+
+This README previously said the runner was YAGNI "until CI needs it". A preview environment plus an
+importer is that point — applying a `.sql` file by hand stops being a contract the moment two people
+or two CI jobs can do it at once. The runner now lives in
+`src/features/content-pg/migrate/` and is driven by `scripts/pg-migrate.ts`:
+
+| Command | What it does | Needs credentials |
+| --- | --- | --- |
+| `bun run db:pg:plan` | Ordering + checksums from disk. Never connects. | no |
+| `bun run db:pg:status` | Applied vs pending, from `public.schema_migrations`. | yes |
+| `bun run db:pg:up` | Apply pending migrations under the advisory lock. | yes |
+| `bun run db:pg:bootstrap` | Apply `bootstrap/*.sql` — **not** recorded as history. | yes |
+| `bun run gate:pg-concurrency` | Two real sessions prove the lock serializes runners. | yes |
+
+Guarantees: `schema_migrations` history with SHA-256 checksums (an edited applied migration is
+rejected before anything new runs, and a deleted one is rejected too), ordered discovery, a session
+advisory lock taken **before** the history is read and released in a `finally`, bounded
+statement/lock timeouts, one reserved session (`max: 1`), transactional by default with a
+per-migration `-- migrate:no-transaction` opt-out declared in the file itself (and therefore
+covered by its checksum), idempotent rerun, and failure that stops at the first bad migration
+leaving no history row for it.
+
+Bootstrap is deliberately **not** a migration: roles are cluster objects and `bootstrap/0001` is
+re-runnable by design, so recording a checksum over it would claim an immutability it does not have.
+
+`gate:pg-concurrency` **fails** rather than skips when unconfigured — see
+[PREVIEW_PROVISIONING.md](./PREVIEW_PROVISIONING.md) for the owner steps that make it runnable.
 
 ## Role bootstrap lifecycle (§2)
 
@@ -170,7 +197,9 @@ when a URL is given). The **required** CI gate for the next phase is a different
 5. Prove **error mapping** (a driver/constraint error surfaces as a typed `ContentError`).
 6. **Log no secret** (assert the connection string never appears in output).
 
-This stays **documented CI work for Phase 2** until a preview Supabase project + preview Hyperdrive
-binding exist. The current `smoke:pg-runtime` is the local precursor; it deliberately connects directly
+Requirement 1 is now implemented for the migration half: `bun run gate:pg-concurrency` fails (exit 1)
+when the preview database is absent, and proves two-session lock serialization when it is present.
+Requirements 3–6 — the Worker/Hyperdrive hop itself — stay **documented CI work for Phase 2** until a
+preview Supabase project + preview Hyperdrive binding exist. The current `smoke:pg-runtime` is the local precursor; it deliberately connects directly
 (no Hyperdrive) and therefore does **not** satisfy requirement 3. **The Hyperdrive path is not verified
 until this gate runs.** No production binding is added now.
