@@ -28,9 +28,6 @@ import { expect, mock, test } from "bun:test";
 // objects instead of the files' text. Nothing is asserted against the stub.
 mock.module("cloudflare:workers", () => ({ env: {} }));
 
-// Imported from cors-origin, not cors: this module must load without the `cloudflare:workers`
-// binding, exactly like `requiredRoleOf` below.
-import { hasMutationOriginBoundary } from "@/core/middlewares/cors-origin";
 import { requiredRoleOf } from "@/features/auth/auth.guard";
 import type { Role } from "@/features/auth/auth.session";
 
@@ -56,6 +53,12 @@ import {
 } from "./route-classification";
 
 const API_ROUTES_DIR = join(import.meta.dir, "..", "routes", "api");
+
+// The mutation-boundary attestation is a module-private WeakSet in cors.ts, so the reader has to
+// come from that module — which binds `cloudflare:workers` at import time. Loading it lazily,
+// after the stub above, is what keeps this gate runnable outside the Worker runtime. A static
+// import would be hoisted above the stub, exactly as it would for the route modules below.
+const { hasMutationOriginBoundary } = await import("@/core/middlewares/cors");
 
 /** Every .ts file under the API route tree, as inventory keys. */
 function walkRouteKeys(dir: string): string[] {
@@ -280,13 +283,17 @@ test("every PUBLIC_WRITE_API state-changing handler carries the mutation-origin 
   ).toEqual([]);
 });
 
-test("the boundary is actually wired somewhere (guards against a vacuous pass)", () => {
+test("exactly the eight inventoried public writes carry the boundary", () => {
   const guarded = routeKeys.flatMap((key) =>
     [...loadedRoutes.get(key)!.boundaries].filter(([, on]) => on).map(([m]) => `${key} ${m}`),
   );
-  // Eight public writes are inventoried; if the loader or the brand silently broke, the
-  // assertion above would pass with an empty set and prove nothing.
-  expect(guarded.length).toBe(8);
+  // EXACT, not >=. Two things ride on the number. It guards against a vacuous pass — if the
+  // loader or the attestation silently broke, the assertion above would pass with an empty set
+  // and prove nothing. And it is an INVENTORY LOCK: a ninth public write must not slip in on the
+  // strength of "the guard is wired, so it's fine". Failing here forces the reviewer back
+  // through the classification entry, the boundary wiring, the tests and the security inventory
+  // — the maintenance is the point, not an accident.
+  expect(guarded).toHaveLength(8);
 });
 
 test("no read handler carries the mutation-origin boundary", () => {
@@ -298,7 +305,9 @@ test("no read handler carries the mutation-origin boundary", () => {
   expect(branded).toEqual([]);
 });
 
-test("the boundary brand cannot be forged by a comment, a string, or an unwrapped function", () => {
+test("the attestation cannot be forged — only a real wrapper satisfies it", () => {
+  // Attestation is membership in a module-private WeakSet, so there is no key to imitate.
+  // These are the shapes that a source-text check, and then a Symbol.for brand, each admitted.
   const comment = () => {
     // withMutationOriginBoundary(...)
     return new Response(null);
@@ -306,14 +315,27 @@ test("the boundary brand cannot be forged by a comment, a string, or an unwrappe
   const stringLiteral = () => new Response("withMutationOriginBoundary(");
   const plain = async () => new Response(null);
 
-  for (const candidate of [comment, stringLiteral, plain]) {
+  // A forged FUNCTION carrying the previously-used global symbol — the exact bypass the
+  // WeakSet replaced. `Symbol.for` is resolvable by key from anywhere, so this object could be
+  // built by any module; membership in the private registry cannot.
+  const LEGACY_BRAND = Symbol.for("thg.cors.mutationOriginBoundary");
+  const forgedFunction = async () => new Response(null);
+  Object.defineProperty(forgedFunction, LEGACY_BRAND, { value: true, enumerable: false });
+  // A forged function that also copies the wrapper's shape and name.
+  const forgedLookalike = Object.defineProperty(
+    async (ctx: { request: Request }) => new Response(ctx.request.url),
+    "name",
+    { value: "guarded" },
+  );
+  (forgedLookalike as unknown as Record<symbol, unknown>)[LEGACY_BRAND] = true;
+
+  for (const candidate of [comment, stringLiteral, plain, forgedFunction, forgedLookalike]) {
     expect(hasMutationOriginBoundary(candidate)).toBe(false);
   }
+  expect(hasMutationOriginBoundary({ [LEGACY_BRAND]: true })).toBe(false);
   expect(hasMutationOriginBoundary("withMutationOriginBoundary(")).toBe(false);
   expect(hasMutationOriginBoundary(undefined)).toBe(false);
-  expect(hasMutationOriginBoundary({ [Symbol.for("thg.cors.mutationOriginBoundary")]: true })).toBe(
-    false,
-  );
+  expect(hasMutationOriginBoundary(null)).toBe(false);
 });
 
 // ── Document coverage, driven by the classification ─────────────────────────────────────────

@@ -4,12 +4,7 @@
 
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
-import {
-  MUTATION_ORIGIN_BOUNDARY,
-  isAllowedMutationOrigin,
-  isLocalhostOrigin,
-  parseOriginAllowList,
-} from "./cors-origin";
+import { isAllowedMutationOrigin, isLocalhostOrigin, parseOriginAllowList } from "./cors-origin";
 
 const DEFAULT_CACHE = "public, s-maxage=300, stale-while-revalidate=900";
 
@@ -100,8 +95,21 @@ export function checkPublicMutationOrigin(request: Request): Response | null {
   return corsError(request, 403, "Nguồn gọi không được phép thực hiện thao tác này.");
 }
 
-/** Wrap a public mutation handler so the origin check runs BEFORE it and the boundary is
- *  readable from the handler object.
+/** Wrappers this module created, by identity.
+ *
+ *  ATTESTATION, NOT ENFORCEMENT. Runtime refusal is done by the wrapper closure below; this
+ *  registry exists only so the public-surface gate can prove which route handlers were wrapped.
+ *
+ *  A module-private WeakSet, deliberately not a `Symbol.for` brand. A global symbol is
+ *  discoverable by key from anywhere — `fn[Symbol.for("…")] = true` on an unwrapped function
+ *  would have satisfied the gate without the check ever running, which is exactly the forgery
+ *  the gate exists to prevent. Membership here can only be granted by the line below, inside the
+ *  same call that installs the check, and nothing is exported that could add to it. Weak keys
+ *  mean a discarded handler is still collectable. */
+const BOUNDARY_WRAPPERS = new WeakSet<object>();
+
+/** Wrap a public mutation handler so the origin check runs BEFORE it, and record the wrapper so
+ *  the route-surface gate can attest the wiring.
  *
  *  A disallowed origin means the inner handler is never invoked at all — so no rate-limit
  *  accounting, no body read, no Turnstile call, no owner-token lookup, no D1/R2 write and no
@@ -115,11 +123,17 @@ export function withMutationOriginBoundary<Ctx extends { request: Request }>(
     if (denied) return denied;
     return handler(ctx);
   };
-  Object.defineProperty(guarded, MUTATION_ORIGIN_BOUNDARY, {
-    value: true,
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  });
+  BOUNDARY_WRAPPERS.add(guarded);
   return guarded;
+}
+
+/** Whether a handler is a wrapper this module produced. Used by the public-surface gate to
+ *  verify coverage against the route classification.
+ *
+ *  True only for the exact function object `withMutationOriginBoundary` returned. A plain
+ *  function, a plain object, and a value carrying any property or symbol are all false — there
+ *  is no key to imitate. */
+export function hasMutationOriginBoundary(handler: unknown): boolean {
+  if (typeof handler !== "function") return false;
+  return BOUNDARY_WRAPPERS.has(handler);
 }

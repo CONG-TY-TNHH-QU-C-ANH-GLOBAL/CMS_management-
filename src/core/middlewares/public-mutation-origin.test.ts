@@ -99,68 +99,107 @@ const PUBLIC_DIR = join(import.meta.dir, "..", "..", "routes", "api", "v1", "(pu
 interface RouteCase {
   name: string;
   file: string;
-  /** A request body shaped so the handler would proceed if the boundary let it through. */
+  /** A request body VALID against the route's real request schema, so an allowed origin runs the
+   *  handler all the way to its mutation instead of stopping at a 400 that would prove nothing. */
   body?: unknown;
+  /** Send the body as multipart/form-data (applicant-cv takes no JSON). */
+  formData?: () => FormData;
   params?: Record<string, string>;
+  /** The collaborator whose invocation proves the whole downstream chain ran for an allowed
+   *  origin — rate limit, schema, Turnstile/owner-token, then the store write. */
+  reaches: keyof typeof spies;
 }
 
+// Bodies below are checked against the real schemas, not invented:
+//   leads              → features/leads/lead-request.ts leadRequestBaseSchema (name, email required)
+//   community submits  → community.schemas.ts (title ≥8, body ≥20, *_name, *_email, turnstile_token)
+//   community withdraw → community.schemas.ts communityWithdrawRequestSchema = { ownerToken }
+//                        camelCase is the FROZEN request contract here — the CMS returns
+//                        `owner_token` but CONSUMES `ownerToken`, and the landing client sends
+//                        exactly that. Do not "correct" it to snake_case.
+//   applicants         → careers.schemas.ts applicantRequestSchema (`name`, not `full_name`;
+//                        `locale` is REQUIRED)
+//   applicant-cv       → no Zod schema: multipart/form-data with a single `file` field.
 const ROUTES: RouteCase[] = [
   {
     name: "POST /leads",
     file: "leads/index.ts",
     body: { name: "a", email: "a@b.co", source_page: "/vi", locale: "vi", turnstile_token: "t" },
+    reaches: "createLead",
   },
   {
     name: "POST /community/questions",
     file: "community/questions/index.ts",
     body: {
-      title: "aaaaaaaaaa",
-      body: "bbbbbbbbbbbbbbbbbbbb",
+      title: "Tiêu đề hợp lệ",
+      body: "Nội dung đủ dài để qua ràng buộc tối thiểu.",
       author_name: "a",
       author_email: "a@b.co",
+      locale: "vi",
       turnstile_token: "t",
     },
+    reaches: "createCommunityQuestion",
   },
   {
     name: "POST /community/reviews",
     file: "community/reviews/index.ts",
     body: {
-      title: "aaaaaaaaaa",
-      body: "bbbbbbbbbbbbbbbbbbbb",
+      title: "Tiêu đề hợp lệ",
+      body: "Nội dung đủ dài để qua ràng buộc tối thiểu.",
       reviewer_name: "a",
       reviewer_email: "a@b.co",
+      rating: 5,
+      locale: "vi",
       turnstile_token: "t",
     },
+    reaches: "createCommunityReview",
   },
   {
     name: "POST /community/questions/{slug}/same-issue",
     file: "community/questions/$slug.same-issue.ts",
     params: { slug: "q" },
+    reaches: "addSameIssueReaction",
   },
   {
     name: "POST /community/questions/{slug}/withdraw",
     file: "community/questions/$slug.withdraw.ts",
     body: { ownerToken: "t" },
     params: { slug: "q" },
+    reaches: "withdrawCommunityQuestion",
   },
   {
     name: "POST /community/reviews/{slug}/withdraw",
     file: "community/reviews/$slug.withdraw.ts",
     body: { ownerToken: "t" },
     params: { slug: "r" },
+    reaches: "withdrawCommunityReview",
   },
   {
     name: "POST /applicants",
     file: "applicants/index.ts",
     body: {
       job_slug: "j",
-      full_name: "a",
+      name: "a",
       email: "a@b.co",
       phone: "0900000000",
+      locale: "vi",
       turnstile_token: "t",
     },
+    reaches: "createApplicant",
   },
-  { name: "POST /applicant-cv", file: "applicant-cv/index.ts" },
+  {
+    name: "POST /applicant-cv",
+    file: "applicant-cv/index.ts",
+    formData: () => {
+      const form = new FormData();
+      const pdf = new File([new Uint8Array([37, 80, 68, 70])], "cv.pdf", {
+        type: "application/pdf",
+      });
+      form.set("file", pdf);
+      return form;
+    },
+    reaches: "mediaPut",
+  },
 ];
 
 type Handler = (ctx: { request: Request; params?: Record<string, string> }) => Promise<Response>;
@@ -175,12 +214,14 @@ async function postHandlerOf(file: string): Promise<Handler> {
 function requestFor(route: RouteCase, origin: string | null): Request {
   const headers = new Headers({ "cf-connecting-ip": "203.0.113.7" });
   if (origin !== null) headers.set("origin", origin);
+  // multipart sets its own content-type (with the boundary); never set it by hand.
   if (route.body !== undefined) headers.set("content-type", "application/json");
-  return new Request("https://cms.thgfulfill.com/api/v1/x", {
-    method: "POST",
-    headers,
-    body: route.body === undefined ? undefined : JSON.stringify(route.body),
-  });
+  const body = route.formData
+    ? route.formData()
+    : route.body === undefined
+      ? undefined
+      : JSON.stringify(route.body);
+  return new Request("https://cms.thgfulfill.com/api/v1/x", { method: "POST", headers, body });
 }
 
 function expectNoSideEffects(label: string): void {
@@ -236,7 +277,7 @@ describe("disallowed: a missing Origin header", () => {
 
 describe("allowed: the configured production landing origin", () => {
   test.each(ROUTES.map((r) => [r.name, r] as const))(
-    "%s passes the boundary and reaches its existing rate-limit control",
+    "%s passes the boundary and completes its real downstream chain",
     async (_name, route) => {
       const handler = await postHandlerOf(route.file);
       const response = await handler({
@@ -244,10 +285,16 @@ describe("allowed: the configured production landing origin", () => {
         params: route.params,
       });
 
-      // The boundary did not refuse: the handler body ran, so the first downstream control
-      // (the shared IP rate limiter every public write calls) was reached.
       expect(response.status).not.toBe(403);
+      // The first downstream control ran…
       expect(spies.rateLimit.mock.calls.length).toBeGreaterThan(0);
+      // …and so did the last one. Reaching the store write means the fixture satisfied the real
+      // request schema and the real Turnstile / owner-token step — a 400 from a mistyped fixture
+      // would also be "not 403" and would have proved nothing about the allowed path.
+      expect(
+        spies[route.reaches].mock.calls.length,
+        `${route.name}: expected ${route.reaches} to be reached (status ${response.status})`,
+      ).toBeGreaterThan(0);
     },
   );
 });

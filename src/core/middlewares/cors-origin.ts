@@ -72,22 +72,3 @@ export function isAllowedMutationOrigin(
   if (allowList.includes(normalized)) return true;
   return options.allowLoopback && isLocalhostOrigin(normalized);
 }
-
-/** Brand marking a route handler as carrying the mutation-origin boundary. Non-enumerable where
- *  it is set, so it never reaches a response body, a log line or a JSON serialization.
- *
- *  The brand and its reader live in THIS module, not in cors.ts, for the reason this file exists
- *  at all: cors.ts binds `cloudflare:workers` at import time, and the public-surface gate must
- *  read the brand without booting the Worker runtime. `withMutationOriginBoundary` (cors.ts) is
- *  the only thing that sets it, and it is the same call that performs the check. */
-export const MUTATION_ORIGIN_BOUNDARY = Symbol.for("thg.cors.mutationOriginBoundary");
-
-/** Whether a handler carries the mutation-origin boundary. Used by the public-surface gate to
- *  verify coverage against the route classification.
- *
- *  Requires a FUNCTION: a plain object carrying the symbol is not a handler and must not be able
- *  to satisfy the gate. */
-export function hasMutationOriginBoundary(handler: unknown): boolean {
-  if (typeof handler !== "function") return false;
-  return (handler as unknown as Record<symbol, unknown>)[MUTATION_ORIGIN_BOUNDARY] === true;
-}

@@ -2,7 +2,14 @@
 
 ## 1. Status
 
-**DRAFT — specification only, not approved, not implemented.**
+**IMPLEMENTED ON BRANCH — pending remote review, merge, production Worker deployment, and
+runtime verification.**
+
+Implemented on `feat/Anh/public-mutation-origin-boundary`. Nothing below is deployment-verified:
+§15.1's four Landing R1 unblock conditions all remain open, and **Landing R1 stays BLOCKED**.
+Route-surface attestation is a module-private WeakSet in `cors.ts` (not a `Symbol.for` brand,
+which a remote review showed to be forgeable by any module); it attests wiring only and runtime
+refusal never depends on it.
 No spec convention existed in this repository (`docs/` holds long-lived architecture and
 `*-spec.md` feature documents); `specs/active/` is introduced to mirror the paired landing slice
 `THG_landingpage:specs/active/R1-vercel-preview-baseline.md` and to keep lifecycle slices out of `docs/`.
