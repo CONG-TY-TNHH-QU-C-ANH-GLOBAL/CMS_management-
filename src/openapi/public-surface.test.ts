@@ -54,6 +54,12 @@ import {
 
 const API_ROUTES_DIR = join(import.meta.dir, "..", "routes", "api");
 
+// The mutation-boundary attestation is a module-private WeakSet in cors.ts, so the reader has to
+// come from that module — which binds `cloudflare:workers` at import time. Loading it lazily,
+// after the stub above, is what keeps this gate runnable outside the Worker runtime. A static
+// import would be hoisted above the stub, exactly as it would for the route modules below.
+const { hasMutationOriginBoundary } = await import("@/core/middlewares/cors");
+
 /** Every .ts file under the API route tree, as inventory keys. */
 function walkRouteKeys(dir: string): string[] {
   const out: string[] = [];
@@ -75,6 +81,9 @@ interface LoadedRoute {
   methods: HttpMethod[];
   /** Enforced role per method, read from the branded handler. null = not a guarded handler. */
   roles: Map<HttpMethod, Role | null>;
+  /** Whether each method's handler carries the CMS-P1 mutation-origin boundary, read from the
+   *  same handler value — not from the file's text. */
+  boundaries: Map<HttpMethod, boolean>;
 }
 
 /**
@@ -90,6 +99,7 @@ async function loadRoute(key: string): Promise<LoadedRoute> {
   const handlers = module.Route?.options?.server?.handlers ?? {};
   const methods: HttpMethod[] = [];
   const roles = new Map<HttpMethod, Role | null>();
+  const boundaries = new Map<HttpMethod, boolean>();
 
   for (const [name, handler] of Object.entries(handlers)) {
     const method = name.toLowerCase();
@@ -97,10 +107,11 @@ async function loadRoute(key: string): Promise<LoadedRoute> {
     if (!(HTTP_METHODS as readonly string[]).includes(method)) continue;
     methods.push(method as HttpMethod);
     roles.set(method as HttpMethod, requiredRoleOf(handler));
+    boundaries.set(method as HttpMethod, hasMutationOriginBoundary(handler));
   }
   // Canonical HTTP order, matching openApiOperations, so the three sources compare directly.
   methods.sort(compareHttpMethods);
-  return { methods, roles };
+  return { methods, roles, boundaries };
 }
 
 const loadedRoutes = new Map<string, LoadedRoute>(
@@ -240,6 +251,91 @@ test("the brand cannot be forged by a comment, a string, or an unwrapped functio
   }
   expect(requiredRoleOf('requireSession("admin")')).toBeNull();
   expect(requiredRoleOf(undefined)).toBeNull();
+});
+
+// ── Browser mutation boundary (CMS-P1), read from the registered handler ────────────────────
+//
+// The classification owns the invariant: a route recorded as PUBLIC_WRITE_API is by definition a
+// public state-changing endpoint, so its state-changing handlers must carry the boundary. Adding
+// a new public write therefore forces the decision — the entry cannot be filed without the gate
+// demanding the guard, and the guard cannot be claimed without the wrapper that performs it.
+
+/** State-changing methods. GET is a read and never carries the boundary. */
+const MUTATING_METHODS: readonly HttpMethod[] = HTTP_METHODS.filter(
+  (m) => m !== "get",
+) as HttpMethod[];
+
+test("every PUBLIC_WRITE_API state-changing handler carries the mutation-origin boundary", () => {
+  const unguarded: string[] = [];
+  for (const key of routeKeys) {
+    const entry = classified(key);
+    if (entry?.classification !== "PUBLIC_WRITE_API") continue;
+    for (const [method, guarded] of loadedRoutes.get(key)!.boundaries) {
+      if (!MUTATING_METHODS.includes(method)) continue;
+      if (!guarded) unguarded.push(`${key} ${method.toUpperCase()}`);
+    }
+  }
+  expect(
+    unguarded,
+    "A public write must compose its handler with withMutationOriginBoundary(…). That call IS " +
+      "the origin check, so the brand cannot be present without the check running — and a " +
+      "disallowed browser origin must never reach rate limiting, Turnstile or a store write.",
+  ).toEqual([]);
+});
+
+test("exactly the eight inventoried public writes carry the boundary", () => {
+  const guarded = routeKeys.flatMap((key) =>
+    [...loadedRoutes.get(key)!.boundaries].filter(([, on]) => on).map(([m]) => `${key} ${m}`),
+  );
+  // EXACT, not >=. Two things ride on the number. It guards against a vacuous pass — if the
+  // loader or the attestation silently broke, the assertion above would pass with an empty set
+  // and prove nothing. And it is an INVENTORY LOCK: a ninth public write must not slip in on the
+  // strength of "the guard is wired, so it's fine". Failing here forces the reviewer back
+  // through the classification entry, the boundary wiring, the tests and the security inventory
+  // — the maintenance is the point, not an accident.
+  expect(guarded).toHaveLength(8);
+});
+
+test("no read handler carries the mutation-origin boundary", () => {
+  // Reads must be untouched by CMS-P1 — including the GET side of the two readWrite routes.
+  const branded: string[] = [];
+  for (const key of routeKeys) {
+    if (loadedRoutes.get(key)!.boundaries.get("get")) branded.push(`${key} GET`);
+  }
+  expect(branded).toEqual([]);
+});
+
+test("the attestation cannot be forged — only a real wrapper satisfies it", () => {
+  // Attestation is membership in a module-private WeakSet, so there is no key to imitate.
+  // These are the shapes that a source-text check, and then a Symbol.for brand, each admitted.
+  const comment = () => {
+    // withMutationOriginBoundary(...)
+    return new Response(null);
+  };
+  const stringLiteral = () => new Response("withMutationOriginBoundary(");
+  const plain = async () => new Response(null);
+
+  // A forged FUNCTION carrying the previously-used global symbol — the exact bypass the
+  // WeakSet replaced. `Symbol.for` is resolvable by key from anywhere, so this object could be
+  // built by any module; membership in the private registry cannot.
+  const LEGACY_BRAND = Symbol.for("thg.cors.mutationOriginBoundary");
+  const forgedFunction = async () => new Response(null);
+  Object.defineProperty(forgedFunction, LEGACY_BRAND, { value: true, enumerable: false });
+  // A forged function that also copies the wrapper's shape and name.
+  const forgedLookalike = Object.defineProperty(
+    async (ctx: { request: Request }) => new Response(ctx.request.url),
+    "name",
+    { value: "guarded" },
+  );
+  (forgedLookalike as unknown as Record<symbol, unknown>)[LEGACY_BRAND] = true;
+
+  for (const candidate of [comment, stringLiteral, plain, forgedFunction, forgedLookalike]) {
+    expect(hasMutationOriginBoundary(candidate)).toBe(false);
+  }
+  expect(hasMutationOriginBoundary({ [LEGACY_BRAND]: true })).toBe(false);
+  expect(hasMutationOriginBoundary("withMutationOriginBoundary(")).toBe(false);
+  expect(hasMutationOriginBoundary(undefined)).toBe(false);
+  expect(hasMutationOriginBoundary(null)).toBe(false);
 });
 
 // ── Document coverage, driven by the classification ─────────────────────────────────────────

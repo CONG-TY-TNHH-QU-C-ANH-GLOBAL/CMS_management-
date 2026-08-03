@@ -4,7 +4,7 @@
 
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
-import { isLocalhostOrigin } from "./cors-origin";
+import { isAllowedMutationOrigin, isLocalhostOrigin, parseOriginAllowList } from "./cors-origin";
 
 const DEFAULT_CACHE = "public, s-maxage=300, stale-while-revalidate=900";
 
@@ -60,4 +60,80 @@ export function corsError(
 
 export function corsOptions(request: Request): Response {
   return new Response(null, { status: 204, headers: corsHeaders(request) });
+}
+
+// ── Public browser mutation boundary (CMS-P1) ───────────────────────────────
+//
+// WHY A SECOND CONCEPT IN THIS FILE. Everything above builds RESPONSE headers:
+// it decides whether a browser may EXPOSE a cross-origin response. That is not
+// a mutation boundary. `getAllowedOrigin` returns `list[0]` for an unlisted
+// origin and the handler still runs, so today an unlisted page's POST reaches
+// D1/R2 and only the response is withheld from it. Worse, two public writes are
+// CORS-SIMPLE (`same-issue` sends `Accept` only; `applicant-cv` sends
+// `multipart/form-data`), so the browser never preflights them — preflight can
+// never be the boundary. The wrapper below rejects on the ACTUAL request,
+// before any side effect, which is the only place the decision can be enforced.
+//
+// It is NOT authentication. It constrains browsers, which set Origin
+// unforgeably; it does not constrain a client that writes its own headers.
+// Rate limiting, Turnstile and owner tokens remain the controls for that.
+
+/** 403 when this request's browser origin may not mutate, otherwise null.
+ *
+ *  Built with `corsError`, so the refusal still carries CORS headers and `Cache-Control:
+ *  no-store` — a refused caller gets a clean, uncached error rather than an opaque failure.
+ *  The body is the bounded `{ error }` envelope every public route already returns; no callers
+ *  parse it (both landing clients discard error bodies by policy). */
+export function checkPublicMutationOrigin(request: Request): Response | null {
+  const allowed = isAllowedMutationOrigin(
+    request.headers.get("origin"),
+    parseOriginAllowList(env.CORS_ORIGIN),
+    // Vite tree-shakes the dev branch out of production bundles, exactly as csrf.ts does.
+    { allowLoopback: !import.meta.env.PROD },
+  );
+  if (allowed) return null;
+  return corsError(request, 403, "Nguồn gọi không được phép thực hiện thao tác này.");
+}
+
+/** Wrappers this module created, by identity.
+ *
+ *  ATTESTATION, NOT ENFORCEMENT. Runtime refusal is done by the wrapper closure below; this
+ *  registry exists only so the public-surface gate can prove which route handlers were wrapped.
+ *
+ *  A module-private WeakSet, deliberately not a `Symbol.for` brand. A global symbol is
+ *  discoverable by key from anywhere — `fn[Symbol.for("…")] = true` on an unwrapped function
+ *  would have satisfied the gate without the check ever running, which is exactly the forgery
+ *  the gate exists to prevent. Membership here can only be granted by the line below, inside the
+ *  same call that installs the check, and nothing is exported that could add to it. Weak keys
+ *  mean a discarded handler is still collectable. */
+const BOUNDARY_WRAPPERS = new WeakSet<object>();
+
+/** Wrap a public mutation handler so the origin check runs BEFORE it, and record the wrapper so
+ *  the route-surface gate can attest the wiring.
+ *
+ *  A disallowed origin means the inner handler is never invoked at all — so no rate-limit
+ *  accounting, no body read, no Turnstile call, no owner-token lookup, no D1/R2 write and no
+ *  Telegram dispatch can occur. That is a structural property of wrapping, not a convention a
+ *  future edit inside the handler could quietly break. */
+export function withMutationOriginBoundary<Ctx extends { request: Request }>(
+  handler: (ctx: Ctx) => Response | Promise<Response>,
+): (ctx: Ctx) => Promise<Response> {
+  const guarded = async (ctx: Ctx): Promise<Response> => {
+    const denied = checkPublicMutationOrigin(ctx.request);
+    if (denied) return denied;
+    return handler(ctx);
+  };
+  BOUNDARY_WRAPPERS.add(guarded);
+  return guarded;
+}
+
+/** Whether a handler is a wrapper this module produced. Used by the public-surface gate to
+ *  verify coverage against the route classification.
+ *
+ *  True only for the exact function object `withMutationOriginBoundary` returned. A plain
+ *  function, a plain object, and a value carrying any property or symbol are all false — there
+ *  is no key to imitate. */
+export function hasMutationOriginBoundary(handler: unknown): boolean {
+  if (typeof handler !== "function") return false;
+  return BOUNDARY_WRAPPERS.has(handler);
 }

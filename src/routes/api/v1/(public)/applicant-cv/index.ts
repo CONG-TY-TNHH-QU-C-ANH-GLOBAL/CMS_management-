@@ -10,7 +10,12 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 
-import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
+import {
+  corsError,
+  corsJson,
+  corsOptions,
+  withMutationOriginBoundary,
+} from "@/core/middlewares/cors";
 import { getClientIp, rateLimit } from "@/core/middlewares/rate-limit";
 import { APPLICANT_CV_PREFIX } from "@/features/media/media.private";
 import { applicantCvUrlPath } from "@/features/careers/careers.cv";
@@ -57,7 +62,7 @@ export const Route = createFileRoute("/api/v1/(public)/applicant-cv/")({
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
-      POST: async ({ request }) => {
+      POST: withMutationOriginBoundary(async ({ request }: { request: Request }) => {
         const { env } = await import("cloudflare:workers");
         const ip = getClientIp(request);
 
@@ -97,7 +102,7 @@ export const Route = createFileRoute("/api/v1/(public)/applicant-cv/")({
         // Authenticated retrieval path — never the public media proxy.
         const url = `${env.BASE_URL}${applicantCvUrlPath(key)}`;
         return corsJson(request, { ok: true, url, filename: file.name, size: file.size });
-      },
+      }),
     },
   },
 });

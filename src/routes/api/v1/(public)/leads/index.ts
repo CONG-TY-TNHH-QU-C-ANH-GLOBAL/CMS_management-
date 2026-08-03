@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
+import {
+  corsError,
+  corsJson,
+  corsOptions,
+  withMutationOriginBoundary,
+} from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createLead, parseLeadRequest } from "@/features/leads";
 import { dispatchEvent } from "@/features/telegram";
@@ -9,7 +14,7 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
-      POST: async ({ request }) => {
+      POST: withMutationOriginBoundary(async ({ request }: { request: Request }) => {
         const ip = getClientIp(request);
 
         // Rate limit: 10 submissions per IP per hour.
@@ -89,7 +94,7 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           { ok: true, id },
           { status: 201, headers: { "Cache-Control": "no-store" } },
         );
-      },
+      }),
     },
   },
 });

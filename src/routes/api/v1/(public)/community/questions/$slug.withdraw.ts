@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { corsOptions } from "@/core/middlewares/cors";
+import { corsOptions, withMutationOriginBoundary } from "@/core/middlewares/cors";
 import { handleCommunityWithdraw } from "@/features/community/community.http";
 import { withdrawCommunityQuestion } from "@/features/community";
 
@@ -8,14 +8,16 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/$slug
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
-      POST: ({ request, params }) =>
-        handleCommunityWithdraw(
-          request,
-          params.slug,
-          "community-withdraw",
-          withdrawCommunityQuestion,
-          "Không thể rút câu hỏi này.",
-        ),
+      POST: withMutationOriginBoundary(
+        ({ request, params }: { request: Request; params: { slug: string } }) =>
+          handleCommunityWithdraw(
+            request,
+            params.slug,
+            "community-withdraw",
+            withdrawCommunityQuestion,
+            "Không thể rút câu hỏi này.",
+          ),
+      ),
     },
   },
 });

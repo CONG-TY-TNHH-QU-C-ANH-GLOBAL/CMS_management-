@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
+import {
+  corsError,
+  corsJson,
+  corsOptions,
+  withMutationOriginBoundary,
+} from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createApplicant, getCareersJob, isPastDeadline } from "@/features/careers";
 import { applicantRequestSchema } from "@/features/careers/careers.schemas";
@@ -10,7 +15,7 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
   server: {
     handlers: {
       OPTIONS: ({ request }) => corsOptions(request),
-      POST: async ({ request }) => {
+      POST: withMutationOriginBoundary(async ({ request }: { request: Request }) => {
         const ip = getClientIp(request);
 
         // Stricter rate limit: 5/h per IP — applicants are higher-cost than leads.
@@ -96,7 +101,7 @@ export const Route = createFileRoute("/api/v1/(public)/applicants/")({
         }
 
         return corsJson(request, { ok: true, id: inserted.id });
-      },
+      }),
     },
   },
 });
