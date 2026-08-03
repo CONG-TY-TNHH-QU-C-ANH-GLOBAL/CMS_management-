@@ -28,6 +28,9 @@ import { expect, mock, test } from "bun:test";
 // objects instead of the files' text. Nothing is asserted against the stub.
 mock.module("cloudflare:workers", () => ({ env: {} }));
 
+// Imported from cors-origin, not cors: this module must load without the `cloudflare:workers`
+// binding, exactly like `requiredRoleOf` below.
+import { hasMutationOriginBoundary } from "@/core/middlewares/cors-origin";
 import { requiredRoleOf } from "@/features/auth/auth.guard";
 import type { Role } from "@/features/auth/auth.session";
 
@@ -75,6 +78,9 @@ interface LoadedRoute {
   methods: HttpMethod[];
   /** Enforced role per method, read from the branded handler. null = not a guarded handler. */
   roles: Map<HttpMethod, Role | null>;
+  /** Whether each method's handler carries the CMS-P1 mutation-origin boundary, read from the
+   *  same handler value — not from the file's text. */
+  boundaries: Map<HttpMethod, boolean>;
 }
 
 /**
@@ -90,6 +96,7 @@ async function loadRoute(key: string): Promise<LoadedRoute> {
   const handlers = module.Route?.options?.server?.handlers ?? {};
   const methods: HttpMethod[] = [];
   const roles = new Map<HttpMethod, Role | null>();
+  const boundaries = new Map<HttpMethod, boolean>();
 
   for (const [name, handler] of Object.entries(handlers)) {
     const method = name.toLowerCase();
@@ -97,10 +104,11 @@ async function loadRoute(key: string): Promise<LoadedRoute> {
     if (!(HTTP_METHODS as readonly string[]).includes(method)) continue;
     methods.push(method as HttpMethod);
     roles.set(method as HttpMethod, requiredRoleOf(handler));
+    boundaries.set(method as HttpMethod, hasMutationOriginBoundary(handler));
   }
   // Canonical HTTP order, matching openApiOperations, so the three sources compare directly.
   methods.sort(compareHttpMethods);
-  return { methods, roles };
+  return { methods, roles, boundaries };
 }
 
 const loadedRoutes = new Map<string, LoadedRoute>(
@@ -240,6 +248,72 @@ test("the brand cannot be forged by a comment, a string, or an unwrapped functio
   }
   expect(requiredRoleOf('requireSession("admin")')).toBeNull();
   expect(requiredRoleOf(undefined)).toBeNull();
+});
+
+// ── Browser mutation boundary (CMS-P1), read from the registered handler ────────────────────
+//
+// The classification owns the invariant: a route recorded as PUBLIC_WRITE_API is by definition a
+// public state-changing endpoint, so its state-changing handlers must carry the boundary. Adding
+// a new public write therefore forces the decision — the entry cannot be filed without the gate
+// demanding the guard, and the guard cannot be claimed without the wrapper that performs it.
+
+/** State-changing methods. GET is a read and never carries the boundary. */
+const MUTATING_METHODS: readonly HttpMethod[] = HTTP_METHODS.filter(
+  (m) => m !== "get",
+) as HttpMethod[];
+
+test("every PUBLIC_WRITE_API state-changing handler carries the mutation-origin boundary", () => {
+  const unguarded: string[] = [];
+  for (const key of routeKeys) {
+    const entry = classified(key);
+    if (entry?.classification !== "PUBLIC_WRITE_API") continue;
+    for (const [method, guarded] of loadedRoutes.get(key)!.boundaries) {
+      if (!MUTATING_METHODS.includes(method)) continue;
+      if (!guarded) unguarded.push(`${key} ${method.toUpperCase()}`);
+    }
+  }
+  expect(
+    unguarded,
+    "A public write must compose its handler with withMutationOriginBoundary(…). That call IS " +
+      "the origin check, so the brand cannot be present without the check running — and a " +
+      "disallowed browser origin must never reach rate limiting, Turnstile or a store write.",
+  ).toEqual([]);
+});
+
+test("the boundary is actually wired somewhere (guards against a vacuous pass)", () => {
+  const guarded = routeKeys.flatMap((key) =>
+    [...loadedRoutes.get(key)!.boundaries].filter(([, on]) => on).map(([m]) => `${key} ${m}`),
+  );
+  // Eight public writes are inventoried; if the loader or the brand silently broke, the
+  // assertion above would pass with an empty set and prove nothing.
+  expect(guarded.length).toBe(8);
+});
+
+test("no read handler carries the mutation-origin boundary", () => {
+  // Reads must be untouched by CMS-P1 — including the GET side of the two readWrite routes.
+  const branded: string[] = [];
+  for (const key of routeKeys) {
+    if (loadedRoutes.get(key)!.boundaries.get("get")) branded.push(`${key} GET`);
+  }
+  expect(branded).toEqual([]);
+});
+
+test("the boundary brand cannot be forged by a comment, a string, or an unwrapped function", () => {
+  const comment = () => {
+    // withMutationOriginBoundary(...)
+    return new Response(null);
+  };
+  const stringLiteral = () => new Response("withMutationOriginBoundary(");
+  const plain = async () => new Response(null);
+
+  for (const candidate of [comment, stringLiteral, plain]) {
+    expect(hasMutationOriginBoundary(candidate)).toBe(false);
+  }
+  expect(hasMutationOriginBoundary("withMutationOriginBoundary(")).toBe(false);
+  expect(hasMutationOriginBoundary(undefined)).toBe(false);
+  expect(hasMutationOriginBoundary({ [Symbol.for("thg.cors.mutationOriginBoundary")]: true })).toBe(
+    false,
+  );
 });
 
 // ── Document coverage, driven by the classification ─────────────────────────────────────────

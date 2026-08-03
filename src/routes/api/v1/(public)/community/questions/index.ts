@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { corsJson, corsOptions } from "@/core/middlewares/cors";
+import { corsJson, corsOptions, withMutationOriginBoundary } from "@/core/middlewares/cors";
 import { guardCommunitySubmit, handleCommunityList } from "@/features/community/community.http";
 import { communityQuestionSubmitSchema } from "@/features/community/community.schemas";
 import {
@@ -16,7 +16,9 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
       OPTIONS: ({ request }) => corsOptions(request),
       GET: ({ request }) =>
         handleCommunityList(request, "questions", listPublishedCommunityQuestions, toPublicSummary),
-      POST: async ({ request }) => {
+      // Only POST carries the mutation-origin boundary; the GET above is a content read and is
+      // deliberately left unchanged.
+      POST: withMutationOriginBoundary(async ({ request }: { request: Request }) => {
         // Rate limit (5/hr), JSON, schema + Turnstile — shared guard.
         const guard = await guardCommunitySubmit(
           request,
@@ -67,7 +69,7 @@ export const Route = createFileRoute("/api/v1/(public)/community/questions/")({
           { ok: true, id, slug, status: "pending", owner_token: ownerToken },
           { status: 201, headers: { "Cache-Control": "no-store" } },
         );
-      },
+      }),
     },
   },
 });
