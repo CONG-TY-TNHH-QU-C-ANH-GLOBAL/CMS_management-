@@ -48,6 +48,7 @@ import {
   sitemapResponseSchema,
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
+import { partnersResponseSchema } from "@/features/partners/partners.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -82,6 +83,7 @@ import {
   faqsRouteConfig,
   homepageRouteConfig,
   integrationsRouteConfig,
+  partnersRouteConfig,
   jobRouteConfig,
   jobsListRouteConfig,
   leadsRouteConfig,
@@ -198,6 +200,7 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(testimonialsRouteConfig, 200, testimonialsResponseSchema),
   response(contactLocationsRouteConfig, 200, contactLocationsResponseSchema),
   response(integrationsRouteConfig, 200, integrationsResponseSchema),
+  response(partnersRouteConfig, 200, partnersResponseSchema),
   response(translationsRouteConfig, 200, translationsResponseSchema),
   response(blogListRouteConfig, 200, blogListResponseSchema),
   response(blogPostRouteConfig, 200, blogPostResponseSchema),
