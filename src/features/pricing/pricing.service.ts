@@ -31,6 +31,10 @@ export interface PricingTableSummary {
 }
 
 function inferCategory(slug: string): string {
+  // Without this branch the chinhNgach* slugs fall through to "Khác": they match
+  // no existing prefix ("ch" is not "cn"), so the admin would group the whole
+  // VN→US chính ngạch set under a catch-all heading.
+  if (slug.startsWith("chinhNgach")) return "Chính ngạch VN→US";
   if (slug.startsWith("expressVnUs")) return "Express VN→US (Hàng Lô)";
   if (slug.startsWith("expressCn")) return "Express CN→US (Hàng Lô)";
   if (slug.startsWith("express")) return "Express";
