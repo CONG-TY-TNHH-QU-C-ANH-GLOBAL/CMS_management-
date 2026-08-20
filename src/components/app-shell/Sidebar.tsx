@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Home, FileText, Boxes, DollarSign, HelpCircle, Scroll,
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
-  Plug, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
+  Plug, Handshake, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
   Layers, MessagesSquare, Star,
 } from "lucide-react";
 import { useState } from "react";
@@ -22,6 +22,7 @@ const NAV: NavGroup[] = [
       { to: "/admin/content/faqs", icon: HelpCircle, label: "Câu hỏi thường gặp" },
       { to: "/admin/content/testimonials", icon: MessageSquareQuote, label: "Đánh giá khách hàng" },
       { to: "/admin/content/marketplaces", icon: Plug, label: "Sàn thương mại" },
+      { to: "/admin/content/partners", icon: Handshake, label: "Đối tác" },
       { to: "/admin/content/gallery", icon: Images, label: "Banner cuộn trang chủ" },
       { to: "/admin/content/contact", icon: MapPin, label: "Liên hệ & Văn phòng" },
       { to: "/admin/content/blogs", icon: FileText, label: "Bài viết" },

@@ -56,6 +56,7 @@ import {
   sitemapResponseSchema,
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
+import { partnersResponseSchema } from "@/features/partners/partners.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -167,6 +168,27 @@ export const integrationsRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(integrationsRouteConfig);
+
+// Mirrors partners route at src/routes/api/v1/(public)/partners/index.ts.
+// Distinct from /integrations: that endpoint lists marketplace/platform syncs,
+// this one lists business partners. Draft rows are filtered out server-side, so
+// an unpublished partner is not merely hidden on the page — it never leaves the
+// database. `logo_url` is absolutised by the handler; consumers set it directly
+// as an image source.
+export const partnersRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/partners",
+  summary: "List THG business partners",
+  description:
+    "Returns live partner rows sorted by `position`. Not localized — rows are " +
+    "company names and URLs. `logo_url` is a fully-resolved absolute URL, or " +
+    "null when no logo is set. Draft partners are never returned.",
+  responses: {
+    200: jsonResponse("Partner list", partnersResponseSchema),
+  },
+} as const;
+
+openApiRegistry.registerPath(partnersRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the
