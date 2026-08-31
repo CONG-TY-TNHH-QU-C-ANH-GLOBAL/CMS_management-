@@ -231,6 +231,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "partners",
     `${LANDING} homepage partner strip`,
   ),
+  "v1/(public)/leadership/index.ts": read(
+    "/api/v1/leadership",
+    "leadership",
+    `${LANDING} homepage leadership section`,
+  ),
   "v1/(public)/jobs/index.ts": read("/api/v1/jobs", "careers", `${LANDING} careers list`),
   "v1/(public)/jobs/$slug.ts": read("/api/v1/jobs/{slug}", "careers", `${LANDING} job detail`),
   "v1/(public)/marquee-images/index.ts": read(

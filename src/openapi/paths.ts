@@ -57,6 +57,7 @@ import {
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
+import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -189,6 +190,20 @@ export const partnersRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(partnersRouteConfig);
+
+export const leadershipRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/leadership",
+  summary: "List THG leadership cards",
+  description:
+    "Returns live Leadership cards sorted by position. Each card may carry one " +
+    "portrait or an ordered avatar group; media URLs are resolved server-side.",
+  responses: {
+    200: jsonResponse("Leadership list", leadershipResponseSchema),
+  },
+} as const;
+
+openApiRegistry.registerPath(leadershipRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the

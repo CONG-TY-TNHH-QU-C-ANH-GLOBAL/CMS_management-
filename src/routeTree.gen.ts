@@ -31,6 +31,7 @@ import { Route as AdminContentPoliciesIndexRouteImport } from './routes/admin/co
 import { Route as AdminContentPartnersIndexRouteImport } from './routes/admin/content/partners/index'
 import { Route as AdminContentMediaIndexRouteImport } from './routes/admin/content/media/index'
 import { Route as AdminContentMarketplacesIndexRouteImport } from './routes/admin/content/marketplaces/index'
+import { Route as AdminContentLeadershipIndexRouteImport } from './routes/admin/content/leadership/index'
 import { Route as AdminContentLandingIndexRouteImport } from './routes/admin/content/landing/index'
 import { Route as AdminContentGlossaryIndexRouteImport } from './routes/admin/content/glossary/index'
 import { Route as AdminContentGalleryIndexRouteImport } from './routes/admin/content/gallery/index'
@@ -66,6 +67,7 @@ import { Route as ApiV1publicPartnersIndexRouteImport } from './routes/api/v1/(p
 import { Route as ApiV1publicOpenapiIndexRouteImport } from './routes/api/v1/(public)/openapi/index'
 import { Route as ApiV1publicMarqueeImagesIndexRouteImport } from './routes/api/v1/(public)/marquee-images/index'
 import { Route as ApiV1publicLeadsIndexRouteImport } from './routes/api/v1/(public)/leads/index'
+import { Route as ApiV1publicLeadershipIndexRouteImport } from './routes/api/v1/(public)/leadership/index'
 import { Route as ApiV1publicJobsIndexRouteImport } from './routes/api/v1/(public)/jobs/index'
 import { Route as ApiV1publicIntegrationsIndexRouteImport } from './routes/api/v1/(public)/integrations/index'
 import { Route as ApiV1publicHomepageIndexRouteImport } from './routes/api/v1/(public)/homepage/index'
@@ -214,6 +216,12 @@ const AdminContentMarketplacesIndexRoute =
   AdminContentMarketplacesIndexRouteImport.update({
     id: '/admin/content/marketplaces/',
     path: '/admin/content/marketplaces/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentLeadershipIndexRoute =
+  AdminContentLeadershipIndexRouteImport.update({
+    id: '/admin/content/leadership/',
+    path: '/admin/content/leadership/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentLandingIndexRoute =
@@ -412,6 +420,12 @@ const ApiV1publicLeadsIndexRoute = ApiV1publicLeadsIndexRouteImport.update({
   path: '/api/v1/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicLeadershipIndexRoute =
+  ApiV1publicLeadershipIndexRouteImport.update({
+    id: '/api/v1/(public)/leadership/',
+    path: '/api/v1/leadership/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicJobsIndexRoute = ApiV1publicJobsIndexRouteImport.update({
   id: '/api/v1/(public)/jobs/',
   path: '/api/v1/jobs/',
@@ -589,6 +603,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing/': typeof AdminContentLandingIndexRoute
+  '/admin/content/leadership/': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
   '/admin/content/partners/': typeof AdminContentPartnersIndexRoute
@@ -623,6 +638,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/homepage/': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/integrations/': typeof ApiV1publicIntegrationsIndexRoute
   '/api/v1/jobs/': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/leadership/': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
   '/api/v1/openapi/': typeof ApiV1publicOpenapiIndexRoute
@@ -671,6 +687,7 @@ export interface FileRoutesByTo {
   '/admin/content/gallery': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing': typeof AdminContentLandingIndexRoute
+  '/admin/content/leadership': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media': typeof AdminContentMediaIndexRoute
   '/admin/content/partners': typeof AdminContentPartnersIndexRoute
@@ -705,6 +722,7 @@ export interface FileRoutesByTo {
   '/api/v1/homepage': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/integrations': typeof ApiV1publicIntegrationsIndexRoute
   '/api/v1/jobs': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/leadership': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/leads': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images': typeof ApiV1publicMarqueeImagesIndexRoute
   '/api/v1/openapi': typeof ApiV1publicOpenapiIndexRoute
@@ -757,6 +775,7 @@ export interface FileRoutesById {
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
   '/admin/content/landing/': typeof AdminContentLandingIndexRoute
+  '/admin/content/leadership/': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
   '/admin/content/partners/': typeof AdminContentPartnersIndexRoute
@@ -791,6 +810,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/homepage/': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/(public)/integrations/': typeof ApiV1publicIntegrationsIndexRoute
   '/api/v1/(public)/jobs/': typeof ApiV1publicJobsIndexRoute
+  '/api/v1/(public)/leadership/': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/(public)/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/(public)/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
   '/api/v1/(public)/openapi/': typeof ApiV1publicOpenapiIndexRoute
@@ -844,6 +864,7 @@ export interface FileRouteTypes {
     | '/admin/content/gallery/'
     | '/admin/content/glossary/'
     | '/admin/content/landing/'
+    | '/admin/content/leadership/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
     | '/admin/content/partners/'
@@ -878,6 +899,7 @@ export interface FileRouteTypes {
     | '/api/v1/homepage/'
     | '/api/v1/integrations/'
     | '/api/v1/jobs/'
+    | '/api/v1/leadership/'
     | '/api/v1/leads/'
     | '/api/v1/marquee-images/'
     | '/api/v1/openapi/'
@@ -926,6 +948,7 @@ export interface FileRouteTypes {
     | '/admin/content/gallery'
     | '/admin/content/glossary'
     | '/admin/content/landing'
+    | '/admin/content/leadership'
     | '/admin/content/marketplaces'
     | '/admin/content/media'
     | '/admin/content/partners'
@@ -960,6 +983,7 @@ export interface FileRouteTypes {
     | '/api/v1/homepage'
     | '/api/v1/integrations'
     | '/api/v1/jobs'
+    | '/api/v1/leadership'
     | '/api/v1/leads'
     | '/api/v1/marquee-images'
     | '/api/v1/openapi'
@@ -1011,6 +1035,7 @@ export interface FileRouteTypes {
     | '/admin/content/gallery/'
     | '/admin/content/glossary/'
     | '/admin/content/landing/'
+    | '/admin/content/leadership/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
     | '/admin/content/partners/'
@@ -1045,6 +1070,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/homepage/'
     | '/api/v1/(public)/integrations/'
     | '/api/v1/(public)/jobs/'
+    | '/api/v1/(public)/leadership/'
     | '/api/v1/(public)/leads/'
     | '/api/v1/(public)/marquee-images/'
     | '/api/v1/(public)/openapi/'
@@ -1092,6 +1118,7 @@ export interface RootRouteChildren {
   AdminContentGalleryIndexRoute: typeof AdminContentGalleryIndexRoute
   AdminContentGlossaryIndexRoute: typeof AdminContentGlossaryIndexRoute
   AdminContentLandingIndexRoute: typeof AdminContentLandingIndexRoute
+  AdminContentLeadershipIndexRoute: typeof AdminContentLeadershipIndexRoute
   AdminContentMarketplacesIndexRoute: typeof AdminContentMarketplacesIndexRoute
   AdminContentMediaIndexRoute: typeof AdminContentMediaIndexRoute
   AdminContentPartnersIndexRoute: typeof AdminContentPartnersIndexRoute
@@ -1124,6 +1151,7 @@ export interface RootRouteChildren {
   ApiV1publicHomepageIndexRoute: typeof ApiV1publicHomepageIndexRoute
   ApiV1publicIntegrationsIndexRoute: typeof ApiV1publicIntegrationsIndexRoute
   ApiV1publicJobsIndexRoute: typeof ApiV1publicJobsIndexRoute
+  ApiV1publicLeadershipIndexRoute: typeof ApiV1publicLeadershipIndexRoute
   ApiV1publicLeadsIndexRoute: typeof ApiV1publicLeadsIndexRoute
   ApiV1publicMarqueeImagesIndexRoute: typeof ApiV1publicMarqueeImagesIndexRoute
   ApiV1publicOpenapiIndexRoute: typeof ApiV1publicOpenapiIndexRoute
@@ -1298,6 +1326,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/content/marketplaces'
       fullPath: '/admin/content/marketplaces/'
       preLoaderRoute: typeof AdminContentMarketplacesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/leadership/': {
+      id: '/admin/content/leadership/'
+      path: '/admin/content/leadership'
+      fullPath: '/admin/content/leadership/'
+      preLoaderRoute: typeof AdminContentLeadershipIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/landing/': {
@@ -1543,6 +1578,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/leads'
       fullPath: '/api/v1/leads/'
       preLoaderRoute: typeof ApiV1publicLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/leadership/': {
+      id: '/api/v1/(public)/leadership/'
+      path: '/api/v1/leadership'
+      fullPath: '/api/v1/leadership/'
+      preLoaderRoute: typeof ApiV1publicLeadershipIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/jobs/': {
@@ -1837,6 +1879,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentGalleryIndexRoute: AdminContentGalleryIndexRoute,
   AdminContentGlossaryIndexRoute: AdminContentGlossaryIndexRoute,
   AdminContentLandingIndexRoute: AdminContentLandingIndexRoute,
+  AdminContentLeadershipIndexRoute: AdminContentLeadershipIndexRoute,
   AdminContentMarketplacesIndexRoute: AdminContentMarketplacesIndexRoute,
   AdminContentMediaIndexRoute: AdminContentMediaIndexRoute,
   AdminContentPartnersIndexRoute: AdminContentPartnersIndexRoute,
@@ -1870,6 +1913,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicHomepageIndexRoute: ApiV1publicHomepageIndexRoute,
   ApiV1publicIntegrationsIndexRoute: ApiV1publicIntegrationsIndexRoute,
   ApiV1publicJobsIndexRoute: ApiV1publicJobsIndexRoute,
+  ApiV1publicLeadershipIndexRoute: ApiV1publicLeadershipIndexRoute,
   ApiV1publicLeadsIndexRoute: ApiV1publicLeadsIndexRoute,
   ApiV1publicMarqueeImagesIndexRoute: ApiV1publicMarqueeImagesIndexRoute,
   ApiV1publicOpenapiIndexRoute: ApiV1publicOpenapiIndexRoute,
