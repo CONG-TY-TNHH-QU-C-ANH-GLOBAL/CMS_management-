@@ -29,6 +29,7 @@ import {
 // leads.service → the D1 client → `cloudflare:workers`, which does not exist
 // outside the Worker runtime. lead-request.ts is deliberately dependency-free.
 import { parseLeadRequest } from "@/features/leads/lead-request";
+import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import {
   shippingRouteResponseSchema,
   shippingRoutesResponseSchema,
@@ -104,6 +105,36 @@ test("missing content is an empty collection, never an error shape", () => {
       blocks: [],
     }).blocks,
   ).toEqual([]);
+});
+
+test("leadership cards support either one avatar or a group of avatars", () => {
+  const parsed = leadershipResponseSchema.parse({
+    leadership: [
+      {
+        id: 1,
+        position: 1,
+        name: "Founder",
+        role: "CEO",
+        quote: "Build for trust.",
+        avatars: [{ url: "https://cdn.example/founder.webp", alt: "Founder" }],
+      },
+      {
+        id: 2,
+        position: 2,
+        name: "Technology Team",
+        role: null,
+        quote: null,
+        avatars: [
+          { url: "https://cdn.example/tech-1.webp", alt: "Technology team member 1" },
+          { url: "https://cdn.example/tech-2.webp", alt: "Technology team member 2" },
+        ],
+      },
+    ],
+  });
+
+  expect(parsed.leadership[0].avatars).toHaveLength(1);
+  expect(parsed.leadership[1].avatars).toHaveLength(2);
+  expect(parsed.leadership[1].role).toBeNull();
 });
 
 // ─── Service-block contract ─────────────────────────────────────────────────
