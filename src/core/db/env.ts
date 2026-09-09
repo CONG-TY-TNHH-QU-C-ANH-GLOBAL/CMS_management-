@@ -39,6 +39,10 @@ declare global {
       GITHUB_DISPATCH_TOKEN?: string;
       LANDING_REPO?: string; // "owner/name" of the landing repo
       LANDING_DISPATCH_EVENT_TYPE?: string; // default "cms-content-updated"
+      // CMS -> CRM website lead projection. The URL is a non-secret Worker
+      // variable; the shared HMAC key is a Worker secret.
+      CRM_LEAD_SYNC_URL?: string;
+      CMS_CRM_SYNC_KEY?: string;
     }
   }
 }
