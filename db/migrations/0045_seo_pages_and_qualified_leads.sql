@@ -37,7 +37,10 @@ ALTER TABLE leads ADD COLUMN pipeline_status TEXT NOT NULL DEFAULT 'new' CHECK (
 );
 ALTER TABLE leads ADD COLUMN lost_reason TEXT;
 ALTER TABLE leads ADD COLUMN first_response_at INTEGER;
-ALTER TABLE leads ADD COLUMN status_updated_at INTEGER NOT NULL DEFAULT (unixepoch());
+-- D1/SQLite permits only constant defaults when adding a column. Existing
+-- records are backfilled immediately below; all new records set unixepoch()
+-- explicitly in leads.service.ts.
+ALTER TABLE leads ADD COLUMN status_updated_at INTEGER NOT NULL DEFAULT 0;
 UPDATE leads
 SET pipeline_status = CASE status
   WHEN 'contacted' THEN 'contacted'
