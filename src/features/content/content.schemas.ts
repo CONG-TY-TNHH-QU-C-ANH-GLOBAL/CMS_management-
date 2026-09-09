@@ -276,6 +276,7 @@ const sitemapPageSchema = z.object({
 const sitemapBlogSchema = z.object({
   slug: z.string(),
   locale: z.string(),
+  available_locales: z.array(z.enum(["vi", "en", "zh"])),
   published_date: z.string().nullable(),
   updated_at: z.number().int(),
 });

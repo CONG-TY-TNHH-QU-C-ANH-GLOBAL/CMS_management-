@@ -18,6 +18,7 @@ import { Route as AdminContentCareersRouteRouteImport } from './routes/admin/con
 import { Route as AdminSystemUsersIndexRouteImport } from './routes/admin/system/users/index'
 import { Route as AdminSystemTelegramIndexRouteImport } from './routes/admin/system/telegram/index'
 import { Route as AdminSystemSettingsIndexRouteImport } from './routes/admin/system/settings/index'
+import { Route as AdminSystemSeoIndexRouteImport } from './routes/admin/system/seo/index'
 import { Route as AdminSystemAuditIndexRouteImport } from './routes/admin/system/audit/index'
 import { Route as AdminSalesTerminologyIndexRouteImport } from './routes/admin/sales/terminology/index'
 import { Route as AdminSalesPricingIndexRouteImport } from './routes/admin/sales/pricing/index'
@@ -61,6 +62,7 @@ import { Route as ApiV1publicSiteSettingsIndexRouteImport } from './routes/api/v
 import { Route as ApiV1publicShippingRoutesIndexRouteImport } from './routes/api/v1/(public)/shipping-routes/index'
 import { Route as ApiV1publicServicesIndexRouteImport } from './routes/api/v1/(public)/services/index'
 import { Route as ApiV1publicServiceBlocksIndexRouteImport } from './routes/api/v1/(public)/service-blocks/index'
+import { Route as ApiV1publicSeoPagesIndexRouteImport } from './routes/api/v1/(public)/seo-pages/index'
 import { Route as ApiV1publicPricingIndexRouteImport } from './routes/api/v1/(public)/pricing/index'
 import { Route as ApiV1publicPoliciesIndexRouteImport } from './routes/api/v1/(public)/policies/index'
 import { Route as ApiV1publicPartnersIndexRouteImport } from './routes/api/v1/(public)/partners/index'
@@ -144,6 +146,11 @@ const AdminSystemSettingsIndexRoute =
     path: '/admin/system/settings/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminSystemSeoIndexRoute = AdminSystemSeoIndexRouteImport.update({
+  id: '/admin/system/seo/',
+  path: '/admin/system/seo/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSystemAuditIndexRoute = AdminSystemAuditIndexRouteImport.update({
   id: '/admin/system/audit/',
   path: '/admin/system/audit/',
@@ -387,6 +394,12 @@ const ApiV1publicServiceBlocksIndexRoute =
     path: '/api/v1/service-blocks/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicSeoPagesIndexRoute =
+  ApiV1publicSeoPagesIndexRouteImport.update({
+    id: '/api/v1/(public)/seo-pages/',
+    path: '/api/v1/seo-pages/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicPricingIndexRoute = ApiV1publicPricingIndexRouteImport.update({
   id: '/api/v1/(public)/pricing/',
   path: '/api/v1/pricing/',
@@ -617,6 +630,7 @@ export interface FileRoutesByFullPath {
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
+  '/admin/system/seo/': typeof AdminSystemSeoIndexRoute
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
@@ -645,6 +659,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/partners/': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/policies/': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/pricing/': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/seo-pages/': typeof ApiV1publicSeoPagesIndexRoute
   '/api/v1/service-blocks/': typeof ApiV1publicServiceBlocksIndexRoute
   '/api/v1/services/': typeof ApiV1publicServicesIndexRoute
   '/api/v1/shipping-routes/': typeof ApiV1publicShippingRoutesIndexRoute
@@ -701,6 +716,7 @@ export interface FileRoutesByTo {
   '/admin/sales/pricing': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit': typeof AdminSystemAuditIndexRoute
+  '/admin/system/seo': typeof AdminSystemSeoIndexRoute
   '/admin/system/settings': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users': typeof AdminSystemUsersIndexRoute
@@ -729,6 +745,7 @@ export interface FileRoutesByTo {
   '/api/v1/partners': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/policies': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/pricing': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/seo-pages': typeof ApiV1publicSeoPagesIndexRoute
   '/api/v1/service-blocks': typeof ApiV1publicServiceBlocksIndexRoute
   '/api/v1/services': typeof ApiV1publicServicesIndexRoute
   '/api/v1/shipping-routes': typeof ApiV1publicShippingRoutesIndexRoute
@@ -789,6 +806,7 @@ export interface FileRoutesById {
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
   '/admin/system/audit/': typeof AdminSystemAuditIndexRoute
+  '/admin/system/seo/': typeof AdminSystemSeoIndexRoute
   '/admin/system/settings/': typeof AdminSystemSettingsIndexRoute
   '/admin/system/telegram/': typeof AdminSystemTelegramIndexRoute
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
@@ -817,6 +835,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/partners/': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/(public)/policies/': typeof ApiV1publicPoliciesIndexRoute
   '/api/v1/(public)/pricing/': typeof ApiV1publicPricingIndexRoute
+  '/api/v1/(public)/seo-pages/': typeof ApiV1publicSeoPagesIndexRoute
   '/api/v1/(public)/service-blocks/': typeof ApiV1publicServiceBlocksIndexRoute
   '/api/v1/(public)/services/': typeof ApiV1publicServicesIndexRoute
   '/api/v1/(public)/shipping-routes/': typeof ApiV1publicShippingRoutesIndexRoute
@@ -878,6 +897,7 @@ export interface FileRouteTypes {
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
     | '/admin/system/audit/'
+    | '/admin/system/seo/'
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
     | '/admin/system/users/'
@@ -906,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/v1/partners/'
     | '/api/v1/policies/'
     | '/api/v1/pricing/'
+    | '/api/v1/seo-pages/'
     | '/api/v1/service-blocks/'
     | '/api/v1/services/'
     | '/api/v1/shipping-routes/'
@@ -962,6 +983,7 @@ export interface FileRouteTypes {
     | '/admin/sales/pricing'
     | '/admin/sales/terminology'
     | '/admin/system/audit'
+    | '/admin/system/seo'
     | '/admin/system/settings'
     | '/admin/system/telegram'
     | '/admin/system/users'
@@ -990,6 +1012,7 @@ export interface FileRouteTypes {
     | '/api/v1/partners'
     | '/api/v1/policies'
     | '/api/v1/pricing'
+    | '/api/v1/seo-pages'
     | '/api/v1/service-blocks'
     | '/api/v1/services'
     | '/api/v1/shipping-routes'
@@ -1049,6 +1072,7 @@ export interface FileRouteTypes {
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
     | '/admin/system/audit/'
+    | '/admin/system/seo/'
     | '/admin/system/settings/'
     | '/admin/system/telegram/'
     | '/admin/system/users/'
@@ -1077,6 +1101,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/partners/'
     | '/api/v1/(public)/policies/'
     | '/api/v1/(public)/pricing/'
+    | '/api/v1/(public)/seo-pages/'
     | '/api/v1/(public)/service-blocks/'
     | '/api/v1/(public)/services/'
     | '/api/v1/(public)/shipping-routes/'
@@ -1130,6 +1155,7 @@ export interface RootRouteChildren {
   AdminSalesLeadsIndexRoute: typeof AdminSalesLeadsIndexRoute
   AdminSalesTerminologyIndexRoute: typeof AdminSalesTerminologyIndexRoute
   AdminSystemAuditIndexRoute: typeof AdminSystemAuditIndexRoute
+  AdminSystemSeoIndexRoute: typeof AdminSystemSeoIndexRoute
   AdminSystemSettingsIndexRoute: typeof AdminSystemSettingsIndexRoute
   AdminSystemTelegramIndexRoute: typeof AdminSystemTelegramIndexRoute
   AdminSystemUsersIndexRoute: typeof AdminSystemUsersIndexRoute
@@ -1158,6 +1184,7 @@ export interface RootRouteChildren {
   ApiV1publicPartnersIndexRoute: typeof ApiV1publicPartnersIndexRoute
   ApiV1publicPoliciesIndexRoute: typeof ApiV1publicPoliciesIndexRoute
   ApiV1publicPricingIndexRoute: typeof ApiV1publicPricingIndexRoute
+  ApiV1publicSeoPagesIndexRoute: typeof ApiV1publicSeoPagesIndexRoute
   ApiV1publicServiceBlocksIndexRoute: typeof ApiV1publicServiceBlocksIndexRoute
   ApiV1publicServicesIndexRoute: typeof ApiV1publicServicesIndexRoute
   ApiV1publicShippingRoutesIndexRoute: typeof ApiV1publicShippingRoutesIndexRoute
@@ -1235,6 +1262,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/system/settings'
       fullPath: '/admin/system/settings/'
       preLoaderRoute: typeof AdminSystemSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/system/seo/': {
+      id: '/admin/system/seo/'
+      path: '/admin/system/seo'
+      fullPath: '/admin/system/seo/'
+      preLoaderRoute: typeof AdminSystemSeoIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/system/audit/': {
@@ -1536,6 +1570,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/service-blocks'
       fullPath: '/api/v1/service-blocks/'
       preLoaderRoute: typeof ApiV1publicServiceBlocksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/seo-pages/': {
+      id: '/api/v1/(public)/seo-pages/'
+      path: '/api/v1/seo-pages'
+      fullPath: '/api/v1/seo-pages/'
+      preLoaderRoute: typeof ApiV1publicSeoPagesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/pricing/': {
@@ -1891,6 +1932,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSalesLeadsIndexRoute: AdminSalesLeadsIndexRoute,
   AdminSalesTerminologyIndexRoute: AdminSalesTerminologyIndexRoute,
   AdminSystemAuditIndexRoute: AdminSystemAuditIndexRoute,
+  AdminSystemSeoIndexRoute: AdminSystemSeoIndexRoute,
   AdminSystemSettingsIndexRoute: AdminSystemSettingsIndexRoute,
   AdminSystemTelegramIndexRoute: AdminSystemTelegramIndexRoute,
   AdminSystemUsersIndexRoute: AdminSystemUsersIndexRoute,
@@ -1920,6 +1962,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicPartnersIndexRoute: ApiV1publicPartnersIndexRoute,
   ApiV1publicPoliciesIndexRoute: ApiV1publicPoliciesIndexRoute,
   ApiV1publicPricingIndexRoute: ApiV1publicPricingIndexRoute,
+  ApiV1publicSeoPagesIndexRoute: ApiV1publicSeoPagesIndexRoute,
   ApiV1publicServiceBlocksIndexRoute: ApiV1publicServiceBlocksIndexRoute,
   ApiV1publicServicesIndexRoute: ApiV1publicServicesIndexRoute,
   ApiV1publicShippingRoutesIndexRoute: ApiV1publicShippingRoutesIndexRoute,

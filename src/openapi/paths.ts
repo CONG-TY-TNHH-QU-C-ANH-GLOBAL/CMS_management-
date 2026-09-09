@@ -68,6 +68,7 @@ import {
   pricingTableResponseSchema,
 } from "@/features/pricing/pricing.schemas";
 import { siteSettingsResponseSchema } from "@/features/settings/settings.schemas";
+import { seoPagesResponseSchema } from "@/features/seo/seo.schemas";
 import {
   shippingRouteResponseSchema,
   shippingRoutesResponseSchema,
@@ -756,6 +757,19 @@ export const sitemapRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(sitemapRouteConfig);
+
+export const seoPagesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/seo-pages",
+  summary: "List live SEO metadata by route and locale",
+  description:
+    "Public SEO control-plane feed. Canonical URLs, hreflang and JSON-LD remain code-generated; editors control only reviewed page metadata and indexability.",
+  responses: {
+    200: jsonResponse("Live SEO metadata", seoPagesResponseSchema),
+  },
+} as const;
+
+openApiRegistry.registerPath(seoPagesRouteConfig);
 
 // ─── Write endpoints (conversion + careers funnels) ────────────────────────
 

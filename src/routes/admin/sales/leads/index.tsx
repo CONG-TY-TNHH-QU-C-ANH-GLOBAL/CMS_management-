@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Calendar, Inbox, Mail, MapPin, Phone } from "lucide-react";
+import { Building2, Calendar, Inbox, Mail, MapPin, Package, Phone } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,8 +23,9 @@ const STATUS_META: Record<LeadStatus, { label: string; color: string }> = {
   new: { label: "Mới", color: "bg-sky-100 text-sky-800 border-sky-300" },
   contacted: { label: "Đã liên hệ", color: "bg-amber-100 text-amber-800 border-amber-300" },
   qualified: { label: "Đủ tiêu chí", color: "bg-violet-100 text-violet-800 border-violet-300" },
-  closed: { label: "Đã chốt", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  spam: { label: "Rác", color: "bg-rose-100 text-rose-800 border-rose-300" },
+  proposal: { label: "Đề xuất", color: "bg-indigo-100 text-indigo-800 border-indigo-300" },
+  won: { label: "Thắng", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  lost: { label: "Mất", color: "bg-rose-100 text-rose-800 border-rose-300" },
 };
 
 function formatTime(seconds: number): string {
@@ -44,17 +45,19 @@ function LeadsPage() {
 
   const allLeads = data.leads as LeadRow[];
   const counts = useMemo(() => {
-    const c = { all: allLeads.length, new: 0, contacted: 0, qualified: 0, closed: 0, spam: 0 };
-    for (const l of allLeads) c[l.status]++;
+    const c = { all: allLeads.length, new: 0, contacted: 0, qualified: 0, proposal: 0, won: 0, lost: 0 };
+    for (const l of allLeads) c[l.pipeline_status]++;
     return c;
   }, [allLeads]);
 
-  const filtered = filter === "all" ? allLeads : allLeads.filter((l) => l.status === filter);
+  const filtered = filter === "all" ? allLeads : allLeads.filter((l) => l.pipeline_status === filter);
 
   async function setStatus(id: number, status: LeadStatus) {
+    const lostReason = status === "lost" ? window.prompt("Lý do mất lead (bắt buộc):") : null;
+    if (status === "lost" && !lostReason?.trim()) return;
     setPendingId(id);
     try {
-      await updateStatus({ data: { id, status } });
+      await updateStatus({ data: { id, status, lost_reason: lostReason } });
       toast.success(`Đã đổi trạng thái → ${STATUS_META[status].label}`);
       await router.invalidate();
     } catch (err) {
@@ -77,8 +80,9 @@ function LeadsPage() {
             { key: "new", label: `Mới (${counts.new})` },
             { key: "contacted", label: `Đã liên hệ (${counts.contacted})` },
             { key: "qualified", label: `Qualified (${counts.qualified})` },
-            { key: "closed", label: `Closed (${counts.closed})` },
-            { key: "spam", label: `Spam (${counts.spam})` },
+            { key: "proposal", label: `Proposal (${counts.proposal})` },
+            { key: "won", label: `Won (${counts.won})` },
+            { key: "lost", label: `Lost (${counts.lost})` },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -110,7 +114,7 @@ function LeadsPage() {
           ) : (
             <ul className="divide-y divide-border">
               {filtered.map((l) => {
-                const meta = STATUS_META[l.status];
+                const meta = STATUS_META[l.pipeline_status];
                 return (
                   <li key={l.id} className="p-4 hover:bg-surface-muted transition">
                     <div className="flex items-start gap-3">
@@ -153,6 +157,19 @@ function LeadsPage() {
                             {formatTime(l.created_at)}
                           </span>
                         </div>
+                        {(l.company_url || l.monthly_order_band || l.ship_to_markets_json || l.primary_service) && (
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            {l.company_url && (
+                              <a href={l.company_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-2 py-1 hover:text-foreground">
+                                <Building2 className="h-3 w-3" /> Website công ty
+                              </a>
+                            )}
+                            {l.monthly_order_band && <span className="rounded-md bg-surface-muted px-2 py-1">Sản lượng: {l.monthly_order_band}/tháng</span>}
+                            {l.primary_service && <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-2 py-1"><Package className="h-3 w-3" /> {l.primary_service}</span>}
+                            {l.ship_to_markets_json && <span className="rounded-md bg-surface-muted px-2 py-1">Thị trường: {safeJsonList(l.ship_to_markets_json).join(", ")}</span>}
+                          </div>
+                        )}
+                        {l.lost_reason && <div className="mt-2 text-xs font-medium text-rose-700">Lý do mất: {l.lost_reason}</div>}
                         {l.message && (
                           <div className="mt-2 text-sm text-foreground/80 leading-relaxed border-l-2 border-border pl-3 italic">
                             "{l.message}"
@@ -161,7 +178,7 @@ function LeadsPage() {
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
                         <select
-                          value={l.status}
+                          value={l.pipeline_status}
                           onChange={(e) => setStatus(l.id, e.target.value as LeadStatus)}
                           disabled={pendingId === l.id}
                           className="h-8 px-2 text-xs rounded-md border border-border bg-background disabled:opacity-50"
@@ -181,4 +198,13 @@ function LeadsPage() {
       </PageContainer>
     </>
   );
+}
+
+function safeJsonList(raw: string): string[] {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
 }

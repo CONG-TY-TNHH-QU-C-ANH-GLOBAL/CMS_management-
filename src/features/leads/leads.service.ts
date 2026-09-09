@@ -2,13 +2,16 @@
 
 import { getDb } from "@/core/db/client";
 
-export type LeadStatus = "new" | "contacted" | "qualified" | "closed" | "spam";
+export type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 export type LeadLocale = "en" | "vi" | "zh";
 
 export interface LeadRow {
   id: number;
   name: string;
   email: string;
+  company_url: string | null;
+  monthly_order_band: string | null;
+  ship_to_markets_json: string | null;
   phone: string | null;
   message: string | null;
   source_page: string | null;
@@ -21,13 +24,20 @@ export interface LeadRow {
   surface: string | null;
   service_interests_json: string | null;
   service_details_json: string | null;
-  status: LeadStatus;
+  status: string;
+  pipeline_status: LeadStatus;
+  lost_reason: string | null;
+  first_response_at: number | null;
+  status_updated_at: number;
   created_at: number;
 }
 
 export interface CreateLeadInput {
   name: string;
   email: string;
+  company_url?: string | null;
+  monthly_order_band?: string | null;
+  ship_to_markets?: string[] | null;
   phone?: string | null;
   message?: string | null;
   source_page?: string | null;
@@ -49,15 +59,19 @@ export async function createLead(input: CreateLeadInput): Promise<{ id: number }
       ? JSON.stringify(input.service_interests)
       : null;
   const detailsJson = input.service_details ? JSON.stringify(input.service_details) : null;
+  const marketsJson = input.ship_to_markets?.length ? JSON.stringify(input.ship_to_markets) : null;
   const row = await getDb()
     .prepare(
-      `INSERT INTO leads(name, email, phone, message, source_page, locale, ip, user_agent, utm_json, primary_service, surface, service_interests_json, service_details_json, status, created_at)
-       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', unixepoch())
+      `INSERT INTO leads(name, email, company_url, monthly_order_band, ship_to_markets_json, phone, message, source_page, locale, ip, user_agent, utm_json, primary_service, surface, service_interests_json, service_details_json, status, pipeline_status, created_at, status_updated_at)
+       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', 'new', unixepoch(), unixepoch())
        RETURNING id`,
     )
     .bind(
       input.name.trim(),
       input.email.toLowerCase().trim(),
+      input.company_url ?? null,
+      input.monthly_order_band ?? null,
+      marketsJson,
       input.phone ?? null,
       input.message ?? null,
       input.source_page ?? null,
@@ -81,7 +95,7 @@ export async function listLeads(filter?: {
 }): Promise<LeadRow[]> {
   const limit = Math.min(filter?.limit ?? 100, 500);
   const sql = filter?.status
-    ? `SELECT * FROM leads WHERE status = ? ORDER BY created_at DESC LIMIT ?`
+    ? `SELECT * FROM leads WHERE pipeline_status = ? ORDER BY created_at DESC LIMIT ?`
     : `SELECT * FROM leads ORDER BY created_at DESC LIMIT ?`;
   const stmt = filter?.status
     ? getDb().prepare(sql).bind(filter.status, limit)
@@ -90,6 +104,19 @@ export async function listLeads(filter?: {
   return result.results ?? [];
 }
 
-export async function setLeadStatus(id: number, status: LeadStatus): Promise<void> {
-  await getDb().prepare(`UPDATE leads SET status = ? WHERE id = ?`).bind(status, id).run();
+export async function setLeadStatus(id: number, status: LeadStatus, lostReason?: string | null): Promise<void> {
+  const legacyStatus = status === "proposal" || status === "won" || status === "lost" ? "closed" : status;
+  await getDb()
+    .prepare(
+      `UPDATE leads
+       SET pipeline_status = ?, status = ?, lost_reason = ?,
+           first_response_at = CASE
+             WHEN first_response_at IS NULL AND ? <> 'new' THEN unixepoch()
+             ELSE first_response_at
+           END,
+           status_updated_at = unixepoch()
+       WHERE id = ?`,
+    )
+    .bind(status, legacyStatus, status === "lost" ? (lostReason ?? null) : null, status, id)
+    .run();
 }

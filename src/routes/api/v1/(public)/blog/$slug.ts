@@ -18,10 +18,17 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
         if (post.status !== "live") {
           return corsError(request, 404, `Blog post "${params.slug}" not published`);
         }
-        const slides = await getBlogSlides(post.id);
+        const [slides, localeCandidates] = await Promise.all([
+          getBlogSlides(post.id),
+          Promise.all((["vi", "en", "zh"] as const).map(async (locale) => {
+            const candidate = await getBlogPostForPublic(params.slug, locale);
+            return candidate?.status === "live" ? locale : null;
+          })),
+        ]);
 
         return corsJson(request, {
           locale: lang,
+          available_locales: localeCandidates.filter((locale) => locale !== null),
           post: {
             slug: post.slug,
             title: post.title,

@@ -77,6 +77,7 @@ const blogPostDetailSchema = z.object({
 // Built in blog/$slug.ts:23 as `{ locale, post: { ...projection } }`.
 export const blogPostResponseSchema = z.object({
   locale: localeSchema,
+  available_locales: z.array(localeSchema),
   post: blogPostDetailSchema,
 });
 

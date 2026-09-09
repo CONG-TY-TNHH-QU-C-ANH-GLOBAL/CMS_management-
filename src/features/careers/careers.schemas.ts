@@ -100,6 +100,7 @@ const jobDetailSchema = z.object({
 // Built in jobs/$slug.ts:25 as `{ locale, job: { ...projection } }`.
 export const jobResponseSchema = z.object({
   locale: localeSchema,
+  available_locales: z.array(localeSchema),
   job: jobDetailSchema,
 });
 

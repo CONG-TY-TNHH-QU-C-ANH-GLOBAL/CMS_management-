@@ -303,6 +303,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
       "reach. Build-time-only consumption does not make it internal: it is unauthenticated and " +
       "CORS-enabled, so it is public in fact and is contracted as such.",
   ),
+  "v1/(public)/seo-pages/index.ts": read(
+    "/api/v1/seo-pages",
+    "seo",
+    `${LANDING} metadata and indexability feed (build-time)`,
+  ),
 
   // ── Public writes ─────────────────────────────────────────────────────────────────────────
   "v1/(public)/community/questions/index.ts": readWrite(
