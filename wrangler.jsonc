@@ -28,7 +28,8 @@
 		// contents:write on the landing repo). Without the secret the flush is a
 		// no-op (logged + flag cleared).
 		"LANDING_REPO": "CONG-TY-TNHH-QU-C-ANH-GLOBAL/THG_landingpage",
-		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated"
+		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated",
+		"CRM_LEAD_SYNC_URL": "https://crm.thgfulfill.com/api/integrations/cms/leads"
 	},
 	"d1_databases": [
 		{

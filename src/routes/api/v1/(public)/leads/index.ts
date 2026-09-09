@@ -8,6 +8,7 @@ import {
 } from "@/core/middlewares/cors";
 import { getClientIp, rateLimit, verifyTurnstile } from "@/core/middlewares/rate-limit";
 import { createLead, parseLeadRequest } from "@/features/leads";
+import { enqueueCrmLeadSync } from "@/features/crm-lead-sync";
 import { dispatchEvent } from "@/features/telegram";
 
 export const Route = createFileRoute("/api/v1/(public)/leads/")({
@@ -60,6 +61,29 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           service_interests: data.service_interests,
           service_details: data.service_details,
         });
+
+        // CRM is a projection, never a form-submit dependency. If this initial
+        // enqueue fails, the scheduled reconciler discovers the CMS lead later.
+        try {
+          await enqueueCrmLeadSync(id, {
+            name: data.name,
+            email: data.email,
+            company_url: data.company_url,
+            monthly_order_band: data.monthly_order_band,
+            ship_to_markets: data.ship_to_markets,
+            phone: data.phone,
+            message: data.message,
+            source_page: data.source_page,
+            locale: data.locale,
+            utm: data.utm,
+            primary_service: data.primary_service,
+            surface: data.surface,
+            service_interests: data.service_interests,
+            service_details: data.service_details,
+          });
+        } catch (e) {
+          console.error(`[crm-lead-sync] enqueue failed for CMS lead #${id}`, e);
+        }
 
         // Route to subscribed Telegram channels via durable outbox.
         // Idempotency key collapses double-submits to one notification.

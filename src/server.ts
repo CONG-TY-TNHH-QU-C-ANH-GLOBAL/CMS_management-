@@ -106,6 +106,9 @@ export default {
     // permanent failures). Inline-kick from dispatchEvent handles the happy
     // path; this is the durability backstop for transient/queued rows.
     const { flushTelegramOutbox } = await import("./features/telegram");
+    // Website inquiries are captured by CMS first, then projected to CRM via
+    // a signed durable outbox. This runs independently of Telegram.
+    const { flushCrmLeadOutbox } = await import("./features/crm-lead-sync");
     // Blog Auto-Bot scheduler (P4). FULLY ISOLATED from the three tasks above:
     // wrapped in its own try/catch async so a failed import or throw here can
     // never affect translation / landing / telegram. It also self-bounds to one
@@ -124,6 +127,7 @@ export default {
         runTranslationJobs(env, 60_000),
         flushLandingRebuild(),
         flushTelegramOutbox(60_000),
+        flushCrmLeadOutbox(50_000),
         blogBotTask,
       ]).then((results) => {
         for (const r of results) {
