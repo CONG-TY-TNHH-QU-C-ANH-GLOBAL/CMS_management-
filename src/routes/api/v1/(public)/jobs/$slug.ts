@@ -22,8 +22,13 @@ export const Route = createFileRoute("/api/v1/(public)/jobs/$slug")({
         if (!job || job.status !== "open") {
           return corsError(request, 404, `No open job with slug "${params.slug}" in locale "${lang}"`);
         }
+        const localeCandidates = await Promise.all((["vi", "en", "zh"] as const).map(async (locale) => {
+          const candidate = await getCareersJobForPublic(params.slug, locale);
+          return candidate?.status === "open" ? locale : null;
+        }));
         return corsJson(request, {
           locale: lang,
+          available_locales: localeCandidates.filter((locale) => locale !== null),
           job: {
             slug: job.slug,
             category: job.category,

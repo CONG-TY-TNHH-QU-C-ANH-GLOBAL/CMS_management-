@@ -4,7 +4,7 @@ import {
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
   Plug, Handshake, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
-  Layers, MessagesSquare, Star, UserRoundCog,
+  Layers, MessagesSquare, Star, UserRoundCog, SearchCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -58,6 +58,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: "/admin/system/users", icon: Users, label: "Người dùng & Phân quyền" },
       { to: "/admin/system/settings", icon: Settings, label: "Cài đặt website" },
+      { to: "/admin/system/seo", icon: SearchCheck, label: "SEO website" },
       { to: "/admin/system/telegram", icon: Send, label: "Tích hợp Telegram" },
       { to: "/admin/system/audit", icon: ShieldCheck, label: "Lịch sử thay đổi" },
     ],

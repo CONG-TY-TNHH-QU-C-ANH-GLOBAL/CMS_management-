@@ -60,6 +60,7 @@ import {
   pricingTableResponseSchema,
 } from "@/features/pricing/pricing.schemas";
 import { siteSettingsResponseSchema } from "@/features/settings/settings.schemas";
+import { seoPagesResponseSchema } from "@/features/seo/seo.schemas";
 import {
   shippingRouteResponseSchema,
   shippingRoutesResponseSchema,
@@ -100,6 +101,7 @@ import {
   shippingRoutesListRouteConfig,
   siteSettingsRouteConfig,
   sitemapRouteConfig,
+  seoPagesRouteConfig,
   testimonialsRouteConfig,
   translationsRouteConfig,
 } from "./paths";
@@ -227,6 +229,7 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(shippingRoutesListRouteConfig, 200, shippingRoutesResponseSchema),
   response(shippingRouteRouteConfig, 200, shippingRouteResponseSchema),
   response(sitemapRouteConfig, 200, sitemapResponseSchema),
+  response(seoPagesRouteConfig, 200, seoPagesResponseSchema),
   requestBody(leadsRouteConfig, leadRequestBaseSchema),
   response(leadsRouteConfig, 201, leadCreatedResponseSchema),
   requestBody(applicantsRouteConfig, applicantRequestSchema),

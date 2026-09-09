@@ -45,6 +45,9 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
         const { id } = await createLead({
           name: data.name,
           email: data.email,
+          company_url: data.company_url,
+          monthly_order_band: data.monthly_order_band,
+          ship_to_markets: data.ship_to_markets,
           phone: data.phone,
           message: data.message,
           source_page: data.source_page,

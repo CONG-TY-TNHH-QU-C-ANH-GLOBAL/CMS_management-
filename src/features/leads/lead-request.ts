@@ -47,6 +47,8 @@ export const SURFACE_KEYS = [
   "home-conversion-inline",
 ] as const;
 export type SurfaceKey = (typeof SURFACE_KEYS)[number];
+export const MONTHLY_ORDER_BANDS = ["<100", "100_499", "500_1999", "2000_plus"] as const;
+export const SHIP_TO_MARKETS = ["US", "EU_UK", "OTHER"] as const;
 
 // Common envelope + the multi-intent dimensions (all optional so the migration deploys before the
 // new client; the cross-field rules below enforce a coherent shape).
@@ -59,6 +61,9 @@ export type SurfaceKey = (typeof SURFACE_KEYS)[number];
 export const leadRequestBaseSchema = z.object({
   name: z.string().trim().min(1, "Tên không được rỗng").max(120),
   email: z.string().trim().email("Email không hợp lệ").max(254),
+  company_url: z.string().trim().url("Company/store URL không hợp lệ").max(500).optional().nullable(),
+  monthly_order_band: z.enum(MONTHLY_ORDER_BANDS).optional().nullable(),
+  ship_to_markets: z.array(z.enum(SHIP_TO_MARKETS)).max(3).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
   message: z.string().trim().max(2000).optional().nullable(),
   source_page: z.string().trim().max(500).optional().nullable(),
@@ -76,6 +81,9 @@ export const leadRequestBaseSchema = z.object({
 export interface NormalizedLeadRequest {
   name: string;
   email: string;
+  company_url: string | null;
+  monthly_order_band: (typeof MONTHLY_ORDER_BANDS)[number] | null;
+  ship_to_markets: Array<(typeof SHIP_TO_MARKETS)[number]>;
   phone: string | null;
   message: string | null;
   source_page: string | null;
@@ -179,6 +187,9 @@ export function parseLeadRequest(body: unknown): ParseLeadResult {
     value: {
       name: b.name,
       email: b.email,
+      company_url: b.company_url ?? null,
+      monthly_order_band: b.monthly_order_band ?? null,
+      ship_to_markets: [...new Set(b.ship_to_markets ?? [])],
       phone: b.phone ?? null,
       message: b.message ?? null,
       source_page: b.source_page ?? null,

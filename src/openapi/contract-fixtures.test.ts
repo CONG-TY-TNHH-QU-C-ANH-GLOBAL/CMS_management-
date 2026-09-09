@@ -380,7 +380,7 @@ test("sitemap returns every locale so the consumer can build hreflang alternates
       { route: "/thg-fulfill", locale: "vi", updated_at: 1 },
       { route: "/thg-fulfill", locale: "en", updated_at: 1 },
     ],
-    blog: [{ slug: "post", locale: "vi", published_date: null, updated_at: 1 }],
+    blog: [{ slug: "post", locale: "vi", available_locales: ["vi", "en"], published_date: null, updated_at: 1 }],
   });
   expect(new Set(parsed.pages.map((p) => p.locale))).toEqual(new Set(["vi", "en"]));
 });
