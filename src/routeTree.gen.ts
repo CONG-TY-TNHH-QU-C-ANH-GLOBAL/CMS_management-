@@ -74,6 +74,7 @@ import { Route as ApiV1publicJobsIndexRouteImport } from './routes/api/v1/(publi
 import { Route as ApiV1publicIntegrationsIndexRouteImport } from './routes/api/v1/(public)/integrations/index'
 import { Route as ApiV1publicHomepageIndexRouteImport } from './routes/api/v1/(public)/homepage/index'
 import { Route as ApiV1publicFaqsIndexRouteImport } from './routes/api/v1/(public)/faqs/index'
+import { Route as ApiV1publicEventsIndexRouteImport } from './routes/api/v1/(public)/events/index'
 import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/api/v1/(public)/contact-locations/index'
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
@@ -84,6 +85,7 @@ import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(pub
 import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
 import { Route as ApiV1publicMediaSplatRouteImport } from './routes/api/v1/(public)/media/$'
 import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public)/jobs/$slug'
+import { Route as ApiV1publicEventsSlugRouteImport } from './routes/api/v1/(public)/events/$slug'
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
@@ -461,6 +463,11 @@ const ApiV1publicFaqsIndexRoute = ApiV1publicFaqsIndexRouteImport.update({
   path: '/api/v1/faqs/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicEventsIndexRoute = ApiV1publicEventsIndexRouteImport.update({
+  id: '/api/v1/(public)/events/',
+  path: '/api/v1/events/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1publicContactLocationsIndexRoute =
   ApiV1publicContactLocationsIndexRouteImport.update({
     id: '/api/v1/(public)/contact-locations/',
@@ -514,6 +521,11 @@ const ApiV1publicMediaSplatRoute = ApiV1publicMediaSplatRouteImport.update({
 const ApiV1publicJobsSlugRoute = ApiV1publicJobsSlugRouteImport.update({
   id: '/api/v1/(public)/jobs/$slug',
   path: '/api/v1/jobs/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1publicEventsSlugRoute = ApiV1publicEventsSlugRouteImport.update({
+  id: '/api/v1/(public)/events/$slug',
+  path: '/api/v1/events/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV1publicBlogCategoriesRoute =
@@ -638,6 +650,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -648,6 +661,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs/': typeof ApiV1publicFaqsIndexRoute
   '/api/v1/homepage/': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/integrations/': typeof ApiV1publicIntegrationsIndexRoute
@@ -724,6 +738,7 @@ export interface FileRoutesByTo {
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -734,6 +749,7 @@ export interface FileRoutesByTo {
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
   '/api/v1/contact-locations': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/events': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs': typeof ApiV1publicFaqsIndexRoute
   '/api/v1/homepage': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/integrations': typeof ApiV1publicIntegrationsIndexRoute
@@ -814,6 +830,7 @@ export interface FileRoutesById {
   '/api/v1/(admin)/media/upload': typeof ApiV1adminMediaUploadRoute
   '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/(public)/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/(public)/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/(public)/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/(public)/media/$': typeof ApiV1publicMediaSplatRoute
   '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
@@ -824,6 +841,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/(public)/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
+  '/api/v1/(public)/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/(public)/faqs/': typeof ApiV1publicFaqsIndexRoute
   '/api/v1/(public)/homepage/': typeof ApiV1publicHomepageIndexRoute
   '/api/v1/(public)/integrations/': typeof ApiV1publicIntegrationsIndexRoute
@@ -905,6 +923,7 @@ export interface FileRouteTypes {
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
+    | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
     | '/api/v1/policies/$slug'
@@ -915,6 +934,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
     | '/api/v1/contact-locations/'
+    | '/api/v1/events/'
     | '/api/v1/faqs/'
     | '/api/v1/homepage/'
     | '/api/v1/integrations/'
@@ -991,6 +1011,7 @@ export interface FileRouteTypes {
     | '/api/v1/media/upload'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
+    | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
     | '/api/v1/policies/$slug'
@@ -1001,6 +1022,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicants'
     | '/api/v1/blog'
     | '/api/v1/contact-locations'
+    | '/api/v1/events'
     | '/api/v1/faqs'
     | '/api/v1/homepage'
     | '/api/v1/integrations'
@@ -1080,6 +1102,7 @@ export interface FileRouteTypes {
     | '/api/v1/(admin)/media/upload'
     | '/api/v1/(public)/blog/$slug'
     | '/api/v1/(public)/blog/categories'
+    | '/api/v1/(public)/events/$slug'
     | '/api/v1/(public)/jobs/$slug'
     | '/api/v1/(public)/media/$'
     | '/api/v1/(public)/policies/$slug'
@@ -1090,6 +1113,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
     | '/api/v1/(public)/contact-locations/'
+    | '/api/v1/(public)/events/'
     | '/api/v1/(public)/faqs/'
     | '/api/v1/(public)/homepage/'
     | '/api/v1/(public)/integrations/'
@@ -1163,6 +1187,7 @@ export interface RootRouteChildren {
   ApiV1adminMediaUploadRoute: typeof ApiV1adminMediaUploadRoute
   ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
   ApiV1publicBlogCategoriesRoute: typeof ApiV1publicBlogCategoriesRoute
+  ApiV1publicEventsSlugRoute: typeof ApiV1publicEventsSlugRoute
   ApiV1publicJobsSlugRoute: typeof ApiV1publicJobsSlugRoute
   ApiV1publicMediaSplatRoute: typeof ApiV1publicMediaSplatRoute
   ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
@@ -1173,6 +1198,7 @@ export interface RootRouteChildren {
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
   ApiV1publicContactLocationsIndexRoute: typeof ApiV1publicContactLocationsIndexRoute
+  ApiV1publicEventsIndexRoute: typeof ApiV1publicEventsIndexRoute
   ApiV1publicFaqsIndexRoute: typeof ApiV1publicFaqsIndexRoute
   ApiV1publicHomepageIndexRoute: typeof ApiV1publicHomepageIndexRoute
   ApiV1publicIntegrationsIndexRoute: typeof ApiV1publicIntegrationsIndexRoute
@@ -1656,6 +1682,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicFaqsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/events/': {
+      id: '/api/v1/(public)/events/'
+      path: '/api/v1/events'
+      fullPath: '/api/v1/events/'
+      preLoaderRoute: typeof ApiV1publicEventsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/contact-locations/': {
       id: '/api/v1/(public)/contact-locations/'
       path: '/api/v1/contact-locations'
@@ -1724,6 +1757,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/jobs/$slug'
       fullPath: '/api/v1/jobs/$slug'
       preLoaderRoute: typeof ApiV1publicJobsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/events/$slug': {
+      id: '/api/v1/(public)/events/$slug'
+      path: '/api/v1/events/$slug'
+      fullPath: '/api/v1/events/$slug'
+      preLoaderRoute: typeof ApiV1publicEventsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/blog/categories': {
@@ -1940,6 +1980,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1adminMediaUploadRoute: ApiV1adminMediaUploadRoute,
   ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
   ApiV1publicBlogCategoriesRoute: ApiV1publicBlogCategoriesRoute,
+  ApiV1publicEventsSlugRoute: ApiV1publicEventsSlugRoute,
   ApiV1publicJobsSlugRoute: ApiV1publicJobsSlugRoute,
   ApiV1publicMediaSplatRoute: ApiV1publicMediaSplatRoute,
   ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,
@@ -1951,6 +1992,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
   ApiV1publicContactLocationsIndexRoute: ApiV1publicContactLocationsIndexRoute,
+  ApiV1publicEventsIndexRoute: ApiV1publicEventsIndexRoute,
   ApiV1publicFaqsIndexRoute: ApiV1publicFaqsIndexRoute,
   ApiV1publicHomepageIndexRoute: ApiV1publicHomepageIndexRoute,
   ApiV1publicIntegrationsIndexRoute: ApiV1publicIntegrationsIndexRoute,
