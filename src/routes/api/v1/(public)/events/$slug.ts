@@ -12,9 +12,9 @@ export const Route = createFileRoute("/api/v1/(public)/events/$slug")({
       GET: async ({ request, params }) => {
         const lang = new URL(request.url).searchParams.get("lang") ?? "vi";
         if (!locales.has(lang as EventLocale))
-          return corsJson(request, { error: "Invalid lang" }, 400);
+          return corsJson(request, { error: "Invalid lang" }, { status: 400 });
         const event = await getLiveEvent(params.slug, lang as EventLocale);
-        if (!event) return corsJson(request, { error: "Event not found" }, 404);
+        if (!event) return corsJson(request, { error: "Event not found" }, { status: 404 });
         const media = event.cover_media_id
           ? await getDb()
               .prepare("SELECT r2_key FROM media WHERE id = ?")

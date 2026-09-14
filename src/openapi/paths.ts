@@ -58,6 +58,7 @@ import {
 } from "@/features/content/content.schemas";
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
 import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
+import { eventResponseSchema, eventsResponseSchema } from "@/features/events/events.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -205,6 +206,32 @@ export const leadershipRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(leadershipRouteConfig);
+
+export const eventsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/events",
+  summary: "List live THG events for a locale",
+  description: "Returns published Event cards ordered by event date, newest first.",
+  request: { query: LANG_QUERY },
+  responses: { 200: jsonResponse("Live event list", eventsResponseSchema), 400: BAD_LANG },
+} as const;
+
+openApiRegistry.registerPath(eventsRouteConfig);
+
+export const eventRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/events/{slug}",
+  summary: "Get one live THG event by slug and locale",
+  description: "Returns an event only when its locale row is published.",
+  request: { params: SLUG_PARAM, query: LANG_QUERY },
+  responses: {
+    200: jsonResponse("Live event detail", eventResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("Event not found or not published"),
+  },
+} as const;
+
+openApiRegistry.registerPath(eventRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the

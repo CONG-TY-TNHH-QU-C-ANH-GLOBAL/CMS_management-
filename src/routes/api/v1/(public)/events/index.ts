@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/v1/(public)/events/")({
       GET: async ({ request }) => {
         const lang = new URL(request.url).searchParams.get("lang") ?? "vi";
         if (!locales.has(lang as EventLocale))
-          return corsJson(request, { error: "Invalid lang" }, 400);
+          return corsJson(request, { error: "Invalid lang" }, { status: 400 });
         const events = await listLiveEvents(lang as EventLocale);
         const ids = events
           .map((event) => event.cover_media_id)
