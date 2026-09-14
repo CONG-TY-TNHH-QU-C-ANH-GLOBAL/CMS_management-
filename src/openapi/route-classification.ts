@@ -210,6 +210,8 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "community",
     `${LANDING} review detail`,
   ),
+  "v1/(public)/events/index.ts": read("/api/v1/events", "events", `${LANDING} Event hub`),
+  "v1/(public)/events/$slug.ts": read("/api/v1/events/{slug}", "events", `${LANDING} Event detail`),
   "v1/(public)/contact-locations/index.ts": read(
     "/api/v1/contact-locations",
     "content",
