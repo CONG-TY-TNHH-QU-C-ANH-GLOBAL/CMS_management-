@@ -37,6 +37,7 @@ import { Route as AdminContentLandingIndexRouteImport } from './routes/admin/con
 import { Route as AdminContentGlossaryIndexRouteImport } from './routes/admin/content/glossary/index'
 import { Route as AdminContentGalleryIndexRouteImport } from './routes/admin/content/gallery/index'
 import { Route as AdminContentFaqsIndexRouteImport } from './routes/admin/content/faqs/index'
+import { Route as AdminContentEventsIndexRouteImport } from './routes/admin/content/events/index'
 import { Route as AdminContentContactIndexRouteImport } from './routes/admin/content/contact/index'
 import { Route as AdminContentCommunityIndexRouteImport } from './routes/admin/content/community/index'
 import { Route as AdminContentCareersIndexRouteImport } from './routes/admin/content/careers/index'
@@ -52,6 +53,7 @@ import { Route as AdminSalesPricingSlugRouteImport } from './routes/admin/sales/
 import { Route as AdminContentShippingRoutesSlugRouteImport } from './routes/admin/content/shipping-routes/$slug'
 import { Route as AdminContentServicesServiceIdRouteImport } from './routes/admin/content/services/$serviceId'
 import { Route as AdminContentPoliciesSlugRouteImport } from './routes/admin/content/policies/$slug'
+import { Route as AdminContentEventsSlugRouteImport } from './routes/admin/content/events/$slug'
 import { Route as AdminContentCareersApplicantsRouteImport } from './routes/admin/content/careers/applicants'
 import { Route as AdminContentCareersJobIdRouteImport } from './routes/admin/content/careers/$jobId'
 import { Route as AdminContentBlogsSlugRouteImport } from './routes/admin/content/blogs/$slug'
@@ -93,6 +95,7 @@ import { Route as ApiV1adminApplicantCvSplatRouteImport } from './routes/api/v1/
 import { Route as ApiV1publicCommunityReviewsIndexRouteImport } from './routes/api/v1/(public)/community/reviews/index'
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
+import { Route as ApiV1integrationAgentEventsIndexRouteImport } from './routes/api/v1/(integration)/agent/events/index'
 import { Route as ApiV1publicCommunityReviewsSlugRouteImport } from './routes/api/v1/(public)/community/reviews/$slug'
 import { Route as ApiV1publicCommunityQuestionsSlugRouteImport } from './routes/api/v1/(public)/community/questions/$slug'
 import { Route as ApiV1publicCommunityReviewsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/reviews/$slug.withdraw'
@@ -256,6 +259,11 @@ const AdminContentFaqsIndexRoute = AdminContentFaqsIndexRouteImport.update({
   path: '/admin/content/faqs/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminContentEventsIndexRoute = AdminContentEventsIndexRouteImport.update({
+  id: '/admin/content/events/',
+  path: '/admin/content/events/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminContentContactIndexRoute =
   AdminContentContactIndexRouteImport.update({
     id: '/admin/content/contact/',
@@ -338,6 +346,11 @@ const AdminContentPoliciesSlugRoute =
     path: '/admin/content/policies/$slug',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AdminContentEventsSlugRoute = AdminContentEventsSlugRouteImport.update({
+  id: '/admin/content/events/$slug',
+  path: '/admin/content/events/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminContentCareersApplicantsRoute =
   AdminContentCareersApplicantsRouteImport.update({
     id: '/applicants',
@@ -568,6 +581,12 @@ const ApiV1publicCommunityCategoriesIndexRoute =
     path: '/api/v1/community/categories/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1integrationAgentEventsIndexRoute =
+  ApiV1integrationAgentEventsIndexRouteImport.update({
+    id: '/api/v1/(integration)/agent/events/',
+    path: '/api/v1/agent/events/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicCommunityReviewsSlugRoute =
   ApiV1publicCommunityReviewsSlugRouteImport.update({
     id: '/api/v1/(public)/community/reviews/$slug',
@@ -609,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
   '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
   '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
   '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
@@ -624,6 +644,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
   '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
+  '/admin/content/events/': typeof AdminContentEventsIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
@@ -683,6 +704,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/translations/': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -697,6 +719,7 @@ export interface FileRoutesByTo {
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
   '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
   '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
   '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
@@ -712,6 +735,7 @@ export interface FileRoutesByTo {
   '/admin/content/careers': typeof AdminContentCareersIndexRoute
   '/admin/content/community': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact': typeof AdminContentContactIndexRoute
+  '/admin/content/events': typeof AdminContentEventsIndexRoute
   '/admin/content/faqs': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary': typeof AdminContentGlossaryIndexRoute
@@ -771,6 +795,7 @@ export interface FileRoutesByTo {
   '/api/v1/translations': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/agent/events': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -789,6 +814,7 @@ export interface FileRoutesById {
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
+  '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
   '/admin/content/policies/$slug': typeof AdminContentPoliciesSlugRoute
   '/admin/content/services/$serviceId': typeof AdminContentServicesServiceIdRoute
   '/admin/content/shipping-routes/$slug': typeof AdminContentShippingRoutesSlugRoute
@@ -804,6 +830,7 @@ export interface FileRoutesById {
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
   '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
+  '/admin/content/events/': typeof AdminContentEventsIndexRoute
   '/admin/content/faqs/': typeof AdminContentFaqsIndexRoute
   '/admin/content/gallery/': typeof AdminContentGalleryIndexRoute
   '/admin/content/glossary/': typeof AdminContentGlossaryIndexRoute
@@ -863,6 +890,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/translations/': typeof ApiV1publicTranslationsIndexRoute
   '/api/v1/(public)/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/(public)/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/(integration)/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/(public)/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -882,6 +910,7 @@ export interface FileRouteTypes {
     | '/admin/content/blogs/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
+    | '/admin/content/events/$slug'
     | '/admin/content/policies/$slug'
     | '/admin/content/services/$serviceId'
     | '/admin/content/shipping-routes/$slug'
@@ -897,6 +926,7 @@ export interface FileRouteTypes {
     | '/admin/content/careers/'
     | '/admin/content/community/'
     | '/admin/content/contact/'
+    | '/admin/content/events/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
     | '/admin/content/glossary/'
@@ -956,6 +986,7 @@ export interface FileRouteTypes {
     | '/api/v1/translations/'
     | '/api/v1/community/questions/$slug'
     | '/api/v1/community/reviews/$slug'
+    | '/api/v1/agent/events/'
     | '/api/v1/community/categories/'
     | '/api/v1/community/questions/'
     | '/api/v1/community/reviews/'
@@ -970,6 +1001,7 @@ export interface FileRouteTypes {
     | '/admin/content/blogs/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
+    | '/admin/content/events/$slug'
     | '/admin/content/policies/$slug'
     | '/admin/content/services/$serviceId'
     | '/admin/content/shipping-routes/$slug'
@@ -985,6 +1017,7 @@ export interface FileRouteTypes {
     | '/admin/content/careers'
     | '/admin/content/community'
     | '/admin/content/contact'
+    | '/admin/content/events'
     | '/admin/content/faqs'
     | '/admin/content/gallery'
     | '/admin/content/glossary'
@@ -1044,6 +1077,7 @@ export interface FileRouteTypes {
     | '/api/v1/translations'
     | '/api/v1/community/questions/$slug'
     | '/api/v1/community/reviews/$slug'
+    | '/api/v1/agent/events'
     | '/api/v1/community/categories'
     | '/api/v1/community/questions'
     | '/api/v1/community/reviews'
@@ -1061,6 +1095,7 @@ export interface FileRouteTypes {
     | '/admin/content/blogs/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
+    | '/admin/content/events/$slug'
     | '/admin/content/policies/$slug'
     | '/admin/content/services/$serviceId'
     | '/admin/content/shipping-routes/$slug'
@@ -1076,6 +1111,7 @@ export interface FileRouteTypes {
     | '/admin/content/careers/'
     | '/admin/content/community/'
     | '/admin/content/contact/'
+    | '/admin/content/events/'
     | '/admin/content/faqs/'
     | '/admin/content/gallery/'
     | '/admin/content/glossary/'
@@ -1135,6 +1171,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/translations/'
     | '/api/v1/(public)/community/questions/$slug'
     | '/api/v1/(public)/community/reviews/$slug'
+    | '/api/v1/(integration)/agent/events/'
     | '/api/v1/(public)/community/categories/'
     | '/api/v1/(public)/community/questions/'
     | '/api/v1/(public)/community/reviews/'
@@ -1151,6 +1188,7 @@ export interface RootRouteChildren {
   AdminContentServicesRouteRoute: typeof AdminContentServicesRouteRouteWithChildren
   AdminSalesPricingRouteRoute: typeof AdminSalesPricingRouteRouteWithChildren
   AdminContentBlogsSlugRoute: typeof AdminContentBlogsSlugRoute
+  AdminContentEventsSlugRoute: typeof AdminContentEventsSlugRoute
   AdminContentPoliciesSlugRoute: typeof AdminContentPoliciesSlugRoute
   AdminContentShippingRoutesSlugRoute: typeof AdminContentShippingRoutesSlugRoute
   ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
@@ -1163,6 +1201,7 @@ export interface RootRouteChildren {
   AdminContentBlogsIndexRoute: typeof AdminContentBlogsIndexRoute
   AdminContentCommunityIndexRoute: typeof AdminContentCommunityIndexRoute
   AdminContentContactIndexRoute: typeof AdminContentContactIndexRoute
+  AdminContentEventsIndexRoute: typeof AdminContentEventsIndexRoute
   AdminContentFaqsIndexRoute: typeof AdminContentFaqsIndexRoute
   AdminContentGalleryIndexRoute: typeof AdminContentGalleryIndexRoute
   AdminContentGlossaryIndexRoute: typeof AdminContentGlossaryIndexRoute
@@ -1220,6 +1259,7 @@ export interface RootRouteChildren {
   ApiV1publicTranslationsIndexRoute: typeof ApiV1publicTranslationsIndexRoute
   ApiV1publicCommunityQuestionsSlugRoute: typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   ApiV1publicCommunityReviewsSlugRoute: typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  ApiV1integrationAgentEventsIndexRoute: typeof ApiV1integrationAgentEventsIndexRoute
   ApiV1publicCommunityCategoriesIndexRoute: typeof ApiV1publicCommunityCategoriesIndexRoute
   ApiV1publicCommunityQuestionsIndexRoute: typeof ApiV1publicCommunityQuestionsIndexRoute
   ApiV1publicCommunityReviewsIndexRoute: typeof ApiV1publicCommunityReviewsIndexRoute
@@ -1423,6 +1463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContentFaqsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/content/events/': {
+      id: '/admin/content/events/'
+      path: '/admin/content/events'
+      fullPath: '/admin/content/events/'
+      preLoaderRoute: typeof AdminContentEventsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/content/contact/': {
       id: '/admin/content/contact/'
       path: '/admin/content/contact'
@@ -1526,6 +1573,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/content/policies/$slug'
       fullPath: '/admin/content/policies/$slug'
       preLoaderRoute: typeof AdminContentPoliciesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/events/$slug': {
+      id: '/admin/content/events/$slug'
+      path: '/admin/content/events/$slug'
+      fullPath: '/admin/content/events/$slug'
+      preLoaderRoute: typeof AdminContentEventsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/careers/applicants': {
@@ -1815,6 +1869,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicCommunityCategoriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(integration)/agent/events/': {
+      id: '/api/v1/(integration)/agent/events/'
+      path: '/api/v1/agent/events'
+      fullPath: '/api/v1/agent/events/'
+      preLoaderRoute: typeof ApiV1integrationAgentEventsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/community/reviews/$slug': {
       id: '/api/v1/(public)/community/reviews/$slug'
       path: '/api/v1/community/reviews/$slug'
@@ -1944,6 +2005,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentServicesRouteRoute: AdminContentServicesRouteRouteWithChildren,
   AdminSalesPricingRouteRoute: AdminSalesPricingRouteRouteWithChildren,
   AdminContentBlogsSlugRoute: AdminContentBlogsSlugRoute,
+  AdminContentEventsSlugRoute: AdminContentEventsSlugRoute,
   AdminContentPoliciesSlugRoute: AdminContentPoliciesSlugRoute,
   AdminContentShippingRoutesSlugRoute: AdminContentShippingRoutesSlugRoute,
   ApiAuthGoogleCallbackRoute: ApiAuthGoogleCallbackRoute,
@@ -1956,6 +2018,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentBlogsIndexRoute: AdminContentBlogsIndexRoute,
   AdminContentCommunityIndexRoute: AdminContentCommunityIndexRoute,
   AdminContentContactIndexRoute: AdminContentContactIndexRoute,
+  AdminContentEventsIndexRoute: AdminContentEventsIndexRoute,
   AdminContentFaqsIndexRoute: AdminContentFaqsIndexRoute,
   AdminContentGalleryIndexRoute: AdminContentGalleryIndexRoute,
   AdminContentGlossaryIndexRoute: AdminContentGlossaryIndexRoute,
@@ -2016,6 +2079,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiV1publicCommunityQuestionsSlugRouteWithChildren,
   ApiV1publicCommunityReviewsSlugRoute:
     ApiV1publicCommunityReviewsSlugRouteWithChildren,
+  ApiV1integrationAgentEventsIndexRoute: ApiV1integrationAgentEventsIndexRoute,
   ApiV1publicCommunityCategoriesIndexRoute:
     ApiV1publicCommunityCategoriesIndexRoute,
   ApiV1publicCommunityQuestionsIndexRoute:
