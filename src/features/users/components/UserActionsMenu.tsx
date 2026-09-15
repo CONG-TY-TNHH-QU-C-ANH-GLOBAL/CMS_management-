@@ -10,6 +10,7 @@ import {
   setUserStatusFn,
   updateUserRoleFn,
 } from "@/features/users/users.actions";
+import { SetPasswordDialog } from "./SetPasswordDialog";
 
 interface Props {
   user: UserRow;
@@ -19,6 +20,7 @@ interface Props {
 
 export function UserActionsMenu({ user, selfId, onChanged }: Props) {
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const updateRole = useServerFn(updateUserRoleFn);
   const setStatus = useServerFn(setUserStatusFn);
@@ -110,6 +112,17 @@ export function UserActionsMenu({ user, selfId, onChanged }: Props) {
             <div className="my-1 h-px bg-border" />
 
             <button
+              onClick={() => {
+                setOpen(false);
+                setPasswordOpen(true);
+              }}
+              disabled={pending !== null}
+              className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-50"
+            >
+              {user.has_password ? "Đổi mật khẩu" : "Đặt mật khẩu"}
+            </button>
+
+            <button
               onClick={toggleStatus}
               disabled={pending !== null || isSelf}
               className="w-full text-left px-3 py-1.5 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
@@ -129,6 +142,12 @@ export function UserActionsMenu({ user, selfId, onChanged }: Props) {
           </div>
         </>
       )}
+      <SetPasswordDialog
+        user={user}
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+        onDone={onChanged}
+      />
     </div>
   );
 }

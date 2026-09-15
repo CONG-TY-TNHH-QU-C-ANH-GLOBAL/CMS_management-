@@ -18,5 +18,12 @@ export {
   generateStateToken,
 } from "./auth.google";
 export type { GoogleUserInfo } from "./auth.google";
+export {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  assertPasswordPolicy,
+  hashPassword,
+  verifyPassword,
+} from "./auth.password";
 export { withRequiredSession, requiredRoleOf } from "./auth.guard";
 export type { GuardedHandler } from "./auth.guard";

@@ -5,6 +5,8 @@
 
 /** Allowlisted login error codes → fixed localized messages. */
 export const ERROR_MESSAGES: Record<string, string> = {
+  invalid_credentials: "Email hoặc mật khẩu không đúng.",
+  account_locked: "Sai mật khẩu quá nhiều lần. Tài khoản tạm khoá 15 phút.",
   email_not_invited: "Email này chưa được mời vào CMS. Liên hệ quản trị viên để được cấp quyền.",
   user_disabled: "Tài khoản này đã bị vô hiệu hoá. Liên hệ quản trị viên.",
   email_not_verified: "Email Google chưa xác thực. Hãy xác thực email rồi thử lại.",

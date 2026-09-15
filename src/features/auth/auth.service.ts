@@ -3,6 +3,7 @@ import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 import { getDb, nowSeconds } from "@/core/db/client";
 import { requireSafeOrigin } from "@/core/middlewares/csrf";
 import { type GoogleUserInfo } from "./auth.google";
+import { verifyPassword } from "./auth.password";
 import {
   type ActiveSession,
   type Role,
@@ -87,6 +88,88 @@ export async function requireSession(minRole: Role = "viewer"): Promise<SessionU
     throw Object.assign(new Error("Forbidden"), { statusCode: 403, code: "FORBIDDEN" });
   }
   return session.user;
+}
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 15 * 60;
+
+/**
+ * Verify an email + password pair for local login.
+ *
+ * Unknown email and wrong password both surface INVALID_CREDENTIALS so the
+ * login form cannot be used to enumerate which addresses have been invited.
+ * Five consecutive failures lock the account for 15 minutes; the counter is
+ * cleared on the next successful login.
+ *
+ * Password login is gated on `password_hash` being set, not on `provider`, so
+ * an account created through Google can also hold a password.
+ */
+export async function authenticateWithPassword(input: {
+  email: string;
+  password: string;
+}): Promise<SessionUser> {
+  const email = input.email.toLowerCase().trim();
+  const now = nowSeconds();
+
+  const row = await getDb()
+    .prepare(
+      `SELECT id, email, name, role, status, picture_url, password_hash,
+              failed_login_attempts, locked_until
+         FROM users WHERE email = ? LIMIT 1`,
+    )
+    .bind(email)
+    .first<{
+      id: number;
+      email: string;
+      name: string;
+      role: Role;
+      status: string;
+      picture_url: string | null;
+      password_hash: string | null;
+      failed_login_attempts: number | null;
+      locked_until: number | null;
+    }>();
+
+  const invalidCredentials = () =>
+    Object.assign(new Error("invalid_credentials"), {
+      statusCode: 401,
+      code: "INVALID_CREDENTIALS",
+    });
+
+  if (!row?.password_hash) throw invalidCredentials();
+
+  if (row.status !== "active") {
+    throw Object.assign(new Error("disabled"), { statusCode: 403, code: "USER_DISABLED" });
+  }
+
+  if (row.locked_until && row.locked_until > now) {
+    throw Object.assign(new Error("locked"), { statusCode: 429, code: "ACCOUNT_LOCKED" });
+  }
+
+  if (!(await verifyPassword(input.password, row.password_hash))) {
+    const attempts = (row.failed_login_attempts ?? 0) + 1;
+    const lock = attempts >= MAX_FAILED_ATTEMPTS;
+    await getDb()
+      .prepare(`UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?`)
+      .bind(lock ? 0 : attempts, lock ? now + LOCKOUT_SECONDS : null, row.id)
+      .run();
+    throw invalidCredentials();
+  }
+
+  if (row.failed_login_attempts || row.locked_until) {
+    await getDb()
+      .prepare(`UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`)
+      .bind(row.id)
+      .run();
+  }
+
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    picture_url: row.picture_url,
+  };
 }
 
 /**

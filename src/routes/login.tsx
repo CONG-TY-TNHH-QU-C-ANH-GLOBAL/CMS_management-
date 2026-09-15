@@ -1,6 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState, type FormEvent } from "react";
 
-import { meFn } from "@/features/auth/auth.actions";
+import { loginWithPasswordFn, meFn } from "@/features/auth/auth.actions";
 import { resolveLoginError } from "./login.errors";
 
 export const Route = createFileRoute("/login")({
@@ -21,9 +23,33 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const search = Route.useSearch();
-  const errorMessage = resolveLoginError(search.error);
+  const login = useServerFn(loginWithPasswordFn);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const errorMessage = formError ?? resolveLoginError(search.error);
 
   const startUrl = `/api/auth/google/start?redirect=${encodeURIComponent(search.redirect || "/")}`;
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+    setPending(true);
+    try {
+      await login({ data: { email, password } });
+      // Full navigation so every loader re-runs with the new session cookie.
+      window.location.assign(search.redirect || "/");
+    } catch (err) {
+      // Never render the raw server message — map it through the bounded
+      // allowlist so an unexpected string falls back to the generic text.
+      const code = err instanceof Error ? err.message : "";
+      setFormError(resolveLoginError(code) ?? resolveLoginError("unknown"));
+      setPending(false);
+    }
+  }
 
   return (
     <div className="min-h-screen w-full grid place-items-center bg-background px-4 py-12">
@@ -43,7 +69,7 @@ function LoginPage() {
             Đăng nhập
           </h1>
           <p className="text-sm text-muted-foreground mb-5">
-            Đăng nhập bằng tài khoản Google đã được cấp quyền.
+            Đăng nhập bằng tài khoản được cấp quyền.
           </p>
 
           {errorMessage && (
@@ -51,6 +77,59 @@ function LoginPage() {
               {errorMessage}
             </div>
           )}
+
+          <form onSubmit={onSubmit} className="space-y-3.5">
+            <div>
+              <label
+                htmlFor="login-email"
+                className="block text-xs font-medium text-foreground mb-1.5"
+              >
+                Email
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                autoFocus
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={pending}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="login-password"
+                className="block text-xs font-medium text-foreground mb-1.5"
+              >
+                Mật khẩu
+              </label>
+              <input
+                id="login-password"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={pending}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium transition hover:opacity-90 disabled:opacity-60"
+            >
+              {pending ? "Đang đăng nhập…" : "Đăng nhập"}
+            </button>
+          </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-[11px] text-muted-foreground">hoặc</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
 
           <a
             href={startUrl}

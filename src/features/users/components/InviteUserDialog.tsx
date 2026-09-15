@@ -1,6 +1,7 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 
+import { MIN_PASSWORD_LENGTH } from "@/features/auth/auth.password";
 import { inviteUserFn, type Role } from "@/features/users/users.actions";
 
 interface Props {
@@ -13,6 +14,7 @@ export function InviteUserDialog({ open, onOpenChange, onInvited }: Props) {
   const invite = useServerFn(inviteUserFn);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("editor");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,7 @@ export function InviteUserDialog({ open, onOpenChange, onInvited }: Props) {
   function reset() {
     setEmail("");
     setName("");
+    setPassword("");
     setRole("editor");
     setError(null);
     setPending(false);
@@ -30,7 +33,7 @@ export function InviteUserDialog({ open, onOpenChange, onInvited }: Props) {
     setError(null);
     setPending(true);
     try {
-      await invite({ data: { email, name, role } });
+      await invite({ data: { email, name, role, password } });
       reset();
       onInvited();
       onOpenChange(false);
@@ -83,6 +86,22 @@ export function InviteUserDialog({ open, onOpenChange, onInvited }: Props) {
               placeholder="Nguyễn Văn A"
               disabled={pending}
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1.5">Mật khẩu</label>
+            <input
+              type="password"
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={pending}
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Tối thiểu {MIN_PASSWORD_LENGTH} ký tự. Tự báo lại cho thành viên qua kênh riêng.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-foreground mb-1.5">Vai trò</label>

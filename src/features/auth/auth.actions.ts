@@ -4,8 +4,24 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
+import { z } from "zod";
 
 import { requireSafeOrigin } from "@/core/middlewares/csrf";
+
+const loginSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+  password: z.string().min(1, "Nhập mật khẩu").max(200),
+});
+
+export const loginWithPasswordFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => loginSchema.parse(data))
+  .handler(async ({ data }) => {
+    requireSafeOrigin(); // H4 — CSRF: reject if Origin/Referer ≠ BASE_URL host
+    const { authenticateWithPassword, issueSession } = await import("@/features/auth");
+    const user = await authenticateWithPassword(data);
+    setResponseHeader("set-cookie", await issueSession(user));
+    return { ok: true as const };
+  });
 
 export const meFn = createServerFn({ method: "GET" }).handler(async () => {
   const { readCurrentSession } = await import("@/features/auth");
