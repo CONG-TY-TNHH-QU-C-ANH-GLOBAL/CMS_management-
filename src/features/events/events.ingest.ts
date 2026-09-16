@@ -33,30 +33,55 @@ import {
   type EventRow,
 } from "./events.service";
 
-/** The disabled service account created by migration 0049. Resolved by email,
- *  not by a hardcoded id, because `users.id` differs per database.
+/** Service account agent writes are attributed to.
  *
- *  NOT the literal 0 the older system-actor code uses. That value relies on D1
- *  ignoring foreign keys, and it does not: `events.updated_by` REFERENCES
- *  users(id), and a local D1 rejects the insert with
- *  SQLITE_CONSTRAINT_FOREIGNKEY. A real row is also what makes the audit page
- *  render "Marketing Agent" instead of a dangling id. */
+ *  WHY A ROW AT ALL. `events.updated_by` REFERENCES users(id) and D1 DOES
+ *  enforce it — the literal 0 the older system-actor code uses (blog-bot) makes
+ *  a local D1 reject the insert with SQLITE_CONSTRAINT_FOREIGNKEY. A real row is
+ *  also what makes the audit page render "Marketing Agent" rather than an id
+ *  that resolves to nothing.
+ *
+ *  WHY IT IS CREATED HERE AND NOT BY A MIGRATION. `upsertGoogleUser` treats an
+ *  EMPTY `users` table as the one-time bootstrap that makes the first Google
+ *  login an admin, and it decides that with a bare `SELECT COUNT(*) FROM users`.
+ *  A migration that seeds this row would make that count 1 on a fresh database
+ *  and permanently consume the bootstrap — nobody could ever become the first
+ *  admin. Creating it lazily, on the first agent write, keeps `users` empty
+ *  until a human has signed in: the token this route needs cannot be configured
+ *  before someone is already an admin, so by the time we get here the bootstrap
+ *  has necessarily been used.
+ *
+ *  `status='disabled'` with no password: both login paths reject a disabled
+ *  account before issuing a session, so the row names a writer without ever
+ *  being a way in. `role='editor'` records the privilege its writes correspond
+ *  to; nothing can act on it. */
 const AGENT_ACCOUNT_EMAIL = "marketing-agent@thgfulfill.com";
 
 async function agentActorId(): Promise<number> {
-  const row = await getDb()
+  const db = getDb();
+  const existing = await db
     .prepare(`SELECT id FROM users WHERE email = ? LIMIT 1`)
     .bind(AGENT_ACCOUNT_EMAIL)
     .first<{ id: number }>();
-  if (!row) {
-    // Loud rather than silent: falling back to a synthetic id would write rows
-    // whose author cannot be resolved, which is the state this account exists to
-    // prevent.
-    throw new Error(
-      `Thiếu tài khoản dịch vụ ${AGENT_ACCOUNT_EMAIL} — chạy migration 0049 trên database này.`,
-    );
-  }
-  return row.id;
+  if (existing) return existing.id;
+
+  // ON CONFLICT rather than a plain INSERT: two agent calls can race here, and
+  // `users.email` is UNIQUE, so the loser would otherwise fail the whole write.
+  await db
+    .prepare(
+      `INSERT INTO users (email, name, role, status, provider, created_at)
+       VALUES (?, 'Marketing Agent (tự động)', 'editor', 'disabled', 'local', unixepoch())
+       ON CONFLICT(email) DO NOTHING`,
+    )
+    .bind(AGENT_ACCOUNT_EMAIL)
+    .run();
+
+  const created = await db
+    .prepare(`SELECT id FROM users WHERE email = ? LIMIT 1`)
+    .bind(AGENT_ACCOUNT_EMAIL)
+    .first<{ id: number }>();
+  if (!created) throw new Error(`Không tạo được tài khoản dịch vụ ${AGENT_ACCOUNT_EMAIL}.`);
+  return created.id;
 }
 
 /** Exactly what `agentEventBodySchema` produces — the input type IS the parsed
