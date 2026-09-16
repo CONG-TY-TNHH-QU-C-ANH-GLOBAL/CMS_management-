@@ -34,7 +34,8 @@ export type TranslateEntityType =
   | "blog_post"
   | "policy"
   | "contact_location"
-  | "shipping_route";
+  | "shipping_route"
+  | "event";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -144,6 +145,22 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     sourceFkColumn: "shipping_route_id",
     sourceTable: "shipping_routes",
     fieldColumns: ["title", "body_md", "notes_json"],
+  },
+  event: {
+    translationsTable: "event_translations",
+    sourceFkColumn: "event_id",
+    sourceTable: "events",
+    // Prose only. Dates, slug, URLs and the video link stay on the source row —
+    // they read the same in every language, and a translated URL is a dead link.
+    fieldColumns: [
+      "title",
+      "summary",
+      "body_md",
+      "location",
+      "role",
+      "seo_title",
+      "seo_description",
+    ],
   },
 };
 

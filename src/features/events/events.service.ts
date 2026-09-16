@@ -35,6 +35,7 @@ export interface EventRow {
   summary: string | null;
   body_md: string | null;
   cover_media_id: number | null;
+  og_image_id: number | null;
   event_date: string;
   end_date: string | null;
   location: string | null;
@@ -51,7 +52,7 @@ export interface EventRow {
  *  set — status and updated_at are operator bookkeeping and must not ship in a
  *  public body (the public-surface gate asserts this). */
 const PUBLIC_COLUMNS =
-  "id, slug, locale, title, summary, body_md, cover_media_id, event_date, end_date, location, role, url, video_url, seo_title, seo_description";
+  "id, slug, locale, title, summary, body_md, cover_media_id, og_image_id, event_date, end_date, location, role, url, video_url, seo_title, seo_description";
 
 const ADMIN_COLUMNS = `${PUBLIC_COLUMNS}, status, updated_at`;
 
@@ -62,6 +63,7 @@ const WRITABLE = [
   "summary",
   "body_md",
   "cover_media_id",
+  "og_image_id",
   "event_date",
   "end_date",
   "location",
@@ -74,6 +76,19 @@ const WRITABLE = [
 ] as const;
 
 export type EventWritableField = (typeof WRITABLE)[number];
+
+/** Fields whose edit invalidates a translation. Must stay in step with
+ *  ENTITY_CONFIG.event.fieldColumns in translations.service.ts — a field
+ *  translated there but missing here would leave stale copy served as current. */
+const TRANSLATED_FIELDS = [
+  "title",
+  "summary",
+  "body_md",
+  "location",
+  "role",
+  "seo_title",
+  "seo_description",
+] as const satisfies readonly EventWritableField[];
 
 // ── Public reads (unchanged contract — /api/v1/events consumes these) ────────
 
@@ -94,6 +109,87 @@ export async function getLiveEvent(slug: string, locale: EventLocale): Promise<E
     )
     .bind(slug, locale)
     .first<EventRow>();
+}
+
+/** The vi row JOINed to a reviewed translation, projected in EXACTLY the order
+ *  of PUBLIC_COLUMNS.
+ *
+ *  The order is load-bearing, not cosmetic: `listLiveEventsForPublic` UNIONs this
+ *  against a plain `SELECT ${PUBLIC_COLUMNS}`, and SQL matches UNION branches by
+ *  POSITION, not by name. A column added to one list and not the other, or added
+ *  in a different place, silently shifts every value after it into the wrong
+ *  field — a slug rendering as a media id, with no error anywhere.
+ *
+ *  `t.*` is the prose the translation owns; `e.*` is everything identical across
+ *  languages — dates, links, media ids. */
+const TRANSLATED_ROW_SELECT = `e.id, e.slug, ? AS locale, t.title, t.summary, t.body_md,
+  e.cover_media_id, e.og_image_id, e.event_date, e.end_date, t.location, t.role,
+  e.url, e.video_url, t.seo_title, t.seo_description`;
+
+/** Public read for one locale, with the same precedence getBlogPostForPublic
+ *  uses and for the same reason: `vi` is the source of truth, `en`/`zh` are
+ *  served from a REVIEWED translation of the vi row, and a hand-written
+ *  per-locale row is the fallback for anything translated before the pipeline
+ *  existed (or deliberately written by hand).
+ *
+ *  Status is taken from the VI row: publishing is an editorial decision about
+ *  the event, not about one language of it. */
+export async function getLiveEventForPublic(
+  slug: string,
+  locale: EventLocale,
+): Promise<EventRow | null> {
+  if (locale === "vi") return getLiveEvent(slug, "vi");
+
+  const translated = await getDb()
+    .prepare(
+      `SELECT ${TRANSLATED_ROW_SELECT}
+         FROM events e
+         JOIN event_translations t
+           ON t.event_id = e.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE e.slug = ? AND e.locale = 'vi' AND e.status = 'live' LIMIT 1`,
+    )
+    .bind(locale, locale, slug)
+    .first<EventRow>();
+  if (translated) return translated;
+  return getLiveEvent(slug, locale);
+}
+
+/** List counterpart. A slug appears once per locale: either as its own live row
+ *  or as a reviewed translation of the vi row, never both — the UNION filters
+ *  out vi-backed slugs that already have a hand-written row for this locale. */
+export async function listLiveEventsForPublic(locale: EventLocale): Promise<EventRow[]> {
+  if (locale === "vi") return listLiveEvents("vi");
+
+  const result = await getDb()
+    .prepare(
+      `SELECT ${TRANSLATED_ROW_SELECT}
+         FROM events e
+         JOIN event_translations t
+           ON t.event_id = e.id AND t.locale = ? AND t.status = 'reviewed'
+        WHERE e.locale = 'vi' AND e.status = 'live'
+          AND NOT EXISTS (
+            SELECT 1 FROM events own
+             WHERE own.slug = e.slug AND own.locale = ? AND own.status = 'live'
+          )
+        UNION ALL
+        SELECT ${PUBLIC_COLUMNS} FROM events
+         WHERE locale = ? AND status = 'live'
+        ORDER BY event_date DESC, id DESC`,
+    )
+    .bind(locale, locale, locale, locale)
+    .all<EventRow>();
+  return result.results ?? [];
+}
+
+/** Which locales a slug can actually be read in — the `available_locales` the
+ *  blog detail endpoint already publishes, so the landing can offer a language
+ *  switch that only lists languages with real content. */
+export async function availableEventLocales(slug: string): Promise<EventLocale[]> {
+  const out: EventLocale[] = [];
+  for (const locale of EVENT_LOCALES) {
+    if (await getLiveEventForPublic(slug, locale)) out.push(locale);
+  }
+  return out;
 }
 
 // ── Admin reads ─────────────────────────────────────────────────────────────
@@ -136,6 +232,7 @@ export interface EventInput {
   summary?: string | null;
   body_md?: string | null;
   cover_media_id?: number | null;
+  og_image_id?: number | null;
   event_date: string;
   end_date?: string | null;
   location?: string | null;
@@ -158,9 +255,9 @@ export async function createEvent(actorId: number, input: EventInput): Promise<E
   const inserted = await getDb()
     .prepare(
       `INSERT INTO events
-         (slug, locale, title, summary, body_md, cover_media_id, event_date, end_date,
+         (slug, locale, title, summary, body_md, cover_media_id, og_image_id, event_date, end_date,
           location, role, url, video_url, status, seo_title, seo_description, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), ?)
        RETURNING ${ADMIN_COLUMNS}`,
     )
     .bind(
@@ -170,6 +267,7 @@ export async function createEvent(actorId: number, input: EventInput): Promise<E
       input.summary ?? null,
       input.body_md ?? null,
       input.cover_media_id ?? null,
+      input.og_image_id ?? null,
       input.event_date,
       input.end_date ?? null,
       input.location ?? null,
@@ -219,6 +317,35 @@ export async function updateEvent(actorId: number, input: UpdateEventInput): Pro
     .bind(input.id)
     .first<EventRow>();
   await auditLog(actorId, "update", "events", input.id, before, after);
+
+  // Editing the VI source invalidates its translations: any reviewed EN/ZH copy
+  // now describes older text. Mark them stale so the review queue shows the work,
+  // then kick the auto-translator for locales that have none yet. Mirrors
+  // blog.service — and, like there, a translation-pipeline failure must never
+  // fail the edit the operator just made.
+  if (
+    after &&
+    after.locale === "vi" &&
+    TRANSLATED_FIELDS.some((field) => input[field] !== undefined)
+  ) {
+    try {
+      const { onEventSourceChanged, autoTranslateMissingLocales } =
+        await import("@/features/translations");
+      await onEventSourceChanged(after.id, {
+        title: after.title,
+        summary: after.summary,
+        body_md: after.body_md,
+        location: after.location,
+        role: after.role,
+        seo_title: after.seo_title,
+        seo_description: after.seo_description,
+      });
+      await autoTranslateMissingLocales(actorId, "event", after.id);
+    } catch (err) {
+      console.error("[events] onEventSourceChanged failed", err);
+    }
+  }
+
   return after!;
 }
 

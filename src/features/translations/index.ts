@@ -94,6 +94,16 @@ export {
   type BlogPostTranslationRow,
 } from "./blog-post.translation.service";
 export {
+  approveEventTranslation,
+  deleteEventTranslation,
+  editEventTranslation,
+  listAllEventTranslations,
+  listEventTranslationsForId,
+  markEventTranslationStale,
+  onEventSourceChanged,
+  type EventTranslationRow,
+} from "./event.translation.service";
+export {
   approvePolicyTranslation,
   deletePolicyTranslation,
   editPolicyTranslation,

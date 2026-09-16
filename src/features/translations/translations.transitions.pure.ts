@@ -16,6 +16,7 @@ export type TranslationTable =
   | "homepage_block_translations"
   | "careers_job_translations"
   | "blog_post_translations"
+  | "event_translations"
   | "policy_translations"
   | "contact_location_translations"
   | "shipping_route_translations";
