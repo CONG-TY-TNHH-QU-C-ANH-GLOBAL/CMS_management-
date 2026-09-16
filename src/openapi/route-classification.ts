@@ -50,7 +50,12 @@ export type AuthRequirement =
   /** Session cookie via requireSession(role). */
   | "session"
   /** The caller proves ownership with a submission-time opaque token, not an account. */
-  | "owner-token";
+  | "owner-token"
+  /** A first-party BACKEND proves itself with a shared secret in an Authorization
+   *  header — no cookie, no user, no role. Distinct from "owner-token": that one
+   *  authorizes a browser against one row it created, this one authenticates a
+   *  whole service. See src/core/middlewares/service-token.ts. */
+  | "service-token";
 
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
@@ -166,6 +171,29 @@ const adminApi = (
   methods,
   classification: "AUTHENTICATED_ADMIN_API",
   auth: "session",
+  inPublicOpenApi: false,
+  owningFeature,
+  consumer,
+  note,
+});
+
+/** A first-party tool's backend calling in with a shared secret. Classified
+ *  WEBHOOK — it is an inbound machine-to-machine call, not a browser surface —
+ *  which is why it stays out of the public document: publishing it would invite
+ *  exactly the unauthenticated traffic the token exists to exclude. `note` is
+ *  mandatory here the same way it is for `undocumented`, and the inventory gate
+ *  independently requires one for every WEBHOOK entry. */
+const integrationApi = (
+  path: string,
+  methods: readonly HttpMethod[],
+  owningFeature: string,
+  consumer: string,
+  note: string,
+): RouteClassificationEntry => ({
+  path,
+  methods,
+  classification: "WEBHOOK",
+  auth: "service-token",
   inPublicOpenApi: false,
   owningFeature,
   consumer,
@@ -410,6 +438,20 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
       "Cache-Control: private, no-store, Content-Disposition: attachment and nosniff, and " +
       "answers a uniform 404 for an out-of-namespace key or a missing object so neither " +
       "reveals what exists in storage.",
+  ),
+  "v1/(integration)/agent/events/index.ts": integrationApi(
+    "/api/v1/agent/events",
+    ["post"],
+    "events",
+    "marketing.thgfulfill.com writer agent (server-to-server)",
+    "Bearer MARKETING_AGENT_TOKEN, checked in constant time and FAILING CLOSED when the secret " +
+      "is unset (503, not 'allow'). Undocumented on purpose: the public document is the " +
+      "landing's contract, and an entry here would advertise a write surface whose only " +
+      "protection is a secret. The route can produce exactly one outcome — a status='draft' " +
+      "row — because `status` is hardcoded in events.ingest.ts rather than read from the body, " +
+      "and a row that is already 'live' is refused with 409 instead of overwritten. So the " +
+      "worst case for a leaked token is drafts an operator must still approve, never a change " +
+      "to what is on thgfulfill.com. No CORS headers: a browser must not be able to read it.",
   ),
   "auth/google/start.ts": authCallback(
     "/api/auth/google/start",

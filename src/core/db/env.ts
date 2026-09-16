@@ -43,6 +43,11 @@ declare global {
       // variable; the shared HMAC key is a Worker secret.
       CRM_LEAD_SYNC_URL?: string;
       CMS_CRM_SYNC_KEY?: string;
+      // marketing.thgfulfill.com -> CMS agent ingest (POST /api/v1/agent/events).
+      // Shared bearer token for the marketing tool's writer agent. Undefined
+      // disables the route (503), which is the fail-closed default — an
+      // unconfigured deployment refuses the call rather than accepting any.
+      MARKETING_AGENT_TOKEN?: string;
     }
   }
 }

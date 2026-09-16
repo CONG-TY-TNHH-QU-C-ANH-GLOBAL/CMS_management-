@@ -37,3 +37,11 @@ SESSION_SECRET=
 # Cloudflare Turnstile secret key (optional). Leave blank to skip bot check —
 # LeadFormDialog uses a DEV_BYPASS token in that case. Production should set this.
 TURNSTILE_SECRET_KEY=
+
+# marketing.thgfulfill.com -> CMS agent ingest (POST /api/v1/agent/events).
+# Shared bearer token the marketing tool sends as `Authorization: Bearer <token>`
+# when its writer agent submits an Event draft. Leave BLANK to keep the route
+# disabled (it answers 503 with no secret set — it never falls open).
+# Generate:  bun -e "console.log(crypto.randomUUID().replaceAll(\"-\",\"\"))"
+# Production: bunx wrangler secret put MARKETING_AGENT_TOKEN
+MARKETING_AGENT_TOKEN=
