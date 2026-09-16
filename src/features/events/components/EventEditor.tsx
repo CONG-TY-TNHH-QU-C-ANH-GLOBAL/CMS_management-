@@ -25,6 +25,8 @@ interface Props {
   /** Cover preview URL resolved by the loader — `cover_media_id` alone cannot be
    *  turned into a URL on the client. Null when no cover is set. */
   coverUrl: string | null;
+  /** Social share image preview, resolved by the loader like the cover. */
+  ogImageUrl: string | null;
   onSaved: () => void;
 }
 
@@ -60,6 +62,7 @@ interface Draft {
   seo_description: string;
   status: "draft" | "live";
   cover_media_id: number | null;
+  og_image_id: number | null;
 }
 
 function toDraft(event: EventRow | null): Draft {
@@ -77,6 +80,7 @@ function toDraft(event: EventRow | null): Draft {
     seo_description: event?.seo_description ?? "",
     status: event?.status === "live" ? "live" : "draft",
     cover_media_id: event?.cover_media_id ?? null,
+    og_image_id: event?.og_image_id ?? null,
   };
 }
 
@@ -89,7 +93,7 @@ interface PhotoDraft {
   preview: string | null;
 }
 
-export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: Props) {
+export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl, onSaved }: Props) {
   const create = useServerFn(createEventFn);
   const update = useServerFn(updateEventFn);
   const remove = useServerFn(deleteEventFn);
@@ -98,6 +102,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
   const initial = useMemo(() => toDraft(event), [event]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [coverPreview, setCoverPreview] = useState<string | null>(coverUrl);
+  const [ogPreview, setOgPreview] = useState<string | null>(ogImageUrl);
   const [gallery, setGallery] = useState<PhotoDraft[]>([]);
   const [galleryDirty, setGalleryDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -105,6 +110,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
   useEffect(() => {
     setDraft(toDraft(event));
     setCoverPreview(coverUrl);
+    setOgPreview(ogImageUrl);
     setGallery(
       photos.map((photo) => ({
         media_id: photo.media_id ?? 0,
@@ -113,7 +119,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
       })),
     );
     setGalleryDirty(false);
-  }, [event, photos, coverUrl]);
+  }, [event, photos, coverUrl, ogImageUrl]);
 
   const changedFields = useMemo(
     () => (Object.keys(initial) as (keyof Draft)[]).filter((key) => draft[key] !== initial[key]),
@@ -137,6 +143,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
         summary: orNull(draft.summary),
         body_md: orNull(draft.body_md),
         cover_media_id: draft.cover_media_id,
+        og_image_id: draft.og_image_id,
         event_date: draft.event_date,
         end_date: orNull(draft.end_date),
         location: orNull(draft.location),
@@ -473,6 +480,56 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
               className={areaClass}
             />
           </label>
+          <div>
+            <span className="text-sm font-medium">Ảnh chia sẻ mạng xã hội (OG image)</span>
+            <div className="mt-2 flex items-center gap-3">
+              {ogPreview ? (
+                <img
+                  src={ogPreview}
+                  alt=""
+                  className="h-20 w-36 rounded-lg border border-border object-cover"
+                />
+              ) : (
+                <div className="grid h-20 w-36 place-items-center rounded-lg border border-dashed border-border text-center text-[11px] text-muted-foreground">
+                  Dùng ảnh bìa
+                </div>
+              )}
+              <MediaPicker
+                mode="single"
+                value={draft.og_image_id ? [draft.og_image_id] : []}
+                onChange={(ids, rows) => {
+                  set("og_image_id", ids[0] ?? null);
+                  setOgPreview(rows[0]?.url ?? rows[0]?.thumb_url ?? null);
+                }}
+                title="Chọn ảnh chia sẻ mạng xã hội"
+                trigger={
+                  <button
+                    type="button"
+                    className="h-9 rounded-lg border border-border px-3 text-sm hover:bg-muted"
+                  >
+                    Chọn ảnh OG
+                  </button>
+                }
+              />
+              {draft.og_image_id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("og_image_id", null);
+                    setOgPreview(null);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-red-600"
+                >
+                  Bỏ ảnh OG
+                </button>
+              )}
+            </div>
+            <span className="mt-2 block text-[11px] text-muted-foreground">
+              Ảnh hiện khi chia sẻ link lên Facebook, Zalo, LinkedIn. Kích thước tốt nhất 1200×630.
+              Bỏ trống thì tự dùng ảnh bìa.
+            </span>
+          </div>
+
           <label className="block max-w-xs">
             <span className="text-sm font-medium">Trạng thái</span>
             <select
@@ -506,6 +563,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, onSaved }: 
         onDiscard={() => {
           setDraft(initial);
           setCoverPreview(coverUrl);
+          setOgPreview(ogImageUrl);
           setGallery(
             photos.map((photo) => ({
               media_id: photo.media_id ?? 0,

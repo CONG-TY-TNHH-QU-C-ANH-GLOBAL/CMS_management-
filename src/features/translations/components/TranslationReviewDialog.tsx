@@ -84,7 +84,8 @@ interface Props {
     | "blog_post"
     | "policy"
     | "contact_location"
-    | "shipping_route";
+    | "shipping_route"
+    | "event";
   /** Source row ID (locale=vi row in the source table). */
   entityId: number;
   /** Friendly singular label for header copy ("FAQ", "Service block", …). */

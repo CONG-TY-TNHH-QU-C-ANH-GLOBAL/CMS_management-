@@ -10,6 +10,7 @@ export type { TestimonialTranslationRow } from "./testimonial.translation.servic
 export type { HomepageBlockTranslationRow } from "./homepage-block.translation.service";
 export type { CareersJobTranslationRow } from "./careers-job.translation.service";
 export type { BlogPostTranslationRow } from "./blog-post.translation.service";
+export type { EventTranslationRow } from "./event.translation.service";
 export type { PolicyTranslationRow } from "./policy.translation.service";
 export type { ContactLocationTranslationRow } from "./contact-location.translation.service";
 export type { ShippingRouteTranslationRow } from "./shipping-route.translation.service";
@@ -535,6 +536,91 @@ export const markCareersJobTranslationStaleFn = createServerFn({ method: "POST" 
   });
 
 // ─────────────── Phase 8: blog_post lifecycle RPC ───────────────
+
+// ── Event translations ──────────────────────────────────────────────────
+// The same five operations every other entity exposes. Events reached this
+// pipeline late (migration 0051); before that EN/ZH had to be typed by hand.
+
+export const listEventTranslationsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ event_id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { listEventTranslationsForId } = await import(
+      "./event.translation.service"
+    );
+    await requireSession("viewer");
+    return await listEventTranslationsForId(data.event_id);
+  });
+
+export const listAllEventTranslationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { requireSession } = await import("@/features/auth");
+    const { listAllEventTranslations } = await import("./event.translation.service");
+    await requireSession("viewer");
+    return await listAllEventTranslations();
+  },
+);
+
+export const approveEventTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { approveEventTranslation } = await import("./event.translation.service");
+    const me = await requireSession("editor");
+    const result = await approveEventTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const editEventTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: ID,
+        title: z.string().trim().min(1).max(2000),
+        summary: z.string().max(5000).nullable(),
+        body_md: z.string().max(60000).nullable(),
+        location: z.string().max(2000).nullable(),
+        role: z.string().max(2000).nullable(),
+        seo_title: z.string().max(2000).nullable(),
+        seo_description: z.string().max(5000).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { editEventTranslation } = await import("./event.translation.service");
+    const me = await requireSession("editor");
+    const result = await editEventTranslation(me.id, data);
+    await bumpCmsRev();
+    return result;
+  });
+
+export const deleteEventTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { deleteEventTranslation } = await import("./event.translation.service");
+    const me = await requireSession("editor");
+    await deleteEventTranslation(me.id, data.id);
+    await bumpCmsRev();
+    return { ok: true as const };
+  });
+
+export const markEventTranslationStaleFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: ID }).parse(input))
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const { markEventTranslationStale } = await import("./event.translation.service");
+    const me = await requireSession("editor");
+    const result = await markEventTranslationStale(me.id, data.id);
+    await bumpCmsRev();
+    return result;
+  });
 
 export const listBlogPostTranslationsFn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ blog_post_id: ID }).parse(input))

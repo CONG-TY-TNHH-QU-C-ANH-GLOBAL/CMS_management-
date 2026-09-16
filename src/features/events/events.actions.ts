@@ -55,12 +55,16 @@ export const getEventDetailFn = createServerFn({ method: "GET" })
     const { toMediaUrl } = await import("@/features/partners/partners.media");
     await requireSession("viewer");
     const event = await getEvent(data.slug, data.locale);
-    if (!event) return { event: null, photos: [], cover_url: null };
-    const cover = event.cover_media_id ? await getMedia(event.cover_media_id) : null;
+    if (!event) return { event: null, photos: [], cover_url: null, og_image_url: null };
+    const [cover, ogImage] = await Promise.all([
+      event.cover_media_id ? getMedia(event.cover_media_id) : null,
+      event.og_image_id ? getMedia(event.og_image_id) : null,
+    ]);
     return {
       event,
       photos: await listEventPhotos(event.id),
       cover_url: cover ? toMediaUrl(cover.r2_key, "") : null,
+      og_image_url: ogImage ? toMediaUrl(ogImage.r2_key, "") : null,
     };
   });
 
@@ -71,6 +75,7 @@ const eventCreate = z.object({
   summary: text(500),
   body_md: text(60_000),
   cover_media_id: ID.nullable().optional(),
+  og_image_id: ID.nullable().optional(),
   event_date: ISO_DATE,
   end_date: ISO_DATE.nullable().optional(),
   location: text(200),

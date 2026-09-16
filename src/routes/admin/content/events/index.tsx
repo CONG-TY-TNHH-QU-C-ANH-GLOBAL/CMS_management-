@@ -8,6 +8,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { Card, PageContainer } from "@/components/cms/ui";
 import { NewEventDialog } from "@/features/events/components/NewEventDialog";
+import { BulkTranslateButton } from "@/features/translations/components/BulkTranslateButton";
 import {
   deleteEventSlugFn,
   listEventsFn,
@@ -117,6 +118,7 @@ function EventsPage() {
                 className="flex-1 bg-transparent outline-none"
               />
             </div>
+            <BulkTranslateButton entityType="event" onDone={() => router.invalidate()} />
           </div>
 
           <div className="overflow-x-auto">
