@@ -35,6 +35,9 @@ interface Props {
 
 const PAGE_SIZE = 24;
 
+/** Mirrors the file input's `accept`, so paste and browse take the same set. */
+const ACCEPTED = /^(image\/|video\/(mp4|webm)$)/;
+
 export function MediaPicker({ mode, value, onChange, trigger, defaultTag, title }: Props) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<MediaRow[]>([]);
@@ -81,7 +84,31 @@ export function MediaPicker({ mode, value, onChange, trigger, defaultTag, title 
     setOpen(false);
   }
 
-  async function onUploadFiles(files: FileList | null) {
+  /** Ctrl+V. A clipboard image arrives with a useless name — Chrome calls every
+   *  one "image.png" — so it is renamed before upload, otherwise the library
+   *  fills up with identical entries and alt_text says nothing.
+   *
+   *  Paste inside the search box is left alone: there it means "paste the text
+   *  I copied", and swallowing it would break an ordinary search. */
+  function onPasteFiles(e: React.ClipboardEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
+
+    const images = Array.from(e.clipboardData?.files ?? []).filter((f) => ACCEPTED.test(f.type));
+    if (images.length === 0) return;
+
+    e.preventDefault();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    void onUploadFiles(
+      images.map((f, i) => {
+        const ext = f.name.includes(".") ? f.name.slice(f.name.lastIndexOf(".")) : ".png";
+        const name = `dan-${stamp}${images.length > 1 ? `-${i + 1}` : ""}${ext}`;
+        return new File([f], name, { type: f.type });
+      }),
+    );
+  }
+
+  async function onUploadFiles(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     setUploadPending(true);
     try {
@@ -124,7 +151,14 @@ export function MediaPicker({ mode, value, onChange, trigger, defaultTag, title 
       <span onClick={() => setOpen(true)}>{trigger}</span>
       {open && (
         <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={() => setOpen(false)}>
-          <div className="rounded-xl border border-border bg-background shadow-elevated max-w-5xl w-full max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          {/* tabIndex makes the dialog focusable so a paste with nothing else
+              focused still lands here rather than on document.body. */}
+          <div
+            className="rounded-xl border border-border bg-background shadow-elevated max-w-5xl w-full max-h-[85vh] flex flex-col outline-none"
+            onClick={(e) => e.stopPropagation()}
+            onPaste={onPasteFiles}
+            tabIndex={-1}
+          >
             <div className="flex items-center justify-between px-5 py-3 border-b border-border">
               <div className="font-semibold">{title ?? (mode === "single" ? "Chọn 1 ảnh" : "Chọn nhiều ảnh")}</div>
               <button onClick={() => setOpen(false)} className="grid place-items-center w-8 h-8 rounded-md hover:bg-muted">
@@ -234,6 +268,7 @@ export function MediaPicker({ mode, value, onChange, trigger, defaultTag, title 
               <div className="text-xs text-muted-foreground">
                 {selected.length} ảnh đã chọn
                 {mode === "single" && selected.length > 1 ? " (chỉ giữ ảnh đầu)" : ""}
+                <span className="ml-2 text-[11px] opacity-70">· dán ảnh bằng Ctrl+V</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setOpen(false)} className="h-9 px-3 rounded-md border border-border bg-surface text-sm font-medium hover:bg-surface-muted">
