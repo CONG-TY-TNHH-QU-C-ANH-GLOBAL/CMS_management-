@@ -24,7 +24,7 @@
 
 import { getDb } from "@/core/db/client";
 import { auditLog } from "@/core/db/mutations";
-import type { AgentEventBody } from "./events.ingest.schema";
+import { decodeEscapedNewlines, type AgentEventBody } from "./events.ingest.schema";
 import {
   createEvent,
   getEvent,
@@ -152,7 +152,7 @@ export async function ingestAgentEvent(input: AgentEventInput): Promise<AgentEve
   const fields = {
     title: input.title,
     summary: input.summary ?? null,
-    body_md: input.body_md ?? null,
+    body_md: decodeEscapedNewlines(input.body_md),
     event_date: input.event_date,
     end_date: input.end_date ?? null,
     location: input.location ?? null,

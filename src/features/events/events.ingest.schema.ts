@@ -46,3 +46,23 @@ export const agentEventBodySchema = z.object({
 });
 
 export type AgentEventBody = z.infer<typeof agentEventBodySchema>;
+
+/** Undo a double-encoded payload: markdown arriving with the two characters
+ *  backslash-n where a newline belongs. Both live events were stored that way,
+ *  which rendered each article as a single paragraph with "\n\n" and "###"
+ *  printed as text. Blog posts are clean, so the fault is on this path.
+ *
+ *  Only rewrites text that has backslash-n AND no real newline anywhere.
+ *  Markdown legitimately carries backslash-n inside code fences and escape
+ *  examples, and a blanket replace would corrupt those — a worse failure than
+ *  the bug, because it would look right in the editor and wrong on the site. A
+ *  document with zero real newlines but many backslash-n cannot have meant them
+ *  literally. Same condition as migration 0053, which repairs the stored rows.
+ *
+ *  Lives here rather than in events.ingest.ts so it can be tested without a
+ *  Worker runtime, for the reason given in this module's header. */
+export function decodeEscapedNewlines(md: string | null | undefined): string | null {
+  if (!md) return md ?? null;
+  if (md.includes("\n") || !md.includes(String.raw`\n`)) return md;
+  return md.replace(new RegExp(String.raw`\\n`, "g"), "\n");
+}
