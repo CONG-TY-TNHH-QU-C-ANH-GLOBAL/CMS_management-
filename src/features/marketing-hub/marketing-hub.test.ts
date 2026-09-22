@@ -221,6 +221,16 @@ test("signed preview ingest exposes an expiring no-store capability without stor
     },
   });
 
+  const hostileOrigin = await readHubPreview(
+    new Request(`https://cms.example.test/api/v1/blog-previews/${token}`, {
+      headers: { origin: "https://attacker.example" },
+    }),
+    token,
+  );
+  expect(hostileOrigin.headers.get("access-control-allow-origin")).not.toBe(
+    "https://attacker.example",
+  );
+
   const replay = await handleHubRequest(
     await request(body, crypto.randomUUID(), "/api/v1/agent/previews"),
     "preview",

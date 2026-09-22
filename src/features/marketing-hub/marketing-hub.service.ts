@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
 import { getDb } from "@/core/db/client";
+import { corsHeaders } from "@/core/middlewares/cors";
 import { canonical, digest, hmac } from "./marketing-hub.crypto";
 import {
   hubEnvelopeSchema,
@@ -221,14 +222,11 @@ export async function ingestHubPreview(raw: string): Promise<Response> {
 }
 
 export async function readHubPreview(request: Request, token: string): Promise<Response> {
-  const headers = {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
-    "X-Robots-Tag": "noindex, nofollow",
-    "Referrer-Policy": "no-referrer",
-    "Access-Control-Allow-Origin": request.headers.get("origin") || env.MARKETING_HUB_PUBLIC_ORIGIN || "",
-    Vary: "Origin",
-  };
+  const headers = new Headers(corsHeaders(request));
+  headers.set("Content-Type", "application/json; charset=utf-8");
+  headers.set("Cache-Control", "no-store");
+  headers.set("X-Robots-Tag", "noindex, nofollow");
+  headers.set("Referrer-Policy", "no-referrer");
   if (!/^[a-f0-9]{64}$/.test(token))
     return new Response(JSON.stringify({ error: "Preview not found" }), { status: 404, headers });
   const row = await getDb()
