@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import "@/core/db/env";
 import { getDb } from "@/core/db/client";
-import { canonical, digest } from "./marketing-hub.crypto";
+import { canonical, digest, hmac } from "./marketing-hub.crypto";
 import {
   hubEnvelopeSchema,
   hubEventSchema,
@@ -9,6 +9,7 @@ import {
   hubReadResponseSchema,
   hubMediaSchema,
   hubRetrySchema,
+  hubPreviewSchema,
 } from "./marketing-hub.schemas";
 import {
   atomic,
@@ -65,6 +66,202 @@ export function publicUrl(kind: "event" | "blog", locale: string, slug: string):
   url.pathname = `/${locale}/${kind === "event" ? "events" : "blog"}/${slug}`;
   url.search = "";
   return url.toString();
+}
+
+function previewUrl(locale: string, token: string): string | null {
+  const url = configuredHttps(env.MARKETING_HUB_PUBLIC_ORIGIN);
+  if (!url) return null;
+  url.pathname = `/${locale}/blog-preview/${token}`;
+  url.search = "";
+  return url.toString();
+}
+
+async function previewToken(payload: {
+  externalId: string;
+  versionId: string;
+  payloadHash: string;
+  expiresAt: string;
+}) {
+  if (!env.MARKETING_HUB_PREVIEW_SECRET) fail("MARKETING_HUB_PREVIEW_DISABLED", 503);
+  return hmac(
+    env.MARKETING_HUB_PREVIEW_SECRET,
+    `${payload.externalId}\n${payload.versionId}\n${payload.payloadHash}\n${payload.expiresAt}`,
+  );
+}
+
+export async function ingestHubPreview(raw: string): Promise<Response> {
+  const payload = hubPreviewSchema.parse(JSON.parse(raw));
+  const { payloadHash, ...unsigned } = payload;
+  if (
+    (await digest(canonical(unsigned))) !== payloadHash ||
+    (await digest(canonical(payload.renderedContent))) !== payload.contentHash
+  )
+    fail("CONTENT_HASH_MISMATCH", 422);
+  const expiry = Date.parse(payload.expiresAt);
+  const nowMs = Date.now();
+  if (expiry < nowMs + 5 * 60 * 1000 || expiry > nowMs + 14 * 24 * 60 * 60 * 1000)
+    fail("PREVIEW_EXPIRY_INVALID", 422);
+  const token = await previewToken(payload);
+  const url = previewUrl(payload.locale, token);
+  if (!url) fail("MARKETING_HUB_PUBLIC_ORIGIN_INVALID", 503);
+  const tokenHash = await digest(token);
+  const db = getDb();
+  const old = await db
+    .prepare("SELECT * FROM marketing_hub_previews WHERE external_id=?")
+    .bind(payload.externalId)
+    .first<{
+      kind: string;
+      locale: string;
+      slug: string;
+      version_id: string;
+      source_revision: number;
+      payload_hash: string;
+      expires_at: string;
+    }>();
+  if (
+    old &&
+    (old.kind !== payload.kind ||
+      old.locale !== payload.locale ||
+      old.slug !== payload.slug ||
+      (old.source_revision === payload.sourceRevision &&
+        (old.version_id !== payload.versionId ||
+          old.payload_hash !== payload.payloadHash ||
+          old.expires_at !== payload.expiresAt)) ||
+      old.source_revision > payload.sourceRevision)
+  )
+    fail("PREVIEW_REVISION_OR_IDENTITY_CONFLICT", 409);
+  const result = {
+    ok: true,
+    status: "ready",
+    externalId: payload.externalId,
+    taskId: payload.taskId,
+    versionId: payload.versionId,
+    targetId: payload.targetId,
+    sourceRevision: payload.sourceRevision,
+    payloadHash: payload.payloadHash,
+    contentHash: payload.contentHash,
+    previewUrl: url,
+    expiresAt: payload.expiresAt,
+  };
+  if (
+    old &&
+    old.source_revision === payload.sourceRevision &&
+    old.payload_hash === payload.payloadHash
+  )
+    return json(result);
+  const actor = await serviceActor();
+  const now = new Date().toISOString();
+  const statements = old
+    ? [
+        guard(
+          "EXISTS(SELECT 1 FROM marketing_hub_previews WHERE external_id=? AND source_revision=?)",
+          [payload.externalId, old.source_revision],
+        ),
+        db
+          .prepare(
+            `UPDATE marketing_hub_previews SET task_id=?,version_id=?,target_id=?,source_revision=?,
+              projection_json=?,content_hash=?,payload_hash=?,token_hash=?,expires_at=?,updated_at=?
+              WHERE external_id=?`,
+          )
+          .bind(
+            payload.taskId,
+            payload.versionId,
+            payload.targetId,
+            payload.sourceRevision,
+            canonical(payload.renderedContent),
+            payload.contentHash,
+            payload.payloadHash,
+            tokenHash,
+            payload.expiresAt,
+            now,
+            payload.externalId,
+          ),
+      ]
+    : [
+        db
+          .prepare(
+            `INSERT INTO marketing_hub_previews
+              (external_id,task_id,version_id,target_id,source_revision,kind,locale,slug,
+               projection_json,content_hash,payload_hash,token_hash,expires_at,created_at,updated_at)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          )
+          .bind(
+            payload.externalId,
+            payload.taskId,
+            payload.versionId,
+            payload.targetId,
+            payload.sourceRevision,
+            payload.kind,
+            payload.locale,
+            payload.slug,
+            canonical(payload.renderedContent),
+            payload.contentHash,
+            payload.payloadHash,
+            tokenHash,
+            payload.expiresAt,
+            now,
+            now,
+          ),
+      ];
+  statements.push(
+    db
+      .prepare(
+        "INSERT INTO audit_log(actor_id,action,entity,entity_id,after_json) VALUES (?,'marketing_hub_preview','marketing_hub_previews',?,?)",
+      )
+      .bind(actor, payload.externalId, JSON.stringify({ ...result, previewUrl: "[capability]" })),
+  );
+  try {
+    await atomic(statements);
+  } catch (error) {
+    if (isConflict(error)) fail("PREVIEW_CHANGED", 409);
+    throw error;
+  }
+  return json(result, old ? 200 : 201);
+}
+
+export async function readHubPreview(request: Request, token: string): Promise<Response> {
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Robots-Tag": "noindex, nofollow",
+    "Referrer-Policy": "no-referrer",
+    "Access-Control-Allow-Origin": request.headers.get("origin") || env.MARKETING_HUB_PUBLIC_ORIGIN || "",
+    Vary: "Origin",
+  };
+  if (!/^[a-f0-9]{64}$/.test(token))
+    return new Response(JSON.stringify({ error: "Preview not found" }), { status: 404, headers });
+  const row = await getDb()
+    .prepare(
+      `SELECT external_id,version_id,kind,locale,slug,projection_json,expires_at
+       FROM marketing_hub_previews WHERE token_hash=? AND expires_at>?`,
+    )
+    .bind(await digest(token), new Date().toISOString())
+    .first<{
+      external_id: string;
+      version_id: string;
+      kind: "blog";
+      locale: string;
+      slug: string;
+      projection_json: string;
+      expires_at: string;
+    }>();
+  if (!row)
+    return new Response(JSON.stringify({ error: "Preview not found" }), { status: 404, headers });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      preview: {
+        externalId: row.external_id,
+        versionId: row.version_id,
+        kind: row.kind,
+        locale: row.locale,
+        slug: row.slug,
+        expiresAt: row.expires_at,
+        ...hubBlogSchema.parse(JSON.parse(row.projection_json)),
+      },
+    }),
+    { status: 200, headers },
+  );
 }
 
 export async function ingestHubContent(

@@ -53,6 +53,7 @@ declare global {
       MARKETING_HUB_SIGNING_SECRET?: string;
       MARKETING_HUB_CALLBACK_URL?: string;
       MARKETING_HUB_PUBLIC_ORIGIN?: string;
+      MARKETING_HUB_PREVIEW_SECRET?: string;
     }
   }
 }

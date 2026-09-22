@@ -65,6 +65,27 @@ export const hubBlogSchema = z
   })
   .strict();
 
+export const hubPreviewSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    externalId: z
+      .string()
+      .max(300)
+      .regex(/^crm-preview:[A-Za-z0-9_-]+:[a-z0-9][a-z0-9._-]*$/),
+    taskId: z.string().min(1).max(100),
+    versionId: z.string().min(1).max(100),
+    targetId: z.string().min(1).max(100),
+    sourceRevision: z.number().int().positive().safe(),
+    kind: z.literal("blog"),
+    locale: z.enum(["vi", "en", "zh"]),
+    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
+    renderedContent: hubBlogSchema,
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
 export const hubReadResponseSchema = z.object({
   externalId: z.string(),
   taskId: z.string(),

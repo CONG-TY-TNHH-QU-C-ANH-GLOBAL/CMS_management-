@@ -90,11 +90,13 @@ import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public
 import { Route as ApiV1publicEventsSlugRouteImport } from './routes/api/v1/(public)/events/$slug'
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
+import { Route as ApiV1publicBlogPreviewsTokenRouteImport } from './routes/api/v1/(public)/blog-previews/$token'
 import { Route as ApiV1adminMediaUploadRouteImport } from './routes/api/v1/(admin)/media/upload'
 import { Route as ApiV1adminApplicantCvSplatRouteImport } from './routes/api/v1/(admin)/applicant-cv/$'
 import { Route as ApiV1publicCommunityReviewsIndexRouteImport } from './routes/api/v1/(public)/community/reviews/index'
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
+import { Route as ApiV1integrationAgentPreviewsIndexRouteImport } from './routes/api/v1/(integration)/agent/previews/index'
 import { Route as ApiV1integrationAgentMediaIndexRouteImport } from './routes/api/v1/(integration)/agent/media/index'
 import { Route as ApiV1integrationAgentEventsIndexRouteImport } from './routes/api/v1/(integration)/agent/events/index'
 import { Route as ApiV1integrationAgentContentsIndexRouteImport } from './routes/api/v1/(integration)/agent/contents/index'
@@ -556,6 +558,12 @@ const ApiV1publicBlogSlugRoute = ApiV1publicBlogSlugRouteImport.update({
   path: '/api/v1/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicBlogPreviewsTokenRoute =
+  ApiV1publicBlogPreviewsTokenRouteImport.update({
+    id: '/api/v1/(public)/blog-previews/$token',
+    path: '/api/v1/blog-previews/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1adminMediaUploadRoute = ApiV1adminMediaUploadRouteImport.update({
   id: '/api/v1/(admin)/media/upload',
   path: '/api/v1/media/upload',
@@ -583,6 +591,12 @@ const ApiV1publicCommunityCategoriesIndexRoute =
   ApiV1publicCommunityCategoriesIndexRouteImport.update({
     id: '/api/v1/(public)/community/categories/',
     path: '/api/v1/community/categories/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1integrationAgentPreviewsIndexRoute =
+  ApiV1integrationAgentPreviewsIndexRouteImport.update({
+    id: '/api/v1/(integration)/agent/previews/',
+    path: '/api/v1/agent/previews/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiV1integrationAgentMediaIndexRoute =
@@ -697,6 +711,7 @@ export interface FileRoutesByFullPath {
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
   '/api/v1/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
@@ -736,6 +751,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/agent/contents/': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/agent/media/': typeof ApiV1integrationAgentMediaIndexRoute
+  '/api/v1/agent/previews/': typeof ApiV1integrationAgentPreviewsIndexRoute
   '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -792,6 +808,7 @@ export interface FileRoutesByTo {
   '/admin/system/users': typeof AdminSystemUsersIndexRoute
   '/api/v1/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
@@ -831,6 +848,7 @@ export interface FileRoutesByTo {
   '/api/v1/agent/contents': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/agent/events': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/agent/media': typeof ApiV1integrationAgentMediaIndexRoute
+  '/api/v1/agent/previews': typeof ApiV1integrationAgentPreviewsIndexRoute
   '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -891,6 +909,7 @@ export interface FileRoutesById {
   '/admin/system/users/': typeof AdminSystemUsersIndexRoute
   '/api/v1/(admin)/applicant-cv/$': typeof ApiV1adminApplicantCvSplatRoute
   '/api/v1/(admin)/media/upload': typeof ApiV1adminMediaUploadRoute
+  '/api/v1/(public)/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/(public)/blog/categories': typeof ApiV1publicBlogCategoriesRoute
   '/api/v1/(public)/events/$slug': typeof ApiV1publicEventsSlugRoute
@@ -930,6 +949,7 @@ export interface FileRoutesById {
   '/api/v1/(integration)/agent/contents/': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/(integration)/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
   '/api/v1/(integration)/agent/media/': typeof ApiV1integrationAgentMediaIndexRoute
+  '/api/v1/(integration)/agent/previews/': typeof ApiV1integrationAgentPreviewsIndexRoute
   '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/(public)/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
@@ -991,6 +1011,7 @@ export interface FileRouteTypes {
     | '/admin/system/users/'
     | '/api/v1/applicant-cv/$'
     | '/api/v1/media/upload'
+    | '/api/v1/blog-previews/$token'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
     | '/api/v1/events/$slug'
@@ -1030,6 +1051,7 @@ export interface FileRouteTypes {
     | '/api/v1/agent/contents/'
     | '/api/v1/agent/events/'
     | '/api/v1/agent/media/'
+    | '/api/v1/agent/previews/'
     | '/api/v1/community/categories/'
     | '/api/v1/community/questions/'
     | '/api/v1/community/reviews/'
@@ -1086,6 +1108,7 @@ export interface FileRouteTypes {
     | '/admin/system/users'
     | '/api/v1/applicant-cv/$'
     | '/api/v1/media/upload'
+    | '/api/v1/blog-previews/$token'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
     | '/api/v1/events/$slug'
@@ -1125,6 +1148,7 @@ export interface FileRouteTypes {
     | '/api/v1/agent/contents'
     | '/api/v1/agent/events'
     | '/api/v1/agent/media'
+    | '/api/v1/agent/previews'
     | '/api/v1/community/categories'
     | '/api/v1/community/questions'
     | '/api/v1/community/reviews'
@@ -1184,6 +1208,7 @@ export interface FileRouteTypes {
     | '/admin/system/users/'
     | '/api/v1/(admin)/applicant-cv/$'
     | '/api/v1/(admin)/media/upload'
+    | '/api/v1/(public)/blog-previews/$token'
     | '/api/v1/(public)/blog/$slug'
     | '/api/v1/(public)/blog/categories'
     | '/api/v1/(public)/events/$slug'
@@ -1223,6 +1248,7 @@ export interface FileRouteTypes {
     | '/api/v1/(integration)/agent/contents/'
     | '/api/v1/(integration)/agent/events/'
     | '/api/v1/(integration)/agent/media/'
+    | '/api/v1/(integration)/agent/previews/'
     | '/api/v1/(public)/community/categories/'
     | '/api/v1/(public)/community/questions/'
     | '/api/v1/(public)/community/reviews/'
@@ -1276,6 +1302,7 @@ export interface RootRouteChildren {
   AdminSystemUsersIndexRoute: typeof AdminSystemUsersIndexRoute
   ApiV1adminApplicantCvSplatRoute: typeof ApiV1adminApplicantCvSplatRoute
   ApiV1adminMediaUploadRoute: typeof ApiV1adminMediaUploadRoute
+  ApiV1publicBlogPreviewsTokenRoute: typeof ApiV1publicBlogPreviewsTokenRoute
   ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
   ApiV1publicBlogCategoriesRoute: typeof ApiV1publicBlogCategoriesRoute
   ApiV1publicEventsSlugRoute: typeof ApiV1publicEventsSlugRoute
@@ -1315,6 +1342,7 @@ export interface RootRouteChildren {
   ApiV1integrationAgentContentsIndexRoute: typeof ApiV1integrationAgentContentsIndexRoute
   ApiV1integrationAgentEventsIndexRoute: typeof ApiV1integrationAgentEventsIndexRoute
   ApiV1integrationAgentMediaIndexRoute: typeof ApiV1integrationAgentMediaIndexRoute
+  ApiV1integrationAgentPreviewsIndexRoute: typeof ApiV1integrationAgentPreviewsIndexRoute
   ApiV1publicCommunityCategoriesIndexRoute: typeof ApiV1publicCommunityCategoriesIndexRoute
   ApiV1publicCommunityQuestionsIndexRoute: typeof ApiV1publicCommunityQuestionsIndexRoute
   ApiV1publicCommunityReviewsIndexRoute: typeof ApiV1publicCommunityReviewsIndexRoute
@@ -1890,6 +1918,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicBlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/blog-previews/$token': {
+      id: '/api/v1/(public)/blog-previews/$token'
+      path: '/api/v1/blog-previews/$token'
+      fullPath: '/api/v1/blog-previews/$token'
+      preLoaderRoute: typeof ApiV1publicBlogPreviewsTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(admin)/media/upload': {
       id: '/api/v1/(admin)/media/upload'
       path: '/api/v1/media/upload'
@@ -1923,6 +1958,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/community/categories'
       fullPath: '/api/v1/community/categories/'
       preLoaderRoute: typeof ApiV1publicCommunityCategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(integration)/agent/previews/': {
+      id: '/api/v1/(integration)/agent/previews/'
+      path: '/api/v1/agent/previews'
+      fullPath: '/api/v1/agent/previews/'
+      preLoaderRoute: typeof ApiV1integrationAgentPreviewsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(integration)/agent/media/': {
@@ -2125,6 +2167,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSystemUsersIndexRoute: AdminSystemUsersIndexRoute,
   ApiV1adminApplicantCvSplatRoute: ApiV1adminApplicantCvSplatRoute,
   ApiV1adminMediaUploadRoute: ApiV1adminMediaUploadRoute,
+  ApiV1publicBlogPreviewsTokenRoute: ApiV1publicBlogPreviewsTokenRoute,
   ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
   ApiV1publicBlogCategoriesRoute: ApiV1publicBlogCategoriesRoute,
   ApiV1publicEventsSlugRoute: ApiV1publicEventsSlugRoute,
@@ -2169,6 +2212,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiV1integrationAgentContentsIndexRoute,
   ApiV1integrationAgentEventsIndexRoute: ApiV1integrationAgentEventsIndexRoute,
   ApiV1integrationAgentMediaIndexRoute: ApiV1integrationAgentMediaIndexRoute,
+  ApiV1integrationAgentPreviewsIndexRoute:
+    ApiV1integrationAgentPreviewsIndexRoute,
   ApiV1publicCommunityCategoriesIndexRoute:
     ApiV1publicCommunityCategoriesIndexRoute,
   ApiV1publicCommunityQuestionsIndexRoute:

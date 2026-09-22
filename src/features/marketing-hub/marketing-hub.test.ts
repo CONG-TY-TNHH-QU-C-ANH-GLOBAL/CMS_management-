@@ -203,7 +203,7 @@ test("signed preview ingest exposes an expiring no-store capability without stor
   expect(read.headers.get("cache-control")).toBe("no-store");
   expect(read.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   expect(read.headers.get("referrer-policy")).toBe("no-referrer");
-  expect(await read.json()).toEqual({
+  expect((await read.json()) as unknown).toEqual({
     ok: true,
     preview: {
       externalId: body.externalId,
@@ -221,7 +221,7 @@ test("signed preview ingest exposes an expiring no-store capability without stor
     "preview",
   );
   expect(replay.status).toBe(200);
-  expect(await replay.json()).toEqual(created);
+  expect((await replay.json()) as unknown).toEqual(created);
 });
 
 test("a newer preview version invalidates the old capability and rejects tampered or expired input", async () => {

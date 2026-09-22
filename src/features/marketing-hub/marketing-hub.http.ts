@@ -6,6 +6,7 @@ import { digest, equal, hmac, readBounded } from "./marketing-hub.crypto";
 import {
   ingestHubContent,
   ingestHubMedia,
+  ingestHubPreview,
   readHubContent,
   retryHubCallback,
   json,
@@ -14,7 +15,7 @@ import {
 
 export async function handleHubRequest(
   request: Request,
-  kind: "content" | "read" | "media" | "retry",
+  kind: "content" | "read" | "media" | "retry" | "preview",
   externalId?: string,
 ): Promise<Response> {
   try {
@@ -61,6 +62,7 @@ export async function handleHubRequest(
       if (!externalId || !/^[a-f0-9]{32}$/.test(externalId)) fail("INVALID_EVENT_ID", 422);
       return await retryHubCallback(externalId, raw, eventId, requestHash);
     }
+    if (kind === "preview") return await ingestHubPreview(raw);
     return kind === "media"
       ? await ingestHubMedia(raw, eventId, requestHash)
       : await ingestHubContent(raw, eventId, requestHash);
