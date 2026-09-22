@@ -10,6 +10,7 @@ import {
   hubMediaSchema,
   hubRetrySchema,
   hubPreviewSchema,
+  hubPreviewBlogSchema,
 } from "./marketing-hub.schemas";
 import {
   atomic,
@@ -257,7 +258,7 @@ export async function readHubPreview(request: Request, token: string): Promise<R
         locale: row.locale,
         slug: row.slug,
         expiresAt: row.expires_at,
-        ...hubBlogSchema.parse(JSON.parse(row.projection_json)),
+        ...hubPreviewBlogSchema.parse(JSON.parse(row.projection_json)),
       },
     }),
     { status: 200, headers },

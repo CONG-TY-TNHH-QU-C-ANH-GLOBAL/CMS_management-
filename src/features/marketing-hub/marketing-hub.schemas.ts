@@ -65,6 +65,30 @@ export const hubBlogSchema = z
   })
   .strict();
 
+const previewAssetUrl = z
+  .string()
+  .url()
+  .max(1000)
+  .refine((value) => {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  }, "Preview assets must use HTTPS without credentials");
+
+export const hubPreviewBlogSchema = hubBlogSchema.extend({
+  thumbnail_url: previewAssetUrl.nullable().optional(),
+  slides: z
+    .array(
+      z
+        .object({
+          src: previewAssetUrl,
+          alt_text: z.string().max(200),
+        })
+        .strict(),
+    )
+    .max(20)
+    .optional(),
+});
+
 export const hubPreviewSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -79,7 +103,7 @@ export const hubPreviewSchema = z
     kind: z.literal("blog"),
     locale: z.enum(["vi", "en", "zh"]),
     slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
-    renderedContent: hubBlogSchema,
+    renderedContent: hubPreviewBlogSchema,
     contentHash: z.string().regex(/^[a-f0-9]{64}$/),
     payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
     expiresAt: z.string().datetime({ offset: true }),
