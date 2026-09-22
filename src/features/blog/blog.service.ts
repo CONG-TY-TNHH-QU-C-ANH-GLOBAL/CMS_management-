@@ -258,7 +258,8 @@ export async function upsertBlogPost(
     if (input.seo_title !== undefined) { fields.push("seo_title = ?"); values.push(input.seo_title); }
     if (input.seo_description !== undefined) { fields.push("seo_description = ?"); values.push(input.seo_description); }
     if (input.og_image_id !== undefined) { fields.push("og_image_id = ?"); values.push(input.og_image_id); }
-    fields.push("updated_at = unixepoch()");
+    fields.push("updated_by = ?", "updated_at = unixepoch()");
+    values.push(actorId);
     values.push(input.slug, input.locale);
     if (fields.length > 1) {
       await getDb()
@@ -269,8 +270,8 @@ export async function upsertBlogPost(
   } else {
     await getDb()
       .prepare(
-        `INSERT INTO blog_posts (slug, locale, title, excerpt, body_md, thumbnail_media_id, category, published_date, status, seo_title, seo_description, og_image_id, author_id, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
+        `INSERT INTO blog_posts (slug, locale, title, excerpt, body_md, thumbnail_media_id, category, published_date, status, seo_title, seo_description, og_image_id, author_id, updated_by, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
       )
       .bind(
         input.slug,
@@ -285,6 +286,7 @@ export async function upsertBlogPost(
         input.seo_title ?? null,
         input.seo_description ?? null,
         input.og_image_id ?? null,
+        actorId,
         actorId,
       )
       .run();

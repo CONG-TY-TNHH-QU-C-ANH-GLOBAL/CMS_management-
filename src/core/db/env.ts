@@ -48,6 +48,12 @@ declare global {
       // disables the route (503), which is the fail-closed default — an
       // unconfigured deployment refuses the call rather than accepting any.
       MARKETING_AGENT_TOKEN?: string;
+      MARKETING_HUB_INGEST_ENABLED?: string;
+      MARKETING_HUB_CALLBACKS_ENABLED?: string;
+      MARKETING_HUB_SIGNING_SECRET?: string;
+      MARKETING_HUB_CALLBACK_URL?: string;
+      MARKETING_HUB_PUBLIC_ORIGIN?: string;
+      MARKETING_HUB_PREVIEW_SECRET?: string;
     }
   }
 }

@@ -29,7 +29,8 @@
 		// no-op (logged + flag cleared).
 		"LANDING_REPO": "CONG-TY-TNHH-QU-C-ANH-GLOBAL/THG_landingpage",
 		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated",
-		"CRM_LEAD_SYNC_URL": "https://crm.thgfulfill.com/api/integrations/cms/leads"
+		"CRM_LEAD_SYNC_URL": "https://crm.thgfulfill.com/api/integrations/cms/leads",
+		"MARKETING_HUB_PUBLIC_ORIGIN": "https://thgfulfill.com"
 	},
 	"d1_databases": [
 		{

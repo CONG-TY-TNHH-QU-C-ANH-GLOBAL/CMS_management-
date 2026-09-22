@@ -55,7 +55,8 @@ export type AuthRequirement =
    *  header — no cookie, no user, no role. Distinct from "owner-token": that one
    *  authorizes a browser against one row it created, this one authenticates a
    *  whole service. See src/core/middlewares/service-token.ts. */
-  | "service-token";
+  | "service-token"
+  | "service-hmac";
 
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
@@ -218,6 +219,13 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
   // ── Public content reads ──────────────────────────────────────────────────────────────────
   "v1/(public)/blog/index.ts": read("/api/v1/blog", "blog", `${LANDING} blog list`),
   "v1/(public)/blog/$slug.ts": read("/api/v1/blog/{slug}", "blog", `${LANDING} blog detail`),
+  "v1/(public)/blog-previews/$token.ts": undocumented(
+    "/api/v1/blog-previews/{token}",
+    "PUBLIC_CONTENT_API",
+    "marketing-hub",
+    `${LANDING} review preview`,
+    "Opaque expiring capability response with no-store/noindex headers; intentionally excluded from the public content catalogue.",
+  ),
   "v1/(public)/blog/categories.ts": read(
     "/api/v1/blog/categories",
     "blog",
@@ -439,6 +447,21 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
       "answers a uniform 404 for an out-of-namespace key or a missing object so neither " +
       "reveals what exists in storage.",
   ),
+  "v1/(integration)/agent/contents/index.ts": {
+    ...integrationApi("/api/v1/agent/contents", ["post"], "marketing-hub", "CRM Marketing backend", "Dedicated raw-body HMAC, timestamp window, rate limiting and draft-only atomic ingest; no browser CORS."), auth: "service-hmac",
+  },
+  "v1/(integration)/agent/contents/$externalId.ts": {
+    ...integrationApi("/api/v1/agent/contents/{externalId}", ["get"], "marketing-hub", "CRM Marketing operator reconciliation", "Private signed provenance/status lookup. Canonical runtime schema stays feature-owned; excluded from the landing public OpenAPI."), auth: "service-hmac",
+  },
+  "v1/(integration)/agent/previews/index.ts": {
+    ...integrationApi("/api/v1/agent/previews", ["post"], "marketing-hub", "CRM Marketing backend", "Signed pre-approval blog projection; stores only a derived capability hash and never publishes content."), auth: "service-hmac",
+  },
+  "v1/(integration)/agent/media/index.ts": {
+    ...integrationApi("/api/v1/agent/media", ["post"], "marketing-hub", "CRM Marketing backend", "Signed bounded image upload to marketing R2 prefix; rejects arbitrary remote fetches and unsupported types."), auth: "service-hmac",
+  },
+  "v1/(integration)/agent/callbacks/$eventId/retry.ts": {
+    ...integrationApi("/api/v1/agent/callbacks/{eventId}/retry", ["post"], "marketing-hub", "Authorized integration operator", "Signed idempotent manual retry with expectedAttempts; refuses stale and succeeded callback rows."), auth: "service-hmac",
+  },
   "v1/(integration)/agent/events/index.ts": integrationApi(
     "/api/v1/agent/events",
     ["post"],
