@@ -7,6 +7,7 @@ import { hubReadResponseSchema } from "./marketing-hub.schemas";
 const runtime = {} as Cloudflare.Env;
 mock.module("cloudflare:workers", () => ({ env: runtime }));
 const { handleHubRequest } = await import("./marketing-hub.http");
+const { readHubPreview } = await import("./marketing-hub.service");
 const { flushMarketingHubOutbox } = await import("./marketing-hub.outbox");
 let sql: Database;
 const originalFetch = globalThis.fetch;
@@ -66,6 +67,7 @@ beforeEach(() => {
     MARKETING_HUB_CALLBACKS_ENABLED: "true",
     MARKETING_HUB_SIGNING_SECRET: "test-only-not-a-deployed-secret",
     MARKETING_HUB_PUBLIC_ORIGIN: "https://landing.example.test",
+    MARKETING_HUB_PREVIEW_SECRET: "test-only-preview-secret",
     MARKETING_HUB_CALLBACK_URL: "https://crm.example.test/api/marketing/integrations/cms/events",
     RATE_LIMITER: {
       idFromName: (name: string) => name,
@@ -145,6 +147,130 @@ async function request(
 async function ingest(body: unknown, id = crypto.randomUUID()) {
   return handleHubRequest(await request(body, id), "content");
 }
+
+async function previewEnvelope(revision = 1) {
+  const renderedContent = {
+    title: `Preview title ${revision}`,
+    body_md: `# Preview article ${revision}`,
+    excerpt: "Exact review copy",
+    category: "Operations",
+    published_date: null,
+    seo_title: null,
+    seo_description: null,
+  };
+  const body = {
+    schemaVersion: 1,
+    externalId: "crm-preview:task:blog",
+    taskId: "task",
+    versionId: `version-${revision}`,
+    targetId: "target-blog",
+    sourceRevision: revision,
+    kind: "blog" as const,
+    locale: "vi" as const,
+    slug: "marketing-blog",
+    renderedContent,
+    contentHash: await digest(canonical(renderedContent)),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+  return { ...body, payloadHash: await digest(canonical(body)) };
+}
+
+test("signed preview ingest exposes an expiring no-store capability without storing the raw token", async () => {
+  const body = await previewEnvelope();
+  const first = await handleHubRequest(
+    await request(body, crypto.randomUUID(), "/api/v1/agent/previews"),
+    "preview",
+  );
+  expect(first.status).toBe(201);
+  const created = (await first.json()) as { previewUrl: string; expiresAt: string };
+  expect(created.previewUrl).toStartWith("https://landing.example.test/vi/blog-preview/");
+  expect(created.expiresAt).toBe(body.expiresAt);
+
+  const token = new URL(created.previewUrl).pathname.split("/").at(-1)!;
+  const stored = sql
+    .query("SELECT token_hash,projection_json FROM marketing_hub_previews WHERE external_id=?")
+    .get(body.externalId) as { token_hash: string; projection_json: string };
+  expect(stored.token_hash).not.toBe(token);
+  expect(JSON.stringify(stored)).not.toContain(token);
+
+  const read = await readHubPreview(
+    new Request(`https://cms.example.test/api/v1/blog-previews/${token}`, {
+      headers: { origin: "https://landing.example.test" },
+    }),
+    token,
+  );
+  expect(read.status).toBe(200);
+  expect(read.headers.get("cache-control")).toBe("no-store");
+  expect(read.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  expect(read.headers.get("referrer-policy")).toBe("no-referrer");
+  expect(await read.json()).toEqual({
+    ok: true,
+    preview: {
+      externalId: body.externalId,
+      versionId: body.versionId,
+      kind: "blog",
+      locale: "vi",
+      slug: body.slug,
+      expiresAt: body.expiresAt,
+      ...body.renderedContent,
+    },
+  });
+
+  const replay = await handleHubRequest(
+    await request(body, crypto.randomUUID(), "/api/v1/agent/previews"),
+    "preview",
+  );
+  expect(replay.status).toBe(200);
+  expect(await replay.json()).toEqual(created);
+});
+
+test("a newer preview version invalidates the old capability and rejects tampered or expired input", async () => {
+  const firstBody = await previewEnvelope();
+  const first = await handleHubRequest(
+    await request(firstBody, crypto.randomUUID(), "/api/v1/agent/previews"),
+    "preview",
+  );
+  const firstToken = new URL(((await first.json()) as { previewUrl: string }).previewUrl).pathname
+    .split("/")
+    .at(-1)!;
+
+  const secondBody = await previewEnvelope(2);
+  const second = await handleHubRequest(
+    await request(secondBody, crypto.randomUUID(), "/api/v1/agent/previews"),
+    "preview",
+  );
+  expect(second.status).toBe(200);
+  expect((await readHubPreview(new Request("https://cms.example.test"), firstToken)).status).toBe(404);
+
+  expect(
+    (
+      await handleHubRequest(
+        await request(
+          { ...secondBody, contentHash: "0".repeat(64) },
+          crypto.randomUUID(),
+          "/api/v1/agent/previews",
+        ),
+        "preview",
+      )
+    ).status,
+  ).toBe(422);
+  const expired = {
+    ...secondBody,
+    externalId: "crm-preview:task:expired",
+    sourceRevision: 3,
+    versionId: "version-3",
+    expiresAt: new Date(Date.now() - 1000).toISOString(),
+  };
+  const expiredBody = { ...expired, payloadHash: await digest(canonical(expired)) };
+  expect(
+    (
+      await handleHubRequest(
+        await request(expiredBody, crypto.randomUUID(), "/api/v1/agent/previews"),
+        "preview",
+      )
+    ).status,
+  ).toBe(422);
+});
 
 test("real migrations plus signed Blog and Event ingest remain draft-only and idempotent", async () => {
   for (const kind of ["blog", "event"] as const) {
