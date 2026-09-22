@@ -114,6 +114,14 @@ export default {
     // never affect translation / landing / telegram. It also self-bounds to one
     // generation per tick. The other tasks complete their work in their own
     // budgets and resolve regardless of how long the bot task takes.
+    const marketingHubTask = (async () => {
+      try {
+        const { flushMarketingHubOutbox } = await import("./features/marketing-hub/marketing-hub.outbox");
+        await flushMarketingHubOutbox(50_000);
+      } catch {
+        console.error("[scheduled] marketing-hub outbox failed");
+      }
+    })();
     const blogBotTask = (async () => {
       try {
         const { runBlogBotScheduler } = await import("./features/blog-bot/blog-bot.engine");
@@ -129,6 +137,7 @@ export default {
         flushTelegramOutbox(60_000),
         flushCrmLeadOutbox(50_000),
         blogBotTask,
+        marketingHubTask,
       ]).then((results) => {
         for (const r of results) {
           if (r.status === "rejected") console.error("[scheduled] task failed", r.reason);

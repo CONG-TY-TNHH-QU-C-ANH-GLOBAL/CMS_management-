@@ -95,12 +95,16 @@ import { Route as ApiV1adminApplicantCvSplatRouteImport } from './routes/api/v1/
 import { Route as ApiV1publicCommunityReviewsIndexRouteImport } from './routes/api/v1/(public)/community/reviews/index'
 import { Route as ApiV1publicCommunityQuestionsIndexRouteImport } from './routes/api/v1/(public)/community/questions/index'
 import { Route as ApiV1publicCommunityCategoriesIndexRouteImport } from './routes/api/v1/(public)/community/categories/index'
+import { Route as ApiV1integrationAgentMediaIndexRouteImport } from './routes/api/v1/(integration)/agent/media/index'
 import { Route as ApiV1integrationAgentEventsIndexRouteImport } from './routes/api/v1/(integration)/agent/events/index'
+import { Route as ApiV1integrationAgentContentsIndexRouteImport } from './routes/api/v1/(integration)/agent/contents/index'
 import { Route as ApiV1publicCommunityReviewsSlugRouteImport } from './routes/api/v1/(public)/community/reviews/$slug'
 import { Route as ApiV1publicCommunityQuestionsSlugRouteImport } from './routes/api/v1/(public)/community/questions/$slug'
+import { Route as ApiV1integrationAgentContentsExternalIdRouteImport } from './routes/api/v1/(integration)/agent/contents/$externalId'
 import { Route as ApiV1publicCommunityReviewsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/reviews/$slug.withdraw'
 import { Route as ApiV1publicCommunityQuestionsSlugWithdrawRouteImport } from './routes/api/v1/(public)/community/questions/$slug.withdraw'
 import { Route as ApiV1publicCommunityQuestionsSlugSameIssueRouteImport } from './routes/api/v1/(public)/community/questions/$slug.same-issue'
+import { Route as ApiV1integrationAgentCallbacksEventIdRetryRouteImport } from './routes/api/v1/(integration)/agent/callbacks/$eventId/retry'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -581,10 +585,22 @@ const ApiV1publicCommunityCategoriesIndexRoute =
     path: '/api/v1/community/categories/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1integrationAgentMediaIndexRoute =
+  ApiV1integrationAgentMediaIndexRouteImport.update({
+    id: '/api/v1/(integration)/agent/media/',
+    path: '/api/v1/agent/media/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1integrationAgentEventsIndexRoute =
   ApiV1integrationAgentEventsIndexRouteImport.update({
     id: '/api/v1/(integration)/agent/events/',
     path: '/api/v1/agent/events/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1integrationAgentContentsIndexRoute =
+  ApiV1integrationAgentContentsIndexRouteImport.update({
+    id: '/api/v1/(integration)/agent/contents/',
+    path: '/api/v1/agent/contents/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiV1publicCommunityReviewsSlugRoute =
@@ -597,6 +613,12 @@ const ApiV1publicCommunityQuestionsSlugRoute =
   ApiV1publicCommunityQuestionsSlugRouteImport.update({
     id: '/api/v1/(public)/community/questions/$slug',
     path: '/api/v1/community/questions/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiV1integrationAgentContentsExternalIdRoute =
+  ApiV1integrationAgentContentsExternalIdRouteImport.update({
+    id: '/api/v1/(integration)/agent/contents/$externalId',
+    path: '/api/v1/agent/contents/$externalId',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiV1publicCommunityReviewsSlugWithdrawRoute =
@@ -616,6 +638,12 @@ const ApiV1publicCommunityQuestionsSlugSameIssueRoute =
     id: '/same-issue',
     path: '/same-issue',
     getParentRoute: () => ApiV1publicCommunityQuestionsSlugRoute,
+  } as any)
+const ApiV1integrationAgentCallbacksEventIdRetryRoute =
+  ApiV1integrationAgentCallbacksEventIdRetryRouteImport.update({
+    id: '/api/v1/(integration)/agent/callbacks/$eventId/retry',
+    path: '/api/v1/agent/callbacks/$eventId/retry',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -702,12 +730,16 @@ export interface FileRoutesByFullPath {
   '/api/v1/sitemap/': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations/': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/agent/contents/$externalId': typeof ApiV1integrationAgentContentsExternalIdRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/agent/contents/': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
+  '/api/v1/agent/media/': typeof ApiV1integrationAgentMediaIndexRoute
   '/api/v1/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
+  '/api/v1/agent/callbacks/$eventId/retry': typeof ApiV1integrationAgentCallbacksEventIdRetryRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
   '/api/v1/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
@@ -793,12 +825,16 @@ export interface FileRoutesByTo {
   '/api/v1/sitemap': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/testimonials': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/translations': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/agent/contents/$externalId': typeof ApiV1integrationAgentContentsExternalIdRoute
   '/api/v1/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/agent/contents': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/agent/events': typeof ApiV1integrationAgentEventsIndexRoute
+  '/api/v1/agent/media': typeof ApiV1integrationAgentMediaIndexRoute
   '/api/v1/community/categories': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/community/questions': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/community/reviews': typeof ApiV1publicCommunityReviewsIndexRoute
+  '/api/v1/agent/callbacks/$eventId/retry': typeof ApiV1integrationAgentCallbacksEventIdRetryRoute
   '/api/v1/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
   '/api/v1/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
@@ -888,12 +924,16 @@ export interface FileRoutesById {
   '/api/v1/(public)/sitemap/': typeof ApiV1publicSitemapIndexRoute
   '/api/v1/(public)/testimonials/': typeof ApiV1publicTestimonialsIndexRoute
   '/api/v1/(public)/translations/': typeof ApiV1publicTranslationsIndexRoute
+  '/api/v1/(integration)/agent/contents/$externalId': typeof ApiV1integrationAgentContentsExternalIdRoute
   '/api/v1/(public)/community/questions/$slug': typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   '/api/v1/(public)/community/reviews/$slug': typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  '/api/v1/(integration)/agent/contents/': typeof ApiV1integrationAgentContentsIndexRoute
   '/api/v1/(integration)/agent/events/': typeof ApiV1integrationAgentEventsIndexRoute
+  '/api/v1/(integration)/agent/media/': typeof ApiV1integrationAgentMediaIndexRoute
   '/api/v1/(public)/community/categories/': typeof ApiV1publicCommunityCategoriesIndexRoute
   '/api/v1/(public)/community/questions/': typeof ApiV1publicCommunityQuestionsIndexRoute
   '/api/v1/(public)/community/reviews/': typeof ApiV1publicCommunityReviewsIndexRoute
+  '/api/v1/(integration)/agent/callbacks/$eventId/retry': typeof ApiV1integrationAgentCallbacksEventIdRetryRoute
   '/api/v1/(public)/community/questions/$slug/same-issue': typeof ApiV1publicCommunityQuestionsSlugSameIssueRoute
   '/api/v1/(public)/community/questions/$slug/withdraw': typeof ApiV1publicCommunityQuestionsSlugWithdrawRoute
   '/api/v1/(public)/community/reviews/$slug/withdraw': typeof ApiV1publicCommunityReviewsSlugWithdrawRoute
@@ -984,12 +1024,16 @@ export interface FileRouteTypes {
     | '/api/v1/sitemap/'
     | '/api/v1/testimonials/'
     | '/api/v1/translations/'
+    | '/api/v1/agent/contents/$externalId'
     | '/api/v1/community/questions/$slug'
     | '/api/v1/community/reviews/$slug'
+    | '/api/v1/agent/contents/'
     | '/api/v1/agent/events/'
+    | '/api/v1/agent/media/'
     | '/api/v1/community/categories/'
     | '/api/v1/community/questions/'
     | '/api/v1/community/reviews/'
+    | '/api/v1/agent/callbacks/$eventId/retry'
     | '/api/v1/community/questions/$slug/same-issue'
     | '/api/v1/community/questions/$slug/withdraw'
     | '/api/v1/community/reviews/$slug/withdraw'
@@ -1075,12 +1119,16 @@ export interface FileRouteTypes {
     | '/api/v1/sitemap'
     | '/api/v1/testimonials'
     | '/api/v1/translations'
+    | '/api/v1/agent/contents/$externalId'
     | '/api/v1/community/questions/$slug'
     | '/api/v1/community/reviews/$slug'
+    | '/api/v1/agent/contents'
     | '/api/v1/agent/events'
+    | '/api/v1/agent/media'
     | '/api/v1/community/categories'
     | '/api/v1/community/questions'
     | '/api/v1/community/reviews'
+    | '/api/v1/agent/callbacks/$eventId/retry'
     | '/api/v1/community/questions/$slug/same-issue'
     | '/api/v1/community/questions/$slug/withdraw'
     | '/api/v1/community/reviews/$slug/withdraw'
@@ -1169,12 +1217,16 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/sitemap/'
     | '/api/v1/(public)/testimonials/'
     | '/api/v1/(public)/translations/'
+    | '/api/v1/(integration)/agent/contents/$externalId'
     | '/api/v1/(public)/community/questions/$slug'
     | '/api/v1/(public)/community/reviews/$slug'
+    | '/api/v1/(integration)/agent/contents/'
     | '/api/v1/(integration)/agent/events/'
+    | '/api/v1/(integration)/agent/media/'
     | '/api/v1/(public)/community/categories/'
     | '/api/v1/(public)/community/questions/'
     | '/api/v1/(public)/community/reviews/'
+    | '/api/v1/(integration)/agent/callbacks/$eventId/retry'
     | '/api/v1/(public)/community/questions/$slug/same-issue'
     | '/api/v1/(public)/community/questions/$slug/withdraw'
     | '/api/v1/(public)/community/reviews/$slug/withdraw'
@@ -1257,12 +1309,16 @@ export interface RootRouteChildren {
   ApiV1publicSitemapIndexRoute: typeof ApiV1publicSitemapIndexRoute
   ApiV1publicTestimonialsIndexRoute: typeof ApiV1publicTestimonialsIndexRoute
   ApiV1publicTranslationsIndexRoute: typeof ApiV1publicTranslationsIndexRoute
+  ApiV1integrationAgentContentsExternalIdRoute: typeof ApiV1integrationAgentContentsExternalIdRoute
   ApiV1publicCommunityQuestionsSlugRoute: typeof ApiV1publicCommunityQuestionsSlugRouteWithChildren
   ApiV1publicCommunityReviewsSlugRoute: typeof ApiV1publicCommunityReviewsSlugRouteWithChildren
+  ApiV1integrationAgentContentsIndexRoute: typeof ApiV1integrationAgentContentsIndexRoute
   ApiV1integrationAgentEventsIndexRoute: typeof ApiV1integrationAgentEventsIndexRoute
+  ApiV1integrationAgentMediaIndexRoute: typeof ApiV1integrationAgentMediaIndexRoute
   ApiV1publicCommunityCategoriesIndexRoute: typeof ApiV1publicCommunityCategoriesIndexRoute
   ApiV1publicCommunityQuestionsIndexRoute: typeof ApiV1publicCommunityQuestionsIndexRoute
   ApiV1publicCommunityReviewsIndexRoute: typeof ApiV1publicCommunityReviewsIndexRoute
+  ApiV1integrationAgentCallbacksEventIdRetryRoute: typeof ApiV1integrationAgentCallbacksEventIdRetryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1869,11 +1925,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicCommunityCategoriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(integration)/agent/media/': {
+      id: '/api/v1/(integration)/agent/media/'
+      path: '/api/v1/agent/media'
+      fullPath: '/api/v1/agent/media/'
+      preLoaderRoute: typeof ApiV1integrationAgentMediaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(integration)/agent/events/': {
       id: '/api/v1/(integration)/agent/events/'
       path: '/api/v1/agent/events'
       fullPath: '/api/v1/agent/events/'
       preLoaderRoute: typeof ApiV1integrationAgentEventsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(integration)/agent/contents/': {
+      id: '/api/v1/(integration)/agent/contents/'
+      path: '/api/v1/agent/contents'
+      fullPath: '/api/v1/agent/contents/'
+      preLoaderRoute: typeof ApiV1integrationAgentContentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/community/reviews/$slug': {
@@ -1888,6 +1958,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/community/questions/$slug'
       fullPath: '/api/v1/community/questions/$slug'
       preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(integration)/agent/contents/$externalId': {
+      id: '/api/v1/(integration)/agent/contents/$externalId'
+      path: '/api/v1/agent/contents/$externalId'
+      fullPath: '/api/v1/agent/contents/$externalId'
+      preLoaderRoute: typeof ApiV1integrationAgentContentsExternalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/community/reviews/$slug/withdraw': {
@@ -1910,6 +1987,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/v1/community/questions/$slug/same-issue'
       preLoaderRoute: typeof ApiV1publicCommunityQuestionsSlugSameIssueRouteImport
       parentRoute: typeof ApiV1publicCommunityQuestionsSlugRoute
+    }
+    '/api/v1/(integration)/agent/callbacks/$eventId/retry': {
+      id: '/api/v1/(integration)/agent/callbacks/$eventId/retry'
+      path: '/api/v1/agent/callbacks/$eventId/retry'
+      fullPath: '/api/v1/agent/callbacks/$eventId/retry'
+      preLoaderRoute: typeof ApiV1integrationAgentCallbacksEventIdRetryRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -2075,16 +2159,23 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicSitemapIndexRoute: ApiV1publicSitemapIndexRoute,
   ApiV1publicTestimonialsIndexRoute: ApiV1publicTestimonialsIndexRoute,
   ApiV1publicTranslationsIndexRoute: ApiV1publicTranslationsIndexRoute,
+  ApiV1integrationAgentContentsExternalIdRoute:
+    ApiV1integrationAgentContentsExternalIdRoute,
   ApiV1publicCommunityQuestionsSlugRoute:
     ApiV1publicCommunityQuestionsSlugRouteWithChildren,
   ApiV1publicCommunityReviewsSlugRoute:
     ApiV1publicCommunityReviewsSlugRouteWithChildren,
+  ApiV1integrationAgentContentsIndexRoute:
+    ApiV1integrationAgentContentsIndexRoute,
   ApiV1integrationAgentEventsIndexRoute: ApiV1integrationAgentEventsIndexRoute,
+  ApiV1integrationAgentMediaIndexRoute: ApiV1integrationAgentMediaIndexRoute,
   ApiV1publicCommunityCategoriesIndexRoute:
     ApiV1publicCommunityCategoriesIndexRoute,
   ApiV1publicCommunityQuestionsIndexRoute:
     ApiV1publicCommunityQuestionsIndexRoute,
   ApiV1publicCommunityReviewsIndexRoute: ApiV1publicCommunityReviewsIndexRoute,
+  ApiV1integrationAgentCallbacksEventIdRetryRoute:
+    ApiV1integrationAgentCallbacksEventIdRetryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
