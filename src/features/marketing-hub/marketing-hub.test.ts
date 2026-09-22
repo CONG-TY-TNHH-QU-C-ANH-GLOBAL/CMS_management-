@@ -157,6 +157,11 @@ async function previewEnvelope(revision = 1) {
     published_date: null,
     seo_title: null,
     seo_description: null,
+    thumbnail_url: "https://cdn.example.test/hero.webp",
+    slides: [
+      { src: "https://cdn.example.test/hero.webp", alt_text: "Hero" },
+      { src: "https://cdn.example.test/detail.webp", alt_text: "Detail" },
+    ],
   };
   const body = {
     schemaVersion: 1,
