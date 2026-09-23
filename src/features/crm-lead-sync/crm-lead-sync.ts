@@ -45,6 +45,40 @@ interface OutboxRow {
   attempts: number;
 }
 
+export type DeliveryState = "missing" | "pending" | "sent" | "failed";
+
+export interface CrmLeadDeliveryRow {
+  leadId: number;
+  createdAt: number;
+  crmOutboxId: number | null;
+  crmState: DeliveryState;
+  crmAttempts: number;
+  crmLastError: string | null;
+  telegramState: DeliveryState;
+  telegramTotal: number;
+  telegramSent: number;
+  telegramFailed: number;
+}
+
+export interface CrmLeadDeliveryHealth {
+  crmUrlConfigured: boolean;
+  crmSecretConfigured: boolean;
+  rows: CrmLeadDeliveryRow[];
+}
+
+interface DeliveryQueryRow {
+  lead_id: number;
+  created_at: number;
+  crm_outbox_id: number | null;
+  crm_attempts: number | null;
+  crm_last_error: string | null;
+  crm_sent_at: number | null;
+  crm_failed_at: number | null;
+  telegram_total: number;
+  telegram_sent: number;
+  telegram_failed: number;
+}
+
 function safeJson<T>(value: string | null, fallback: T): T {
   try {
     return value ? (JSON.parse(value) as T) : fallback;
@@ -139,6 +173,115 @@ export async function reconcileCrmLeadOutbox(limit = MAX_RECONCILE_PER_RUN): Pro
   return result.results?.length ?? 0;
 }
 
+function stateOf(
+  outboxId: number | null,
+  sent: number | null,
+  failed: number | null,
+): DeliveryState {
+  if (outboxId === null) return "missing";
+  if (sent !== null) return "sent";
+  if (failed !== null) return "failed";
+  return "pending";
+}
+
+/** Recent website lead delivery state for operators. Payload and contact data are
+ * intentionally excluded so this endpoint cannot expose lead PII. */
+export async function getCrmLeadDeliveryHealth(limit = 30): Promise<CrmLeadDeliveryHealth> {
+  const safeLimit = Math.max(1, Math.min(limit, 100));
+  const result = await getDb()
+    .prepare(
+      `SELECT l.id AS lead_id, l.created_at,
+              o.id AS crm_outbox_id, o.attempts AS crm_attempts,
+              o.last_error AS crm_last_error, o.sent_at AS crm_sent_at,
+              o.failed_permanently_at AS crm_failed_at,
+              (SELECT COUNT(*) FROM telegram_outbox t
+               WHERE t.event_type = 'lead_received'
+                 AND t.idempotency_key LIKE 'lead:' || l.id || ':%') AS telegram_total,
+              (SELECT COUNT(*) FROM telegram_outbox t
+               WHERE t.event_type = 'lead_received' AND t.sent_at IS NOT NULL
+                 AND t.idempotency_key LIKE 'lead:' || l.id || ':%') AS telegram_sent,
+              (SELECT COUNT(*) FROM telegram_outbox t
+               WHERE t.event_type = 'lead_received' AND t.failed_permanently_at IS NOT NULL
+                 AND t.idempotency_key LIKE 'lead:' || l.id || ':%') AS telegram_failed
+       FROM leads l
+       LEFT JOIN crm_lead_outbox o ON o.lead_id = l.id
+       ORDER BY l.id DESC
+       LIMIT ?`,
+    )
+    .bind(safeLimit)
+    .all<DeliveryQueryRow>();
+
+  return {
+    crmUrlConfigured: Boolean(env.CRM_LEAD_SYNC_URL),
+    crmSecretConfigured: Boolean(env.CMS_CRM_SYNC_KEY),
+    rows: (result.results ?? []).map((row) => {
+      const telegramTotal = Number(row.telegram_total ?? 0);
+      const telegramSent = Number(row.telegram_sent ?? 0);
+      const telegramFailed = Number(row.telegram_failed ?? 0);
+      const telegramState: DeliveryState =
+        telegramTotal === 0
+          ? "missing"
+          : telegramFailed > 0
+            ? "failed"
+            : telegramSent === telegramTotal
+              ? "sent"
+              : "pending";
+      return {
+        leadId: row.lead_id,
+        createdAt: row.created_at,
+        crmOutboxId: row.crm_outbox_id,
+        crmState: stateOf(row.crm_outbox_id, row.crm_sent_at, row.crm_failed_at),
+        crmAttempts: Number(row.crm_attempts ?? 0),
+        crmLastError: row.crm_last_error,
+        telegramState,
+        telegramTotal,
+        telegramSent,
+        telegramFailed,
+      };
+    }),
+  };
+}
+
+/** Recreate a missing Telegram delivery after channels/subscriptions are fixed. */
+export async function replayLeadTelegramDelivery(leadId: number): Promise<number> {
+  const lead = await getDb()
+    .prepare("SELECT * FROM leads WHERE id = ?")
+    .bind(leadId)
+    .first<LeadRow>();
+  if (!lead) throw new Error("Website Lead không tồn tại");
+  const { dispatchEvent } = await import("@/features/telegram");
+  return await dispatchEvent({
+    event_type: "lead_received",
+    idempotency_key: `lead:${lead.id}`,
+    payload: {
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      message: lead.message,
+      source_page: lead.source_page,
+      locale: lead.locale,
+      primary_service: lead.primary_service,
+      service_interests: safeJson<string[]>(lead.service_interests_json, []),
+    },
+  });
+}
+
+/** Reopen a permanently failed CRM delivery. Pending and sent rows are left alone. */
+export async function retryCrmLeadDelivery(id: number): Promise<boolean> {
+  const result = await getDb()
+    .prepare(
+      `UPDATE crm_lead_outbox
+       SET failed_permanently_at = NULL, attempts = 0, next_attempt_at = unixepoch(),
+           last_error = NULL, updated_at = unixepoch()
+       WHERE id = ? AND sent_at IS NULL AND failed_permanently_at IS NOT NULL`,
+    )
+    .bind(id)
+    .run();
+  const meta = result.meta as { changes?: number; rows_written?: number } | undefined;
+  return (meta?.changes ?? meta?.rows_written ?? 0) > 0;
+}
+
 async function hmacHex(secret: string, value: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -170,9 +313,10 @@ async function claimOne(): Promise<OutboxRow | null> {
     )
     .bind(LEASE_SECONDS, row.id)
     .run();
-  const changes = (claimed.meta as { changes?: number; rows_written?: number } | undefined)?.changes
-    ?? (claimed.meta as { rows_written?: number } | undefined)?.rows_written
-    ?? 0;
+  const changes =
+    (claimed.meta as { changes?: number; rows_written?: number } | undefined)?.changes ??
+    (claimed.meta as { rows_written?: number } | undefined)?.rows_written ??
+    0;
   return changes > 0 ? row : null;
 }
 

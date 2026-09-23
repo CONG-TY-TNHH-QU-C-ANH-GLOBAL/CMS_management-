@@ -19,6 +19,13 @@ import { toast } from "sonner";
 import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { Card, CardHeader, PageContainer } from "@/components/cms/ui";
+import {
+  getCrmLeadDeliveryHealthFn,
+  replayLeadTelegramDeliveryFn,
+  retryCrmLeadDeliveryFn,
+  runCrmLeadDeliveryNowFn,
+  type CrmLeadDeliveryHealth,
+} from "@/features/crm-lead-sync/crm-lead-sync.actions";
 import { EVENT_TYPES, type ChannelKind, type EventType } from "@/features/telegram/telegram.events";
 import {
   deleteTelegramChannelFn,
@@ -48,17 +55,19 @@ interface LoaderData {
   subscriptions: TelegramSubscription[];
   legacy: LegacyConfigSummary;
   failed: OutboxRow[];
+  crmDelivery: CrmLeadDeliveryHealth;
 }
 
 export const Route = createFileRoute("/admin/system/telegram/")({
   head: () => ({ meta: [{ title: "Telegram — THG Content OS" }] }),
   loader: async (): Promise<LoaderData> => {
-    const [config, channelsRes, subsRes, legacy, failedRes] = await Promise.all([
+    const [config, channelsRes, subsRes, legacy, failedRes, crmDelivery] = await Promise.all([
       getTelegramConfigFn(),
       listTelegramChannelsFn(),
       listTelegramSubscriptionsFn(),
       getLegacyConfigSummaryFn(),
       listFailedOutboxFn({ data: {} }),
+      getCrmLeadDeliveryHealthFn(),
     ]);
     return {
       config,
@@ -66,6 +75,7 @@ export const Route = createFileRoute("/admin/system/telegram/")({
       subscriptions: subsRes.subscriptions,
       legacy,
       failed: failedRes.rows,
+      crmDelivery,
     };
   },
   component: TelegramPage,
@@ -101,6 +111,10 @@ function TelegramPage() {
   const sendTest = useServerFn(sendChannelTestFn);
   const importLegacy = useServerFn(importLegacyTelegramConfigFn);
   const retry = useServerFn(retryOutboxFn);
+  const retryCrm = useServerFn(retryCrmLeadDeliveryFn);
+  const replayTelegram = useServerFn(replayLeadTelegramDeliveryFn);
+  const runCrmNow = useServerFn(runCrmLeadDeliveryNowFn);
+  const [runningCrm, setRunningCrm] = useState(false);
 
   // Build a quick subscription lookup: `${channelId}:${eventType}` → enabled.
   const subMap = useMemo(() => {
@@ -202,6 +216,40 @@ function TelegramPage() {
       await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Retry thất bại");
+    }
+  }
+
+  async function handleRetryCrm(id: number) {
+    try {
+      const result = await retryCrm({ data: { id } });
+      toast.success(result.reopened ? "Đã mở lại và gửi Lead sang CRM" : "Lead này không còn ở trạng thái lỗi");
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Retry CRM thất bại");
+    }
+  }
+
+  async function handleReplayTelegram(id: number) {
+    try {
+      const result = await replayTelegram({ data: { id } });
+      if (result.enqueued > 0) toast.success(`Đã gửi Lead #${id} đến ${result.enqueued} kênh Telegram`);
+      else toast.error("Chưa có channel đang hoạt động và đăng ký sự kiện lead_received");
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gửi lại Telegram thất bại");
+    }
+  }
+
+  async function handleRunCrmNow() {
+    setRunningCrm(true);
+    try {
+      await runCrmNow();
+      toast.success("Đã chạy đồng bộ Lead sang CRM");
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Đồng bộ CRM thất bại");
+    } finally {
+      setRunningCrm(false);
     }
   }
 
@@ -457,7 +505,95 @@ function TelegramPage() {
           </div>
         </Card>
 
-        {/* Section 4: Failed sends */}
+        {/* Section 4: Website Lead delivery */}
+        <Card className="mt-5">
+          <CardHeader
+            title="Website Lead → CRM"
+            hint="Theo dõi riêng hai nhánh CRM và Telegram cho các form thgfulfill.com gần nhất."
+          />
+          <div className="p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmUrlConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>
+                  CRM URL: {data.crmDelivery.crmUrlConfigured ? "đã cấu hình" : "chưa cấu hình"}
+                </span>
+                <span className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmSecretConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>
+                  Signing key: {data.crmDelivery.crmSecretConfigured ? "đã cấu hình" : "chưa cấu hình"}
+                </span>
+              </div>
+              <button
+                onClick={handleRunCrmNow}
+                disabled={runningCrm}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-surface text-xs font-medium hover:bg-surface-muted disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${runningCrm ? "animate-spin" : ""}`} />
+                {runningCrm ? "Đang đồng bộ…" : "Đồng bộ ngay"}
+              </button>
+            </div>
+            {data.crmDelivery.rows.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Chưa có website Lead nào trong CMS.</div>
+            ) : (
+              <div className="overflow-x-auto -mx-5">
+                <table className="w-full text-sm">
+                  <thead className="text-[11px] uppercase tracking-wider text-muted-foreground bg-surface-muted/50">
+                    <tr>
+                      <th className="text-left font-medium px-5 py-2.5">CMS Lead</th>
+                      <th className="text-left font-medium px-3 py-2.5">CRM</th>
+                      <th className="text-left font-medium px-3 py-2.5">Telegram</th>
+                      <th className="text-left font-medium px-3 py-2.5">Lỗi gần nhất</th>
+                      <th className="px-5 py-2.5 text-right">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {data.crmDelivery.rows.map((row) => {
+                      const stateLabel = { missing: "Chưa enqueue", pending: "Đang chờ", sent: "Đã gửi", failed: "Thất bại" };
+                      const stateClass = {
+                        missing: "bg-amber-100 text-amber-800",
+                        pending: "bg-blue-100 text-blue-800",
+                        sent: "bg-emerald-100 text-emerald-800",
+                        failed: "bg-red-100 text-red-800",
+                      };
+                      return (
+                        <tr key={row.leadId}>
+                          <td className="px-5 py-3">
+                            <div className="font-mono font-medium">#{row.leadId}</div>
+                            <div className="text-[11px] text-muted-foreground">{new Date(row.createdAt * 1000).toLocaleString("vi-VN")}</div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.crmState]}`}>{stateLabel[row.crmState]}</span>
+                            {row.crmAttempts > 0 ? <div className="text-[11px] text-muted-foreground mt-1">{row.crmAttempts} lần thử</div> : null}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.telegramState]}`}>{stateLabel[row.telegramState]}</span>
+                            <div className="text-[11px] text-muted-foreground mt-1">{row.telegramSent}/{row.telegramTotal} kênh đã gửi</div>
+                          </td>
+                          <td className="px-3 py-3 max-w-80 text-xs text-red-800 break-words">{row.crmLastError ?? "—"}</td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              {row.crmState === "failed" && row.crmOutboxId ? (
+                                <button onClick={() => handleRetryCrm(row.crmOutboxId!)} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-red-300 bg-white text-xs font-medium text-red-700 hover:bg-red-50">
+                                  <RefreshCw className="w-3.5 h-3.5" /> Retry CRM
+                                </button>
+                              ) : null}
+                              {row.telegramState === "missing" ? (
+                                <button onClick={() => handleReplayTelegram(row.leadId)} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-amber-300 bg-white text-xs font-medium text-amber-800 hover:bg-amber-50">
+                                  <Send className="w-3.5 h-3.5" /> Gửi Telegram
+                                </button>
+                              ) : null}
+                              {row.crmState !== "failed" && row.telegramState !== "missing" ? "—" : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Section 5: Failed Telegram sends */}
         <Card className="mt-5">
           <CardHeader title="Tin nhắn gửi lỗi" hint="Sau 5 lần thử thất bại — bấm Retry để đẩy lại." />
           <div className="p-5">
