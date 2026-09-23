@@ -144,7 +144,9 @@ function TelegramPage() {
     setTestingBot(true);
     setBotTestResult(null);
     try {
-      const res = (await testBot()) as { ok: true; username: string } | { ok: false; error: string };
+      const res = (await testBot()) as
+        | { ok: true; username: string }
+        | { ok: false; error: string };
       if (res.ok) setBotTestResult({ ok: true, msg: `@${res.username}` });
       else setBotTestResult({ ok: false, msg: res.error });
     } catch (err) {
@@ -158,7 +160,9 @@ function TelegramPage() {
   async function handleLegacyImport() {
     try {
       const res = await importLegacy();
-      toast.success(`Đã import: ${res.channelsCreated} kênh, ${res.subscriptionsCreated} subscription`);
+      toast.success(
+        `Đã import: ${res.channelsCreated} kênh, ${res.subscriptionsCreated} subscription`,
+      );
       await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Import thất bại");
@@ -190,7 +194,9 @@ function TelegramPage() {
 
   async function handleSendTest(c: TelegramChannel) {
     try {
-      const res = (await sendTest({ data: { id: c.id } })) as { ok: true } | { ok: false; error: string };
+      const res = (await sendTest({ data: { id: c.id } })) as
+        | { ok: true }
+        | { ok: false; error: string };
       if (res.ok) toast.success(`Đã gửi test → ${c.label}`);
       else toast.error(`Test thất bại: ${res.error}`);
     } catch (err) {
@@ -222,7 +228,11 @@ function TelegramPage() {
   async function handleRetryCrm(id: number) {
     try {
       const result = await retryCrm({ data: { id } });
-      toast.success(result.reopened ? "Đã mở lại và gửi Lead sang CRM" : "Lead này không còn ở trạng thái lỗi");
+      toast.success(
+        result.reopened
+          ? "Đã mở lại hàng đợi đồng bộ Lead sang CRM"
+          : "Lead này không còn ở trạng thái lỗi",
+      );
       await router.invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Retry CRM thất bại");
@@ -232,7 +242,8 @@ function TelegramPage() {
   async function handleReplayTelegram(id: number) {
     try {
       const result = await replayTelegram({ data: { id } });
-      if (result.enqueued > 0) toast.success(`Đã gửi Lead #${id} đến ${result.enqueued} kênh Telegram`);
+      if (result.enqueued > 0)
+        toast.success(`Đã gửi Lead #${id} đến ${result.enqueued} kênh Telegram`);
       else toast.error("Chưa có channel đang hoạt động và đăng ký sự kiện lead_received");
       await router.invalidate();
     } catch (err) {
@@ -241,6 +252,10 @@ function TelegramPage() {
   }
 
   async function handleRunCrmNow() {
+    if (!data.crmDelivery.crmUrlConfigured || !data.crmDelivery.crmSecretConfigured) {
+      toast.error("Cần cấu hình CRM URL và signing key trước khi đồng bộ");
+      return;
+    }
     setRunningCrm(true);
     try {
       await runCrmNow();
@@ -253,9 +268,7 @@ function TelegramPage() {
     }
   }
 
-  const showLegacyBanner =
-    data.legacy.hasLegacyChatIds &&
-    !data.legacy.anyChannelsExist;
+  const showLegacyBanner = data.legacy.hasLegacyChatIds && !data.legacy.anyChannelsExist;
 
   return (
     <>
@@ -271,7 +284,9 @@ function TelegramPage() {
             <div className="flex-1">
               <div className="font-semibold text-amber-900">Bạn có cấu hình cũ chưa migrate</div>
               <div className="text-amber-900/80 mt-0.5">
-                Cấu hình singleton trước đây có {data.legacy.legacyChatIdCount} chat ID + {data.legacy.enabledFlagCount} cờ bật. Bấm "Import" để chuyển thành kênh + subscription tương ứng (kind=ops). An toàn, có thể chỉnh sửa sau.
+                Cấu hình singleton trước đây có {data.legacy.legacyChatIdCount} chat ID +{" "}
+                {data.legacy.enabledFlagCount} cờ bật. Bấm "Import" để chuyển thành kênh +
+                subscription tương ứng (kind=ops). An toàn, có thể chỉnh sửa sau.
               </div>
             </div>
             <button
@@ -285,14 +300,25 @@ function TelegramPage() {
 
         {/* Section 1: Bot token + Test bot */}
         <Card>
-          <CardHeader title="Bot Telegram" hint="Tài khoản bot dùng để gửi tin nhắn — lấy token từ @BotFather" />
+          <CardHeader
+            title="Bot Telegram"
+            hint="Tài khoản bot dùng để gửi tin nhắn — lấy token từ @BotFather"
+          />
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className={`grid place-items-center w-12 h-12 rounded-xl ${data.config.configured ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}>
-                {data.config.configured ? <Check className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              <div
+                className={`grid place-items-center w-12 h-12 rounded-xl ${data.config.configured ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}
+              >
+                {data.config.configured ? (
+                  <Check className="w-5 h-5" />
+                ) : (
+                  <Bot className="w-5 h-5" />
+                )}
               </div>
               <div className="flex-1">
-                <div className="font-semibold">{data.config.configured ? "Bot đã kết nối" : "Bot chưa kết nối"}</div>
+                <div className="font-semibold">
+                  {data.config.configured ? "Bot đã kết nối" : "Bot chưa kết nối"}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {data.config.configured
                     ? "Token đã lưu. Tin nhắn được gửi qua bot này tới tất cả kênh."
@@ -307,7 +333,11 @@ function TelegramPage() {
                       : "bg-red-100 text-red-800 border-red-300"
                   }`}
                 >
-                  {botTestResult.ok ? <Check className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                  {botTestResult.ok ? (
+                    <Check className="w-3 h-3" />
+                  ) : (
+                    <AlertTriangle className="w-3 h-3" />
+                  )}
                   {botTestResult.msg}
                 </span>
               ) : null}
@@ -350,7 +380,8 @@ function TelegramPage() {
           <div className="p-5">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-xs text-muted-foreground">
-                {data.channels.length} kênh — {data.channels.filter((c) => !c.paused).length} đang hoạt động
+                {data.channels.length} kênh — {data.channels.filter((c) => !c.paused).length} đang
+                hoạt động
               </div>
               <button
                 onClick={() => {
@@ -382,7 +413,9 @@ function TelegramPage() {
                     {data.channels.map((c) => (
                       <tr key={c.id} className="hover:bg-surface-muted/30 transition">
                         <td className="px-5 py-3 font-medium">{c.label}</td>
-                        <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{maskChatId(c.chat_id)}</td>
+                        <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
+                          {maskChatId(c.chat_id)}
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-medium ${
@@ -421,7 +454,11 @@ function TelegramPage() {
                               className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-muted-foreground hover:text-foreground"
                               title={c.paused ? "Bật" : "Tạm dừng"}
                             >
-                              {c.paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                              {c.paused ? (
+                                <Play className="w-3.5 h-3.5" />
+                              ) : (
+                                <Pause className="w-3.5 h-3.5" />
+                              )}
                             </button>
                             <button
                               onClick={() => {
@@ -459,7 +496,9 @@ function TelegramPage() {
           />
           <div className="p-5">
             {data.channels.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Thêm kênh trước rồi mới chọn subscription.</div>
+              <div className="text-sm text-muted-foreground">
+                Thêm kênh trước rồi mới chọn subscription.
+              </div>
             ) : (
               <div className="overflow-x-auto -mx-5">
                 <table className="w-full text-sm">
@@ -469,7 +508,9 @@ function TelegramPage() {
                       {data.channels.map((c) => (
                         <th key={c.id} className="text-center font-medium px-3 py-2.5 min-w-27.5">
                           <div className="font-semibold text-foreground">{c.label}</div>
-                          <div className="text-[10px] text-muted-foreground font-normal">{c.kind}</div>
+                          <div className="text-[10px] text-muted-foreground font-normal">
+                            {c.kind}
+                          </div>
                         </th>
                       ))}
                     </tr>
@@ -479,8 +520,12 @@ function TelegramPage() {
                       <tr key={e.type}>
                         <td className="px-5 py-3">
                           <div className="font-medium text-sm">{e.label}</div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">{e.description}</div>
-                          <div className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">{e.type}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {e.description}
+                          </div>
+                          <div className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">
+                            {e.type}
+                          </div>
                         </td>
                         {data.channels.map((c) => {
                           const enabled = subMap.get(`${c.id}:${e.type}`) === true;
@@ -514,11 +559,16 @@ function TelegramPage() {
           <div className="p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmUrlConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>
+                <span
+                  className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmUrlConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}
+                >
                   CRM URL: {data.crmDelivery.crmUrlConfigured ? "đã cấu hình" : "chưa cấu hình"}
                 </span>
-                <span className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmSecretConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>
-                  Signing key: {data.crmDelivery.crmSecretConfigured ? "đã cấu hình" : "chưa cấu hình"}
+                <span
+                  className={`rounded-full border px-2 py-1 ${data.crmDelivery.crmSecretConfigured ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}
+                >
+                  Signing key:{" "}
+                  {data.crmDelivery.crmSecretConfigured ? "đã cấu hình" : "chưa cấu hình"}
                 </span>
               </div>
               <button
@@ -531,7 +581,9 @@ function TelegramPage() {
               </button>
             </div>
             {data.crmDelivery.rows.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Chưa có website Lead nào trong CMS.</div>
+              <div className="text-sm text-muted-foreground">
+                Chưa có website Lead nào trong CMS.
+              </div>
             ) : (
               <div className="overflow-x-auto -mx-5">
                 <table className="w-full text-sm">
@@ -546,7 +598,12 @@ function TelegramPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {data.crmDelivery.rows.map((row) => {
-                      const stateLabel = { missing: "Chưa enqueue", pending: "Đang chờ", sent: "Đã gửi", failed: "Thất bại" };
+                      const stateLabel = {
+                        missing: "Chưa enqueue",
+                        pending: "Đang chờ",
+                        sent: "Đã gửi",
+                        failed: "Thất bại",
+                      };
                       const stateClass = {
                         missing: "bg-amber-100 text-amber-800",
                         pending: "bg-blue-100 text-blue-800",
@@ -557,30 +614,56 @@ function TelegramPage() {
                         <tr key={row.leadId}>
                           <td className="px-5 py-3">
                             <div className="font-mono font-medium">#{row.leadId}</div>
-                            <div className="text-[11px] text-muted-foreground">{new Date(row.createdAt * 1000).toLocaleString("vi-VN")}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {new Date(row.createdAt * 1000).toLocaleString("vi-VN")}
+                            </div>
                           </td>
                           <td className="px-3 py-3">
-                            <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.crmState]}`}>{stateLabel[row.crmState]}</span>
-                            {row.crmAttempts > 0 ? <div className="text-[11px] text-muted-foreground mt-1">{row.crmAttempts} lần thử</div> : null}
+                            <span
+                              className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.crmState]}`}
+                            >
+                              {stateLabel[row.crmState]}
+                            </span>
+                            {row.crmAttempts > 0 ? (
+                              <div className="text-[11px] text-muted-foreground mt-1">
+                                {row.crmAttempts} lần thử
+                              </div>
+                            ) : null}
                           </td>
                           <td className="px-3 py-3">
-                            <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.telegramState]}`}>{stateLabel[row.telegramState]}</span>
-                            <div className="text-[11px] text-muted-foreground mt-1">{row.telegramSent}/{row.telegramTotal} kênh đã gửi</div>
+                            <span
+                              className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${stateClass[row.telegramState]}`}
+                            >
+                              {stateLabel[row.telegramState]}
+                            </span>
+                            <div className="text-[11px] text-muted-foreground mt-1">
+                              {row.telegramSent}/{row.telegramTotal} kênh đã gửi
+                            </div>
                           </td>
-                          <td className="px-3 py-3 max-w-80 text-xs text-red-800 break-words">{row.crmLastError ?? "—"}</td>
+                          <td className="px-3 py-3 max-w-80 text-xs text-red-800 break-words">
+                            {row.crmLastError ?? "—"}
+                          </td>
                           <td className="px-5 py-3 text-right">
                             <div className="flex justify-end gap-1">
                               {row.crmState === "failed" && row.crmOutboxId ? (
-                                <button onClick={() => handleRetryCrm(row.crmOutboxId!)} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-red-300 bg-white text-xs font-medium text-red-700 hover:bg-red-50">
+                                <button
+                                  onClick={() => handleRetryCrm(row.crmOutboxId!)}
+                                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-red-300 bg-white text-xs font-medium text-red-700 hover:bg-red-50"
+                                >
                                   <RefreshCw className="w-3.5 h-3.5" /> Retry CRM
                                 </button>
                               ) : null}
                               {row.telegramState === "missing" ? (
-                                <button onClick={() => handleReplayTelegram(row.leadId)} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-amber-300 bg-white text-xs font-medium text-amber-800 hover:bg-amber-50">
+                                <button
+                                  onClick={() => handleReplayTelegram(row.leadId)}
+                                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-amber-300 bg-white text-xs font-medium text-amber-800 hover:bg-amber-50"
+                                >
                                   <Send className="w-3.5 h-3.5" /> Gửi Telegram
                                 </button>
                               ) : null}
-                              {row.crmState !== "failed" && row.telegramState !== "missing" ? "—" : null}
+                              {row.crmState !== "failed" && row.telegramState !== "missing"
+                                ? "—"
+                                : null}
                             </div>
                           </td>
                         </tr>
@@ -595,10 +678,15 @@ function TelegramPage() {
 
         {/* Section 5: Failed Telegram sends */}
         <Card className="mt-5">
-          <CardHeader title="Tin nhắn gửi lỗi" hint="Sau 5 lần thử thất bại — bấm Retry để đẩy lại." />
+          <CardHeader
+            title="Tin nhắn gửi lỗi"
+            hint="Sau 5 lần thử thất bại — bấm Retry để đẩy lại."
+          />
           <div className="p-5">
             {data.failed.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Chưa có tin nhắn nào thất bại — outbox sạch.</div>
+              <div className="text-sm text-muted-foreground">
+                Chưa có tin nhắn nào thất bại — outbox sạch.
+              </div>
             ) : (
               <div className="space-y-2">
                 {data.failed.map((f) => {
@@ -607,15 +695,25 @@ function TelegramPage() {
                     ? new Date(f.failed_permanently_at * 1000).toLocaleString("vi-VN")
                     : "—";
                   return (
-                    <div key={f.id} className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm">
+                    <div
+                      key={f.id}
+                      className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm"
+                    >
                       <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs text-red-900">
                           <span className="font-mono font-medium">{f.event_type}</span> →{" "}
-                          <span className="font-medium">{channel?.label ?? `Channel #${f.channel_id}`}</span>
-                          <span className="text-red-700"> • {when} • {f.attempts} lần thử</span>
+                          <span className="font-medium">
+                            {channel?.label ?? `Channel #${f.channel_id}`}
+                          </span>
+                          <span className="text-red-700">
+                            {" "}
+                            • {when} • {f.attempts} lần thử
+                          </span>
                         </div>
-                        <div className="text-xs text-red-900/80 mt-1 line-clamp-2">{f.last_error ?? "—"}</div>
+                        <div className="text-xs text-red-900/80 mt-1 line-clamp-2">
+                          {f.last_error ?? "—"}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleRetry(f.id)}
@@ -673,7 +771,12 @@ function ChannelDialog({
 }: {
   channel: TelegramChannel | null;
   onClose: () => void;
-  onSubmit: (payload: { id?: number; label: string; chat_id: string; kind: ChannelKind }) => void | Promise<void>;
+  onSubmit: (payload: {
+    id?: number;
+    label: string;
+    chat_id: string;
+    kind: ChannelKind;
+  }) => void | Promise<void>;
 }) {
   const [label, setLabel] = useState(channel?.label ?? "");
   const [chatId, setChatId] = useState(channel?.chat_id ?? "");
@@ -682,7 +785,8 @@ function ChannelDialog({
 
   async function submit() {
     if (!label.trim()) return toast.error("Cần điền label");
-    if (!/^-?\d+$/.test(chatId.trim())) return toast.error("Chat ID phải là số nguyên (có thể bắt đầu bằng -)");
+    if (!/^-?\d+$/.test(chatId.trim()))
+      return toast.error("Chat ID phải là số nguyên (có thể bắt đầu bằng -)");
     setSubmitting(true);
     try {
       await onSubmit({

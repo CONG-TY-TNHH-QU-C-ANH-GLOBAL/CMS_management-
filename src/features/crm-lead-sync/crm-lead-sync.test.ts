@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 
 const runtime = {} as Cloudflare.Env;
 mock.module("cloudflare:workers", () => ({ env: runtime }));
-const { getCrmLeadDeliveryHealth, retryCrmLeadDelivery } = await import("./crm-lead-sync");
+const { getCrmLeadDeliveryHealth, replayLeadTelegramDelivery, retryCrmLeadDelivery } =
+  await import("./crm-lead-sync");
 
 let sql: Database;
 function d1(database: Database): D1Database {
@@ -91,4 +92,22 @@ test("retry only reopens a permanently failed CRM row", async () => {
     .query("SELECT attempts, failed_permanently_at, last_error FROM crm_lead_outbox WHERE id=1")
     .get() as Record<string, unknown>;
   expect(reopened).toEqual({ attempts: 0, failed_permanently_at: null, last_error: null });
+});
+
+test("Telegram replay enqueues once per subscribed channel", async () => {
+  sql.exec(`INSERT INTO leads(id,name,email) VALUES (7,'Replay','replay@example.test');
+    INSERT INTO telegram_channels(id,label,chat_id,kind) VALUES (4,'Sales','-1004','ops');
+    INSERT INTO telegram_subscriptions(channel_id,event_type,enabled)
+      VALUES (4,'lead_received',1);`);
+
+  expect(await replayLeadTelegramDelivery(7)).toBe(1);
+  expect(await replayLeadTelegramDelivery(7)).toBe(0);
+  const delivery = sql
+    .query("SELECT event_type, channel_id, idempotency_key FROM telegram_outbox")
+    .get() as Record<string, unknown>;
+  expect(delivery).toEqual({
+    event_type: "lead_received",
+    channel_id: 4,
+    idempotency_key: "lead:7:4",
+  });
 });
