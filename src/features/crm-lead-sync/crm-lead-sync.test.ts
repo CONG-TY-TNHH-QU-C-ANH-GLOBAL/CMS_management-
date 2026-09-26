@@ -41,6 +41,7 @@ beforeEach(() => {
     "0001_init.sql",
     "0032_telegram_channels.sql",
     "0046_crm_lead_outbox.sql",
+    "0056_thg_consultation_projection.sql",
   ]) {
     sql.exec(readFileSync(new URL(`../../../db/migrations/${migration}`, import.meta.url), "utf8"));
   }
@@ -48,6 +49,7 @@ beforeEach(() => {
     DB: d1(sql),
     CRM_LEAD_SYNC_URL: "https://crm.example.test/api/integrations/cms/leads",
     CMS_CRM_SYNC_KEY: "test-signing-key",
+    CRM_LEGACY_LEAD_BACKFILL_ENABLED: "false",
   });
 });
 
@@ -95,7 +97,11 @@ test("retry only reopens a permanently failed CRM row", async () => {
 });
 
 test("new website submissions emit consultation v2 and require a ticket receipt", async () => {
-  sql.exec(`INSERT INTO leads(id,name,email) VALUES (9,'THG Customer','customer@example.test');`);
+  sql.exec(`INSERT INTO leads(id,name,email,crm_projection) VALUES
+    (8,'Legacy Customer','legacy@example.test','lead'),
+    (9,'THG Customer','customer@example.test','consultation');
+    INSERT INTO crm_lead_outbox(lead_id,event_key,payload_json,next_attempt_at)
+      VALUES (8,'cms:lead:8','{"schemaVersion":1}',0);`);
   await enqueueCrmLeadSync(9, {
     name: "THG Customer",
     email: "customer@example.test",
@@ -129,6 +135,9 @@ test("new website submissions emit consultation v2 and require a ticket receipt"
     globalThis.fetch = mock(async () => Response.json({ ok: true, ticketId: "SUP-20260926-ABC12345" })) as unknown as typeof fetch;
     await flushCrmLeadOutbox();
     expect((sql.query("SELECT sent_at FROM crm_lead_outbox WHERE lead_id=9").get() as { sent_at: number | null }).sent_at).not.toBeNull();
+    expect(
+      sql.query("SELECT sent_at,attempts FROM crm_lead_outbox WHERE lead_id=8").get(),
+    ).toEqual({ sent_at: null, attempts: 0 });
   } finally {
     globalThis.fetch = originalFetch;
   }

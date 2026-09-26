@@ -13,6 +13,10 @@ const RETRY_CAP_SECONDS = 30 * 60;
 const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RECONCILE_PER_RUN = 100;
 
+function legacyLeadBackfillEnabled(): boolean {
+  return env.CRM_LEGACY_LEAD_BACKFILL_ENABLED === "true";
+}
+
 type CmsLeadPayload = {
   schemaVersion: 1 | 2;
   eventType: "lead.created" | "consultation.created";
@@ -184,10 +188,14 @@ export async function reconcileCrmLeadOutbox(limit = MAX_RECONCILE_PER_RUN): Pro
       `SELECT l.* FROM leads l
        LEFT JOIN crm_lead_outbox o ON o.lead_id = l.id
        WHERE o.id IS NULL
+         AND (l.crm_projection = 'consultation' OR ? = 1)
        ORDER BY l.id ASC
        LIMIT ?`,
     )
-    .bind(Math.max(1, Math.min(limit, MAX_RECONCILE_PER_RUN)))
+    .bind(
+      legacyLeadBackfillEnabled() ? 1 : 0,
+      Math.max(1, Math.min(limit, MAX_RECONCILE_PER_RUN)),
+    )
     .all<LeadRow>();
   for (const row of result.results ?? []) await enqueuePayload(payloadFromRow(row));
   return result.results?.length ?? 0;
@@ -318,11 +326,15 @@ async function claimOne(): Promise<OutboxRow | null> {
   const db = getDb();
   const row = await db
     .prepare(
-      `SELECT id, lead_id, payload_json, attempts FROM crm_lead_outbox
-       WHERE sent_at IS NULL AND failed_permanently_at IS NULL
-         AND next_attempt_at <= unixepoch()
-       ORDER BY id ASC LIMIT 1`,
+      `SELECT o.id, o.lead_id, o.payload_json, o.attempts
+       FROM crm_lead_outbox o
+       JOIN leads l ON l.id = o.lead_id
+       WHERE o.sent_at IS NULL AND o.failed_permanently_at IS NULL
+         AND o.next_attempt_at <= unixepoch()
+         AND (l.crm_projection = 'consultation' OR ? = 1)
+       ORDER BY o.id ASC LIMIT 1`,
     )
+    .bind(legacyLeadBackfillEnabled() ? 1 : 0)
     .first<OutboxRow>();
   if (!row) return null;
   const claimed = await db

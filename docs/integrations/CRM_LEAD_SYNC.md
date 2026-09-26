@@ -17,6 +17,9 @@ change already-captured business state.
   `https://crm.thgfulfill.com/api/integrations/cms/leads`.
 - Set the same high-entropy value as `CMS_CRM_SYNC_KEY` in CMS and
   `CMS_LEAD_SYNC_KEY` in CRM using each Worker's secret store.
+- `CRM_LEGACY_LEAD_BACKFILL_ENABLED` defaults to `false`. Keep it disabled in
+  production unless the historical direct-Lead backlog has been explicitly
+  reviewed and approved for replay.
 - Do not put either secret in source, a `.dev.vars` file committed to Git, logs,
   GitHub Actions output, or a browser bundle.
 
@@ -28,7 +31,7 @@ success response must contain `leadCode`.
 
 ## Operations
 
-The cron reconciles CMS leads with no outbox row, so submissions captured
-during an outage are safely backfilled according to their persisted
-`crm_projection`. Sales Hub deduplicates by the CMS event id; no manual replay
-should create another consultation or Lead.
+The cron always reconciles and delivers consultation rows captured during an
+outage. Historical direct-Lead rows remain retained but unclaimed while the
+legacy backfill gate is disabled. Sales Hub deduplicates by the CMS event id;
+no manual replay should create another consultation or Lead.
