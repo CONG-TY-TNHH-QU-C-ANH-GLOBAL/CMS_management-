@@ -24,6 +24,11 @@ export interface LeadRow {
   surface: string | null;
   service_interests_json: string | null;
   service_details_json: string | null;
+  crm_projection: "lead" | "consultation";
+  visitor_country: string | null;
+  visitor_region: string | null;
+  visitor_city: string | null;
+  visitor_timezone: string | null;
   status: string;
   pipeline_status: LeadStatus;
   lost_reason: string | null;
@@ -50,6 +55,13 @@ export interface CreateLeadInput {
   surface?: string | null;
   service_interests?: string[] | null;
   service_details?: Record<string, unknown> | null;
+  crm_projection?: "lead" | "consultation";
+  visitor_location?: {
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    timezone?: string | null;
+  } | null;
 }
 
 export async function createLead(input: CreateLeadInput): Promise<{ id: number }> {
@@ -62,8 +74,8 @@ export async function createLead(input: CreateLeadInput): Promise<{ id: number }
   const marketsJson = input.ship_to_markets?.length ? JSON.stringify(input.ship_to_markets) : null;
   const row = await getDb()
     .prepare(
-      `INSERT INTO leads(name, email, company_url, monthly_order_band, ship_to_markets_json, phone, message, source_page, locale, ip, user_agent, utm_json, primary_service, surface, service_interests_json, service_details_json, status, pipeline_status, created_at, status_updated_at)
-       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', 'new', unixepoch(), unixepoch())
+      `INSERT INTO leads(name, email, company_url, monthly_order_band, ship_to_markets_json, phone, message, source_page, locale, ip, user_agent, utm_json, primary_service, surface, service_interests_json, service_details_json, crm_projection, visitor_country, visitor_region, visitor_city, visitor_timezone, status, pipeline_status, created_at, status_updated_at)
+       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', 'new', unixepoch(), unixepoch())
        RETURNING id`,
     )
     .bind(
@@ -83,6 +95,11 @@ export async function createLead(input: CreateLeadInput): Promise<{ id: number }
       input.surface ?? null,
       interestsJson,
       detailsJson,
+      input.crm_projection ?? "lead",
+      input.visitor_location?.country ?? null,
+      input.visitor_location?.region ?? null,
+      input.visitor_location?.city ?? null,
+      input.visitor_location?.timezone ?? null,
     )
     .first<{ id: number }>();
   if (!row) throw new Error("Failed to create lead");

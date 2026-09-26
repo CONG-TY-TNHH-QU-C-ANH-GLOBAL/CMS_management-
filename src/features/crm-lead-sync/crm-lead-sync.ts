@@ -14,8 +14,8 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RECONCILE_PER_RUN = 100;
 
 type CmsLeadPayload = {
-  schemaVersion: 1;
-  eventType: "lead.created";
+  schemaVersion: 1 | 2;
+  eventType: "lead.created" | "consultation.created";
   sourceSystem: "THG_CMS";
   eventId: string;
   occurredAt: string;
@@ -35,6 +35,12 @@ type CmsLeadPayload = {
     surface: string | null;
     serviceInterests: string[];
     serviceDetails: Record<string, unknown> | null;
+    location: {
+      country: string | null;
+      region: string | null;
+      city: string | null;
+      timezone: string | null;
+    };
   };
 };
 
@@ -88,9 +94,10 @@ function safeJson<T>(value: string | null, fallback: T): T {
 }
 
 function payloadFromInput(id: number, input: CreateLeadInput): CmsLeadPayload {
+  const consultation = input.crm_projection === "consultation";
   return {
-    schemaVersion: 1,
-    eventType: "lead.created",
+    schemaVersion: consultation ? 2 : 1,
+    eventType: consultation ? "consultation.created" : "lead.created",
     sourceSystem: "THG_CMS",
     eventId: `cms:lead:${id}`,
     occurredAt: new Date().toISOString(),
@@ -110,14 +117,21 @@ function payloadFromInput(id: number, input: CreateLeadInput): CmsLeadPayload {
       surface: input.surface ?? null,
       serviceInterests: input.service_interests ?? [],
       serviceDetails: input.service_details ?? null,
+      location: {
+        country: input.visitor_location?.country ?? null,
+        region: input.visitor_location?.region ?? null,
+        city: input.visitor_location?.city ?? null,
+        timezone: input.visitor_location?.timezone ?? null,
+      },
     },
   };
 }
 
 function payloadFromRow(row: LeadRow): CmsLeadPayload {
+  const consultation = row.crm_projection === "consultation";
   return {
-    schemaVersion: 1,
-    eventType: "lead.created",
+    schemaVersion: consultation ? 2 : 1,
+    eventType: consultation ? "consultation.created" : "lead.created",
     sourceSystem: "THG_CMS",
     eventId: `cms:lead:${row.id}`,
     occurredAt: new Date(row.created_at * 1000).toISOString(),
@@ -137,6 +151,12 @@ function payloadFromRow(row: LeadRow): CmsLeadPayload {
       surface: row.surface,
       serviceInterests: safeJson<string[]>(row.service_interests_json, []),
       serviceDetails: safeJson<Record<string, unknown> | null>(row.service_details_json, null),
+      location: {
+        country: row.visitor_country,
+        region: row.visitor_region,
+        city: row.visitor_city,
+        timezone: row.visitor_timezone,
+      },
     },
   };
 }
@@ -377,7 +397,14 @@ export async function flushCrmLeadOutbox(budgetMs = 50_000): Promise<void> {
         body: row.payload_json,
         signal: controller.signal,
       });
-      if (response.ok) {
+      const responseBody = await response.json().catch(() => null) as {
+        ok?: boolean;
+        leadCode?: string;
+        ticketId?: string;
+      } | null;
+      const event = safeJson<Partial<CmsLeadPayload>>(row.payload_json, {});
+      const resultId = event.schemaVersion === 2 ? responseBody?.ticketId : responseBody?.leadCode;
+      if (response.ok && responseBody?.ok === true && typeof resultId === "string" && resultId.trim()) {
         await getDb()
           .prepare(
             `UPDATE crm_lead_outbox
@@ -387,7 +414,11 @@ export async function flushCrmLeadOutbox(budgetMs = 50_000): Promise<void> {
           .bind(row.id)
           .run();
       } else {
-        await markAttempt(row, response.status, "CRM rejected lead event");
+        await markAttempt(
+          row,
+          response.status,
+          response.ok ? "CRM returned an invalid success body" : "CRM rejected lead event",
+        );
       }
     } catch (error) {
       await markAttempt(row, 0, error instanceof Error ? error.name : "CRM request failed");
