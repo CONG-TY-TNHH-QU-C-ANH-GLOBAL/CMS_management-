@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const runtime = {} as Cloudflare.Env;
 mock.module("cloudflare:workers", () => ({ env: runtime }));
-const { getCrmLeadDeliveryHealth, replayLeadTelegramDelivery, retryCrmLeadDelivery } =
+const { enqueueCrmLeadSync, flushCrmLeadOutbox, getCrmLeadDeliveryHealth, replayLeadTelegramDelivery, retryCrmLeadDelivery } =
   await import("./crm-lead-sync");
 
 let sql: Database;
@@ -41,6 +41,7 @@ beforeEach(() => {
     "0001_init.sql",
     "0032_telegram_channels.sql",
     "0046_crm_lead_outbox.sql",
+    "0056_thg_consultation_projection.sql",
   ]) {
     sql.exec(readFileSync(new URL(`../../../db/migrations/${migration}`, import.meta.url), "utf8"));
   }
@@ -48,6 +49,7 @@ beforeEach(() => {
     DB: d1(sql),
     CRM_LEAD_SYNC_URL: "https://crm.example.test/api/integrations/cms/leads",
     CMS_CRM_SYNC_KEY: "test-signing-key",
+    CRM_LEGACY_LEAD_BACKFILL_ENABLED: "false",
   });
 });
 
@@ -92,6 +94,53 @@ test("retry only reopens a permanently failed CRM row", async () => {
     .query("SELECT attempts, failed_permanently_at, last_error FROM crm_lead_outbox WHERE id=1")
     .get() as Record<string, unknown>;
   expect(reopened).toEqual({ attempts: 0, failed_permanently_at: null, last_error: null });
+});
+
+test("new website submissions emit consultation v2 and require a ticket receipt", async () => {
+  sql.exec(`INSERT INTO leads(id,name,email,crm_projection) VALUES
+    (8,'Legacy Customer','legacy@example.test','lead'),
+    (9,'THG Customer','customer@example.test','consultation');
+    INSERT INTO crm_lead_outbox(lead_id,event_key,payload_json,next_attempt_at)
+      VALUES (8,'cms:lead:8','{"schemaVersion":1}',0);`);
+  await enqueueCrmLeadSync(9, {
+    name: "THG Customer",
+    email: "customer@example.test",
+    company_url: "https://shop.example.test",
+    monthly_order_band: "500_1999",
+    ship_to_markets: ["US", "EU_UK"],
+    phone: "0901234567",
+    message: "Need fulfillment advice",
+    source_page: "https://thgfulfill.com/vi",
+    locale: "vi",
+    primary_service: "fulfill",
+    surface: "consultation_modal",
+    crm_projection: "consultation",
+    visitor_location: { country: "VN", city: "Ho Chi Minh City", timezone: "Asia/Ho_Chi_Minh" },
+  });
+  const queued = sql.query("SELECT payload_json FROM crm_lead_outbox WHERE lead_id=9").get() as { payload_json: string };
+  const event = JSON.parse(queued.payload_json);
+  expect([event.schemaVersion, event.eventType, event.lead.location.country]).toEqual([
+    2,
+    "consultation.created",
+    "VN",
+  ]);
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = mock(async () => Response.json({ ok: true, leadCode: "LD-WRONG" })) as unknown as typeof fetch;
+    await flushCrmLeadOutbox();
+    expect((sql.query("SELECT sent_at,attempts FROM crm_lead_outbox WHERE lead_id=9").get() as Record<string, unknown>)).toEqual({ sent_at: null, attempts: 1 });
+
+    sql.exec("UPDATE crm_lead_outbox SET next_attempt_at=0 WHERE lead_id=9");
+    globalThis.fetch = mock(async () => Response.json({ ok: true, ticketId: "SUP-20260926-ABC12345" })) as unknown as typeof fetch;
+    await flushCrmLeadOutbox();
+    expect((sql.query("SELECT sent_at FROM crm_lead_outbox WHERE lead_id=9").get() as { sent_at: number | null }).sent_at).not.toBeNull();
+    expect(
+      sql.query("SELECT sent_at,attempts FROM crm_lead_outbox WHERE lead_id=8").get(),
+    ).toEqual({ sent_at: null, attempts: 0 });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("Telegram replay enqueues once per subscribed channel", async () => {

@@ -43,6 +43,17 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
         }
 
         const userAgent = request.headers.get("user-agent");
+        const cf = (request as Request & { cf?: Record<string, unknown> }).cf ?? {};
+        const locationValue = (key: string, max: number) => {
+          const value = typeof cf[key] === "string" ? String(cf[key]).trim() : "";
+          return value ? value.slice(0, max) : null;
+        };
+        const visitorLocation = {
+          country: locationValue("country", 20)?.toUpperCase() ?? null,
+          region: locationValue("region", 120),
+          city: locationValue("city", 120),
+          timezone: locationValue("timezone", 80),
+        };
         const { id } = await createLead({
           name: data.name,
           email: data.email,
@@ -60,6 +71,8 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
           surface: data.surface,
           service_interests: data.service_interests,
           service_details: data.service_details,
+          crm_projection: "consultation",
+          visitor_location: visitorLocation,
         });
 
         // CRM is a projection, never a form-submit dependency. If this initial
@@ -80,6 +93,8 @@ export const Route = createFileRoute("/api/v1/(public)/leads/")({
             surface: data.surface,
             service_interests: data.service_interests,
             service_details: data.service_details,
+            crm_projection: "consultation",
+            visitor_location: visitorLocation,
           });
         } catch (e) {
           console.error(`[crm-lead-sync] enqueue failed for CMS lead #${id}`, e);

@@ -12,6 +12,16 @@ const { flushMarketingHubOutbox } = await import("./marketing-hub.outbox");
 let sql: Database;
 const originalFetch = globalThis.fetch;
 
+test("remote D1 trigger migrations stay LF-only", () => {
+  const migration = readFileSync(
+    new URL("../../../db/migrations/0054_marketing_hub_contract.sql", import.meta.url),
+  );
+  const attributes = readFileSync(new URL("../../../.gitattributes", import.meta.url), "utf8");
+
+  expect(migration.includes(13)).toBe(false);
+  expect(attributes).toContain("db/migrations/*.sql text eol=lf");
+});
+
 function d1(database: Database): D1Database {
   const db = {
     prepare(query: string) {
