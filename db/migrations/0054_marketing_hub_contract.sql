@@ -1,3 +1,4 @@
+-- Keep this file LF-only: remote D1 migration parsing of trigger bodies is not CRLF-safe.
 -- Dedicated Marketing Hub contract, not the legacy bearer-token Event agent.
 -- All flags default OFF. No existing route or secret changes are required.
 CREATE TABLE marketing_hub_guards (
