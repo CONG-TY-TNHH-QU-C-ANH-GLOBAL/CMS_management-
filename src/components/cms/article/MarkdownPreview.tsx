@@ -27,7 +27,9 @@ type HastNode = HastText | HastElement | { type: string };
 
 function textOf(node: HastNode): string {
   if (node.type === "text") return (node as HastText).value;
-  if (node.type === "element") return ((node as HastElement).children ?? []).map(textOf).join("");
+  if (node.type === "element") {
+    return ((node as HastElement).children ?? []).map((child) => textOf(child)).join("");
+  }
   return "";
 }
 
