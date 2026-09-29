@@ -11,6 +11,8 @@ import { parseYouTubeId, youtubeEmbedSrc } from "./youtube";
  * ArticleMarkdown or the preview will promise something the site won't do.
  */
 
+const SITE = "https://thgfulfill.com";
+
 interface HastText {
   type: "text";
   value: string;
@@ -29,7 +31,7 @@ function textOf(node: HastNode): string {
   return "";
 }
 
-export function soleYouTubeLink(node: unknown): { id: string; label: string | null } | null {
+function soleYouTubeLink(node: unknown): { id: string; label: string | null } | null {
   const children = ((node as HastElement | undefined)?.children ?? []).filter(
     (c) => !(c.type === "text" && (c as HastText).value.trim() === ""),
   );
@@ -70,8 +72,10 @@ const components: Components = {
     return <p>{children}</p>;
   },
   a({ href, children }) {
+    // "/vi/thg-express" is a website path; on the CMS origin it would 404.
+    const target = href?.startsWith("/") && !href.startsWith("//") ? `${SITE}${href}` : href;
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <a href={target} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
     );

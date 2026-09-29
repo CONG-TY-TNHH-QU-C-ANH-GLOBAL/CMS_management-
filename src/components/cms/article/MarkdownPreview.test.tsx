@@ -40,6 +40,12 @@ test("a non-YouTube link alone in a paragraph stays a link", () => {
   expect(out).toContain('target="_blank"');
 });
 
+test("website paths point at thgfulfill.com, not the CMS origin", () => {
+  expect(html("[THG Express](/vi/thg-express)")).toContain(
+    'href="https://thgfulfill.com/vi/thg-express"',
+  );
+});
+
 test("empty body shows a hint instead of a blank box", () => {
   expect(html("   ")).toContain("Chưa có nội dung");
 });

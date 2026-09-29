@@ -399,7 +399,8 @@ function TranslationView({
 }: Props & { post: BlogPostRow }) {
   return (
     <div className="space-y-4">
-      <Card className="border-blue-200 bg-blue-50/60 p-4 text-sm text-blue-900">
+      {/* Plain divs, not Card: Card's own bg-card would override the tint. */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         <p>
           Bản <span className="font-medium">{LOCALE_LABEL[locale]}</span> đang hiển thị trên website
           là <span className="font-medium">bản dịch đã duyệt</span> của bài Tiếng Việt, nên không
@@ -412,13 +413,13 @@ function TranslationView({
         >
           <Sparkles className="h-3.5 w-3.5" /> Mở bản dịch EN + ZH
         </button>
-      </Card>
+      </div>
 
       {bodyUntranslated && (
-        <Card className="border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           Thân bài chưa có bản dịch — trang {LOCALE_LABEL[locale]} đang hiện thân bài tiếng Việt
           dưới tiêu đề đã dịch.
-        </Card>
+        </div>
       )}
 
       <Card>
