@@ -7,6 +7,7 @@ import { LocaleTabs, type Locale } from "@/components/cms/LocaleTabs";
 import { BlogPostEditor } from "@/features/blog/components/BlogPostEditor";
 import {
   getBlogPostDetailFn,
+  listBlogCategoryOptionsFn,
   type BlogLocale,
   type BlogPostRow,
   type BlogSlideRow,
@@ -27,17 +28,33 @@ const BLOG_POST_FIELDS = [
   { key: "seo_description", label: "SEO description", rows: 3 },
 ] as const;
 
+interface LocaleDetail {
+  post: BlogPostRow | null;
+  slides: BlogSlideRow[];
+  thumbnail_preview: string | null;
+}
+
+const LOCALE_LABEL: Record<BlogLocale, string> = {
+  vi: "Tiếng Việt",
+  en: "English",
+  zh: "中文",
+};
+
 export const Route = createFileRoute("/admin/content/blogs/$slug")({
+  head: () => ({ meta: [{ title: "Bài viết — THG Content OS" }] }),
   loader: async ({ params }) => {
-    // Pre-fetch all 3 locales in parallel
-    const [en, vi, zh] = await Promise.all([
+    // All three locales up front: switching tabs is the main interaction here,
+    // and a per-tab fetch would make every switch a loading state.
+    const [en, vi, zh, categories] = await Promise.all([
       getBlogPostDetailFn({ data: { slug: params.slug, locale: "en" } }),
       getBlogPostDetailFn({ data: { slug: params.slug, locale: "vi" } }),
       getBlogPostDetailFn({ data: { slug: params.slug, locale: "zh" } }),
+      listBlogCategoryOptionsFn(),
     ]);
     return {
       slug: params.slug,
-      details: { en, vi, zh } as Record<BlogLocale, { post: BlogPostRow | null; slides: BlogSlideRow[] }>,
+      details: { en, vi, zh } as Record<BlogLocale, LocaleDetail>,
+      categories,
     };
   },
   component: BlogDetailPage,
@@ -50,8 +67,20 @@ function BlogDetailPage() {
   const [locale, setLocale] = useState<Locale>("vi");
   const [reviewing, setReviewing] = useState<BlogPostRow | null>(null);
 
-  const detail = (data.details as Record<BlogLocale, { post: BlogPostRow | null; slides: BlogSlideRow[] }>)[locale as BlogLocale];
-  const viPost = (data.details as Record<BlogLocale, { post: BlogPostRow | null; slides: BlogSlideRow[] }>).vi.post;
+  const details = data.details as Record<BlogLocale, LocaleDetail>;
+  const detail = details[locale as BlogLocale];
+  const viPost = details.vi.post;
+  // EN/ZH reads resolve a reviewed translation onto the VI row, so the same id
+  // means "this is the translation", not a row of its own.
+  const isTranslation =
+    locale !== "vi" && !!detail.post && !!viPost && detail.post.id === viPost.id;
+  const bodyUntranslated =
+    isTranslation && !!viPost?.body_md && detail.post?.body_md === viPost.body_md;
+
+  function openTranslations() {
+    setLocale("vi");
+    if (viPost) setReviewing(viPost);
+  }
 
   return (
     <PageContainer>
@@ -65,7 +94,9 @@ function BlogDetailPage() {
       <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
         <div>
           <h2 className="text-xl font-semibold">
-            {detail.post?.title ?? `(chưa có bản dịch ${locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"})`}
+            {detail.post?.title ??
+              viPost?.title ??
+              `(chưa có bản ${LOCALE_LABEL[locale as BlogLocale]})`}
           </h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
             <span>Đường dẫn:</span>
@@ -102,6 +133,11 @@ function BlogDetailPage() {
         locale={locale as BlogLocale}
         post={detail.post}
         slides={detail.slides}
+        thumbnailPreview={detail.thumbnail_preview}
+        categories={data.categories}
+        isTranslation={isTranslation}
+        bodyUntranslated={bodyUntranslated}
+        onOpenTranslations={openTranslations}
         onSaved={() => router.invalidate()}
       />
 

@@ -22,6 +22,7 @@ export const getBlogPostDetailFn = createServerFn({ method: "GET" })
     const { getBlogPost, getBlogPostForPublic, getBlogSlides } = await import(
       "@/features/blog"
     );
+    const { toMediaUrl } = await import("@/features/partners/partners.media");
     await requireSession("viewer");
     // VI: read source. EN/ZH: read from blog_post_translations via ForPublic
     // (migration 0024 + spec §7.1). Legacy blog_posts.locale='en'/'zh' rows
@@ -30,10 +31,29 @@ export const getBlogPostDetailFn = createServerFn({ method: "GET" })
       data.locale === "vi"
         ? await getBlogPost(data.slug, "vi")
         : await getBlogPostForPublic(data.slug, data.locale);
-    if (!post) return { post: null, slides: [] };
+    if (!post) return { post: null, slides: [], thumbnail_preview: null };
     const slides = await getBlogSlides(post.id);
-    return { post, slides };
+    // Previews resolve against the CMS origin (""), like the event editor: a
+    // bare R2 key is only loadable through /api/v1/media.
+    return { post, slides, thumbnail_preview: toMediaUrl(post.thumbnail_url, "") };
   });
+
+/** Categories already in use, offered as suggestions so one topic does not
+ *  end up under "Báo cáo", "Report" and "Category" at once. */
+export const listBlogCategoryOptionsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireSession } = await import("@/features/auth");
+  const { listBlogPosts } = await import("@/features/blog");
+  await requireSession("viewer");
+  const posts = await listBlogPosts({ locale: "vi" });
+  const counts = new Map<string, number>();
+  for (const p of posts) {
+    const c = p.category?.trim();
+    if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name);
+});
 
 // ─────────────── mutations ───────────────
 
@@ -64,41 +84,23 @@ export const upsertBlogPostFn = createServerFn({ method: "POST" })
     return { post };
   });
 
-export const setBlogThumbnailFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    z.object({
-      slug: z.string().min(1),
-      locale: LOCALE,
-      url: z.string().url().max(2000),
-      alt_text: z.string().max(200).default(""),
-    }).parse(data),
-  )
-  .handler(async ({ data }) => {
-    const { requireSession } = await import("@/features/auth");
-    const { setBlogThumbnailFromUrl } = await import("@/features/blog");
-    const { bumpCmsRev } = await import("@/core/db/mutations");
-    const me = await requireSession("editor");
-    const post = await setBlogThumbnailFromUrl(me.id, data);
-    await bumpCmsRev();
-    return { post };
-  });
-
-const slidesSchema = z.object({
+const slideMediaSchema = z.object({
   slug: z.string().min(1),
   locale: LOCALE,
-  slides: z.array(
-    z.object({ url: z.string().url().max(2000), alt_text: z.string().max(200) }),
-  ).max(100),
+  slides: z
+    .array(z.object({ media_id: z.number().int().positive(), alt_text: z.string().max(200) }))
+    .max(100),
 });
 
-export const replaceBlogSlidesFn = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => slidesSchema.parse(data))
+/** The editor's gallery save: ordered media-library ids + alt text. */
+export const replaceBlogSlideMediaFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => slideMediaSchema.parse(data))
   .handler(async ({ data }) => {
     const { requireSession } = await import("@/features/auth");
-    const { replaceBlogSlides } = await import("@/features/blog");
+    const { replaceBlogSlideMedia } = await import("@/features/blog");
     const { bumpCmsRev } = await import("@/core/db/mutations");
     const me = await requireSession("editor");
-    const slides = await replaceBlogSlides(me.id, data);
+    const slides = await replaceBlogSlideMedia(me.id, data);
     await bumpCmsRev();
     return { slides };
   });
