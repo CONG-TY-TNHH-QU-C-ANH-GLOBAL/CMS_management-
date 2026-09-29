@@ -8,10 +8,10 @@
 -- migration 0043, so this placeholder has no job left.
 --
 -- Archived rather than deleted so it can be restored from the CMS editor
--- (status "Đã ẩn"). GUARDED: only a row that is still completely empty is
--- touched — if someone has written the post in the meantime, it stays live.
--- Archiving also removes "Event" from the blog category filter, which lists
--- categories of live posts only.
+-- (status "Đã ẩn"). GUARDED: only a row that is still empty (excerpt, body and
+-- thumbnail all NULL, as the live row is) is touched — if someone has written
+-- the post in the meantime, it stays live. Archiving also removes "Event" from
+-- the blog category filter, which lists categories of live posts only.
 
 UPDATE blog_posts
 SET status     = 'archived',
@@ -19,7 +19,6 @@ SET status     = 'archived',
 WHERE slug = 'event'
   AND title = 'Event'
   AND status = 'live'
-  AND (excerpt IS NULL OR trim(excerpt) = '')
-  AND (body_md IS NULL OR trim(body_md) = '')
-  AND thumbnail_media_id IS NULL
-  AND NOT EXISTS (SELECT 1 FROM blog_slides s WHERE s.post_id = blog_posts.id);
+  AND excerpt IS NULL
+  AND body_md IS NULL
+  AND thumbnail_media_id IS NULL;
