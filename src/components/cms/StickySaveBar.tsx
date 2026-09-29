@@ -5,11 +5,15 @@ export function StickySaveBar({
   onSave,
   onDiscard,
   saving = false,
+  hint = "Lưu sẽ tạo bản nháp chờ duyệt — nội dung trên website chưa thay đổi cho đến khi được xuất bản.",
 }: {
   count: number;
   onSave: () => void;
   onDiscard: () => void;
   saving?: boolean;
+  /** What saving does. The default describes the landing-block review flow;
+   *  editors that write straight to the live row must say so instead. */
+  hint?: string;
 }) {
   if (count === 0) return null;
   return (
@@ -20,7 +24,7 @@ export function StickySaveBar({
         </div>
         <div className="flex-1 text-sm">
           <div className="font-semibold">Bạn có {count} thay đổi chưa lưu</div>
-          <div className="text-[11px] opacity-70">Lưu sẽ tạo bản nháp chờ duyệt — nội dung trên website chưa thay đổi cho đến khi được xuất bản.</div>
+          <div className="text-[11px] opacity-70">{hint}</div>
         </div>
         <button
           onClick={onDiscard}

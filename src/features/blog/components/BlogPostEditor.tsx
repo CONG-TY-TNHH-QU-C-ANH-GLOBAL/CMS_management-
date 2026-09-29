@@ -1,28 +1,57 @@
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronUp, Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Card, CardHeader } from "@/components/cms/ui";
+import { StickySaveBar } from "@/components/cms/StickySaveBar";
+import { Field, areaClass, inputClass } from "@/components/cms/article/fields";
+import { MarkdownEditor } from "@/components/cms/article/MarkdownEditor";
+import { MarkdownPreview } from "@/components/cms/article/MarkdownPreview";
+import { MediaField } from "@/components/cms/article/MediaField";
+import { MediaGalleryField, type GalleryItem } from "@/components/cms/article/MediaGalleryField";
 import {
-  replaceBlogSlidesFn,
-  setBlogThumbnailFn,
+  replaceBlogSlideMediaFn,
   upsertBlogPostFn,
   type BlogLocale,
   type BlogPostRow,
   type BlogSlideRow,
   type BlogStatus,
 } from "@/features/blog/blog.actions";
+import { toMediaUrl } from "@/features/partners/partners.media";
 
 interface Props {
   slug: string;
   locale: BlogLocale;
   post: BlogPostRow | null;
   slides: BlogSlideRow[];
+  /** Thumbnail resolved to a loadable URL by the loader (bare R2 keys are not). */
+  thumbnailPreview: string | null;
+  /** Categories already in use, for the suggestion list. */
+  categories: string[];
+  /** EN/ZH tab whose content is the reviewed AI translation of the VI post —
+   *  there is no row of its own to edit here. */
+  isTranslation: boolean;
+  /** The translation carries no body of its own, so the site shows the VI body. */
+  bodyUntranslated: boolean;
+  onOpenTranslations: () => void;
   onSaved: () => void | Promise<void>;
 }
 
-interface FormState {
+const LOCALE_LABEL: Record<BlogLocale, string> = {
+  vi: "Tiếng Việt",
+  en: "English",
+  zh: "中文",
+};
+
+const STATUS_OPTIONS: { value: BlogStatus; label: string }[] = [
+  { value: "draft", label: "Nháp — chưa hiển thị" },
+  { value: "review", label: "Chờ duyệt — chưa hiển thị" },
+  { value: "live", label: "Xuất bản — hiển thị trên website" },
+  { value: "archived", label: "Đã ẩn — gỡ khỏi website" },
+];
+
+interface Draft {
   title: string;
   excerpt: string;
   body_md: string;
@@ -31,355 +60,387 @@ interface FormState {
   status: BlogStatus;
   seo_title: string;
   seo_description: string;
-  thumbnail_url: string;
+  thumbnail_media_id: number | null;
 }
 
-function fromPost(p: BlogPostRow | null): FormState {
+function toDraft(post: BlogPostRow | null): Draft {
   return {
-    title: p?.title ?? "",
-    excerpt: p?.excerpt ?? "",
-    body_md: p?.body_md ?? "",
-    category: p?.category ?? "",
-    published_date: p?.published_date ?? "",
-    status: p?.status ?? "draft",
-    seo_title: p?.seo_title ?? "",
-    seo_description: p?.seo_description ?? "",
-    thumbnail_url: p?.thumbnail_url ?? "",
+    title: post?.title ?? "",
+    excerpt: post?.excerpt ?? "",
+    body_md: post?.body_md ?? "",
+    category: post?.category ?? "",
+    published_date: post?.published_date ?? "",
+    status: post?.status ?? "draft",
+    seo_title: post?.seo_title ?? "",
+    seo_description: post?.seo_description ?? "",
+    thumbnail_media_id: post?.thumbnail_media_id ?? null,
   };
 }
 
-interface SlideInput {
-  url: string;
-  alt_text: string;
+function toGallery(slides: BlogSlideRow[]): GalleryItem[] {
+  return slides.map((slide) => ({
+    media_id: slide.media_id,
+    caption: slide.alt_text,
+    preview: toMediaUrl(slide.src, ""),
+  }));
 }
 
-export function BlogPostEditor({ slug, locale, post, slides, onSaved }: Props) {
+/** "" is how a cleared text input reads; the column wants NULL for "not set". */
+const orNull = (value: string): string | null => (value.trim() === "" ? null : value.trim());
+
+export function BlogPostEditor(props: Props) {
+  if (props.isTranslation && props.post) {
+    return <TranslationView {...props} post={props.post} />;
+  }
+  return <PostForm {...props} />;
+}
+
+function PostForm({
+  slug,
+  locale,
+  post,
+  slides,
+  thumbnailPreview,
+  categories,
+  onOpenTranslations,
+  onSaved,
+}: Props) {
   const upsert = useServerFn(upsertBlogPostFn);
-  const setThumbnail = useServerFn(setBlogThumbnailFn);
-  const replaceSlides = useServerFn(replaceBlogSlidesFn);
+  const saveSlides = useServerFn(replaceBlogSlideMediaFn);
 
-  const [form, setForm] = useState<FormState>(() => fromPost(post));
-  const [slideList, setSlideList] = useState<SlideInput[]>(() =>
-    slides.map((s) => ({ url: s.src, alt_text: s.alt_text })),
+  const initial = useMemo(() => toDraft(post), [post]);
+  const [draft, setDraft] = useState<Draft>(initial);
+  const [thumbPreview, setThumbPreview] = useState<string | null>(thumbnailPreview);
+  const [gallery, setGallery] = useState<GalleryItem[]>(() => toGallery(slides));
+  const [galleryDirty, setGalleryDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(toDraft(post));
+    setThumbPreview(thumbnailPreview);
+    setGallery(toGallery(slides));
+    setGalleryDirty(false);
+  }, [post, slides, thumbnailPreview]);
+
+  const changedFields = useMemo(
+    () => (Object.keys(initial) as (keyof Draft)[]).filter((key) => draft[key] !== initial[key]),
+    [draft, initial],
   );
-  const [pending, setPending] = useState(false);
+  const dirtyCount = changedFields.length + (galleryDirty ? 1 : 0);
 
-  function set<K extends keyof FormState>(key: K, val: FormState[K]) {
-    setForm((f) => ({ ...f, [key]: val }));
-  }
-
-  function addSlide() {
-    setSlideList((s) => [...s, { url: "", alt_text: "" }]);
-  }
-  function updateSlide(idx: number, patch: Partial<SlideInput>) {
-    setSlideList((s) => s.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
-  }
-  function removeSlide(idx: number) {
-    setSlideList((s) => s.filter((_, i) => i !== idx));
-  }
-  function moveSlide(idx: number, dir: -1 | 1) {
-    const target = idx + dir;
-    if (target < 0 || target >= slideList.length) return;
-    const next = [...slideList];
-    [next[idx], next[target]] = [next[target], next[idx]];
-    setSlideList(next);
+  function set<K extends keyof Draft>(key: K, value: Draft[K]) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function save() {
-    if (!form.title.trim()) {
-      toast.error("Tiêu đề không được rỗng");
+  async function onSave() {
+    if (!draft.title.trim()) {
+      toast.error("Tiêu đề bắt buộc.");
       return;
     }
-    setPending(true);
+    setSaving(true);
     try {
-      const clearedThumbnail = !form.thumbnail_url.trim() && !!post?.thumbnail_url;
       await upsert({
         data: {
           slug,
           locale,
-          title: form.title.trim(),
-          excerpt: form.excerpt.trim() || null,
-          body_md: form.body_md.trim() || null,
-          category: form.category.trim() || null,
-          published_date: form.published_date.trim() || null,
-          status: form.status,
-          seo_title: form.seo_title.trim() || null,
-          seo_description: form.seo_description.trim() || null,
-          ...(clearedThumbnail ? { thumbnail_media_id: null } : {}),
+          title: draft.title.trim(),
+          excerpt: orNull(draft.excerpt),
+          body_md: orNull(draft.body_md),
+          category: orNull(draft.category),
+          published_date: orNull(draft.published_date),
+          status: draft.status,
+          seo_title: orNull(draft.seo_title),
+          seo_description: orNull(draft.seo_description),
+          thumbnail_media_id: draft.thumbnail_media_id,
         },
       });
-      if (form.thumbnail_url.trim() && form.thumbnail_url !== post?.thumbnail_url) {
-        await setThumbnail({
-          data: { slug, locale, url: form.thumbnail_url.trim(), alt_text: form.title.trim() },
+      // After the upsert: a brand-new locale row has to exist before slides can hang off it.
+      if (galleryDirty) {
+        await saveSlides({
+          data: {
+            slug,
+            locale,
+            slides: gallery
+              .filter((item) => item.media_id > 0)
+              .map((item) => ({
+                media_id: item.media_id,
+                alt_text: (item.caption.trim() || draft.title.trim()).slice(0, 200),
+              })),
+          },
         });
       }
-      const cleaned = slideList.filter((s) => s.url.trim()).map((s) => ({ url: s.url.trim(), alt_text: s.alt_text.trim() || form.title.trim() }));
-      await replaceSlides({ data: { slug, locale, slides: cleaned } });
-
-      toast.success(`Đã lưu bản dịch ${locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"}`);
+      toast.success(
+        post ? `Đã lưu bản ${LOCALE_LABEL[locale]}` : `Đã tạo bản ${LOCALE_LABEL[locale]}`,
+      );
       await onSaved();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lưu thất bại");
     } finally {
-      setPending(false);
+      setSaving(false);
     }
   }
 
+  const publicUrl = `https://thgfulfill.com/${locale}/blog/${slug}`;
+
   return (
-    <Card className="overflow-hidden">
-      <div className="grid xl:grid-cols-[380px_1fr] gap-0 divide-x divide-border">
-
-        {/* ── LEFT: Metadata ─────────────────────────────────── */}
-        <div className="space-y-3.5 p-5 min-w-0">
-          <CardHeader title="Thông tin bài viết" hint="Tiêu đề, tóm tắt, danh mục, SEO, trạng thái" />
-
-          <Field label="Tiêu đề" required>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-              maxLength={500}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </Field>
-
-          <Field label="Tóm tắt — dòng mở đầu bài viết">
-            <textarea
-              rows={3}
-              value={form.excerpt}
-              onChange={(e) => set("excerpt", e.target.value)}
-              maxLength={2000}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              placeholder="1-2 câu tóm tắt nội dung bài, hiển thị in nghiêng ở đầu bài viết..."
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Danh mục">
-              <input
-                type="text"
-                value={form.category}
-                onChange={(e) => set("category", e.target.value)}
-                maxLength={100}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Báo cáo"
-              />
-            </Field>
-            <Field label="Ngày đăng">
-              <input
-                type="date"
-                value={form.published_date}
-                onChange={(e) => set("published_date", e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </Field>
-          </div>
-
-          <Field label="Ảnh đại diện (thumbnail)">
-            <input
-              type="url"
-              value={form.thumbnail_url}
-              onChange={(e) => set("thumbnail_url", e.target.value)}
-              maxLength={2000}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="https://..."
-            />
-          </Field>
-          {form.thumbnail_url && (
-            <div className="rounded-lg border border-border bg-surface-muted overflow-hidden">
-              <img src={form.thumbnail_url} alt="" className="w-full max-h-28 object-cover" referrerPolicy="no-referrer" />
-            </div>
-          )}
-
-          <CardHeader title="SEO (tối ưu Google)" hint="Tùy chọn — nếu trống sẽ dùng tiêu đề + tóm tắt" />
-          <Field label="Tiêu đề trên Google">
-            <input
-              type="text"
-              value={form.seo_title}
-              onChange={(e) => set("seo_title", e.target.value)}
-              maxLength={200}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </Field>
-          <Field label="Mô tả trên Google">
-            <textarea
-              rows={2}
-              value={form.seo_description}
-              onChange={(e) => set("seo_description", e.target.value)}
-              maxLength={500}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-            />
-          </Field>
-
-          <CardHeader title="Trạng thái" />
-          <div className="flex flex-wrap gap-2">
-            {(["draft", "review", "live", "archived"] as const).map((s) => {
-              const label = s === "draft" ? "Bản nháp" : s === "review" ? "Chờ duyệt" : s === "live" ? "Đang hiển thị" : "Đã ẩn";
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => set("status", s)}
-                  className={`h-9 px-3 rounded-lg text-sm font-medium transition ${
-                    form.status === s
-                      ? "bg-foreground text-background"
-                      : "border border-border bg-surface text-foreground hover:bg-surface-muted"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── RIGHT: Article content ──────────────────────────── */}
-        <div className="p-5 min-w-0 flex flex-col gap-5">
-
-          {/* Images section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <CardHeader
-                title={`Ảnh bài viết (${slideList.length})`}
-                hint="Ảnh đầu tiên hiển thị lớn trên trang. Chèn ảnh vào giữa bài: ![mô tả](URL ảnh)"
-              />
+    <div className="space-y-4">
+      {!post && (
+        <Card className="border-dashed p-4 text-sm text-muted-foreground">
+          Chưa có bản <span className="font-medium text-foreground">{LOCALE_LABEL[locale]}</span>{" "}
+          cho bài này.
+          {locale !== "vi" && (
+            <>
+              {" "}
+              Cách nên làm: về tab Tiếng Việt, bấm{" "}
               <button
                 type="button"
-                onClick={addSlide}
-                className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-surface text-xs hover:bg-surface-muted"
+                onClick={onOpenTranslations}
+                className="font-medium text-primary underline"
               >
-                <Plus className="w-3 h-3" /> Thêm ảnh
-              </button>
-            </div>
+                Bản dịch EN + ZH
+              </button>{" "}
+              để dịch tự động rồi duyệt. Chỉ tự viết ở đây khi muốn một bản riêng không theo bài
+              tiếng Việt.
+            </>
+          )}
+        </Card>
+      )}
 
-            {slideList.length === 0 ? (
-              <div className="text-sm text-muted-foreground italic px-1">
-                Chưa có ảnh nào. Bấm "Thêm ảnh" để thêm ảnh bài viết.
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {slideList.map((s, idx) => (
-                  <li key={idx} className="flex gap-2 p-2 rounded-md border border-border bg-surface-muted/30">
-                    <div className="flex flex-col gap-0.5 mt-1">
-                      <button
-                        type="button"
-                        onClick={() => moveSlide(idx, -1)}
-                        disabled={idx === 0}
-                        className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveSlide(idx, +1)}
-                        disabled={idx === slideList.length - 1}
-                        className="grid place-items-center w-6 h-6 rounded text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex gap-2 items-center">
-                        {idx === 0 && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
-                            Featured
-                          </span>
-                        )}
-                        <input
-                          type="url"
-                          placeholder="https://...image.jpg"
-                          value={s.url}
-                          onChange={(e) => updateSlide(idx, { url: e.target.value })}
-                          maxLength={2000}
-                          className="w-full h-8 px-2 rounded border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Mô tả ảnh (giúp SEO + người khiếm thị)"
-                        value={s.alt_text}
-                        onChange={(e) => updateSlide(idx, { alt_text: e.target.value })}
-                        maxLength={200}
-                        className="w-full h-8 px-2 rounded border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      {s.url && (
-                        <img
-                          src={s.url}
-                          alt=""
-                          className="w-full max-h-32 object-cover rounded"
-                          referrerPolicy="no-referrer"
-                        />
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeSlide(idx)}
-                      className="grid place-items-center w-7 h-7 rounded-md border border-border bg-surface text-red-600 hover:bg-red-50 self-start"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Body content */}
-          <div className="space-y-2 flex-1">
-            <CardHeader
-              title="Nội dung bài viết"
-              hint="Viết theo cấu trúc báo: tiêu đề phần, đoạn văn, danh sách. Hỗ trợ Markdown."
+      <Card>
+        <CardHeader
+          title="Nội dung"
+          hint={`Hiển thị tại thgfulfill.com/${locale}/blog/${slug}`}
+          action={
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="h-3 w-3" /> Xem trên trang thật
+            </a>
+          }
+        />
+        <div className="space-y-4 p-5">
+          <Field label="Tiêu đề" required count={{ length: draft.title.length, max: 500 }}>
+            <input
+              value={draft.title}
+              onChange={(e) => set("title", e.target.value)}
+              maxLength={500}
+              className={inputClass}
             />
+          </Field>
+
+          <Field
+            label="Tóm tắt"
+            count={{ length: draft.excerpt.length, max: 2000, ideal: 300 }}
+            hint="Hiện in nghiêng ở đầu bài và trên thẻ bài ở trang Blog."
+          >
             <textarea
-              rows={22}
-              value={form.body_md}
-              onChange={(e) => set("body_md", e.target.value)}
-              maxLength={100000}
-              className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring resize-y leading-relaxed"
-              placeholder={"## Tổng quan thị trường\n\nNội dung đoạn mở đầu, phân tích tình hình chung...\n\n![Biểu đồ tăng trưởng](https://link-den-anh.jpg)\n\n## Xu hướng nổi bật tháng này\n\n- **Điểm 1**: Mô tả chi tiết\n- **Điểm 2**: Mô tả chi tiết\n- **Điểm 3**: Mô tả chi tiết\n\n## Nhận định & Khuyến nghị\n\nKết luận và hành động gợi ý cho doanh nghiệp..."}
+              value={draft.excerpt}
+              onChange={(e) => set("excerpt", e.target.value)}
+              maxLength={2000}
+              rows={3}
+              placeholder="1–2 câu: bài này trả lời câu hỏi gì cho seller."
+              className={areaClass}
             />
-            <p className="text-[11px] text-muted-foreground">
-              Cú pháp: <code className="bg-muted px-1 rounded">## Tiêu đề</code> — <code className="bg-muted px-1 rounded">**đậm**</code> — <code className="bg-muted px-1 rounded">*nghiêng*</code> — <code className="bg-muted px-1 rounded">- danh sách</code> — <code className="bg-muted px-1 rounded">![mô tả](URL ảnh)</code>
-            </p>
-          </div>
-        </div>
-      </div>
+          </Field>
 
-      <div className="border-t border-border bg-surface-muted/40 px-5 py-3 flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-          Đang chỉnh sửa bản dịch: <span className="font-medium text-foreground">{locale === "vi" ? "Tiếng Việt" : locale === "en" ? "English" : "中文"}</span>
+          <MarkdownEditor
+            label="Nội dung bài viết"
+            value={draft.body_md}
+            onChange={(value) => set("body_md", value)}
+            maxLength={100_000}
+            rows={22}
+            placeholder={
+              "## Câu hỏi bài viết trả lời\n\nTrả lời ngắn trước, sau đó giải thích kèm ví dụ…\n\n## Các bước / các khoản cần biết\n\n- **Ý 1**: mô tả\n- **Ý 2**: mô tả\n\n## Điều kiện áp dụng và bước tiếp theo với THG\n\n…"
+            }
+          />
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          {pending ? "Đang lưu..." : "Lưu"}
-        </button>
-      </div>
-    </Card>
+      </Card>
+
+      <Card>
+        <CardHeader title="Phân loại & ngày đăng" />
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <Field label="Danh mục" hint="Chọn danh mục có sẵn để bài hiện đúng bộ lọc ở trang Blog.">
+            <input
+              value={draft.category}
+              onChange={(e) => set("category", e.target.value)}
+              maxLength={100}
+              list={`blog-categories-${slug}`}
+              className={inputClass}
+            />
+            <datalist id={`blog-categories-${slug}`}>
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="Ngày đăng" hint="Bỏ trống thì website dùng ngày cập nhật gần nhất.">
+            <input
+              type="date"
+              value={draft.published_date}
+              onChange={(e) => set("published_date", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Hình ảnh"
+          hint="Chọn từ thư viện media hoặc tải ảnh mới lên (dán bằng Ctrl+V)"
+        />
+        <div className="space-y-5 p-5">
+          <MediaField
+            label="Ảnh đại diện (thumbnail)"
+            mediaId={draft.thumbnail_media_id}
+            previewUrl={thumbPreview}
+            onChange={(id, preview) => {
+              set("thumbnail_media_id", id);
+              setThumbPreview(preview);
+            }}
+            pickerTitle="Chọn ảnh đại diện bài viết"
+            hint="Hiện trên thẻ bài ở trang Blog. Bài không có ảnh bài viết thì ảnh này hiện lớn ở đầu bài."
+          />
+          <MediaGalleryField
+            label="Ảnh bài viết"
+            items={gallery}
+            onChange={(items) => {
+              setGallery(items);
+              setGalleryDirty(true);
+            }}
+            max={100}
+            pickerTitle="Chọn ảnh bài viết"
+            captionPlaceholder="Mô tả ảnh (alt)…"
+            firstBadge="Ảnh lớn"
+            hint="Ảnh đầu tiên hiện lớn ở đầu bài, các ảnh sau thành thư viện cuối bài. Muốn đặt ảnh giữa bài, dùng nút chèn ảnh trong khung nội dung."
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="SEO & xuất bản" />
+        <div className="space-y-4 p-5">
+          <Field
+            label="Tiêu đề trên Google"
+            count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}
+            hint="Bỏ trống thì dùng tiêu đề bài."
+          >
+            <input
+              value={draft.seo_title}
+              onChange={(e) => set("seo_title", e.target.value)}
+              maxLength={200}
+              placeholder={draft.title}
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Mô tả trên Google"
+            count={{ length: draft.seo_description.length, max: 500, ideal: 160 }}
+            hint="Bỏ trống thì dùng tóm tắt."
+          >
+            <textarea
+              value={draft.seo_description}
+              onChange={(e) => set("seo_description", e.target.value)}
+              maxLength={500}
+              rows={2}
+              className={areaClass}
+            />
+          </Field>
+          <Field label="Trạng thái" className="max-w-xs">
+            <select
+              value={draft.status}
+              onChange={(e) => set("status", e.target.value as BlogStatus)}
+              className={inputClass}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Card>
+
+      <StickySaveBar
+        count={dirtyCount}
+        saving={saving}
+        onSave={onSave}
+        onDiscard={() => {
+          setDraft(initial);
+          setThumbPreview(thumbnailPreview);
+          setGallery(toGallery(slides));
+          setGalleryDirty(false);
+        }}
+        hint={
+          draft.status === "live"
+            ? "Bài đang ở trạng thái Xuất bản — bấm Lưu là website cập nhật ngay."
+            : "Bài chưa xuất bản — lưu xong vẫn chưa hiện trên website."
+        }
+      />
+    </div>
   );
 }
 
-function Field({
-  label,
-  children,
-  required,
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) {
+/**
+ * EN/ZH content that comes from the reviewed translation of the VI post. The
+ * old editor showed it as an editable form, but saving there wrote a separate
+ * legacy row the website ignores while the translation exists — edits vanished.
+ */
+function TranslationView({
+  locale,
+  slug,
+  post,
+  bodyUntranslated,
+  onOpenTranslations,
+}: Props & { post: BlogPostRow }) {
   return (
-    <div>
-      <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-        {label} {required ? <span className="text-red-600">*</span> : null}
-      </label>
-      {children}
+    <div className="space-y-4">
+      {/* Plain divs, not Card: Card's own bg-card would override the tint. */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <p>
+          Bản <span className="font-medium">{LOCALE_LABEL[locale]}</span> đang hiển thị trên website
+          là <span className="font-medium">bản dịch đã duyệt</span> của bài Tiếng Việt, nên không
+          sửa trực tiếp ở đây. Sửa bản dịch bằng nút bên dưới.
+        </p>
+        <button
+          type="button"
+          onClick={onOpenTranslations}
+          className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-md border border-blue-300 bg-white px-3 text-sm font-medium text-blue-700 hover:bg-blue-100"
+        >
+          <Sparkles className="h-3.5 w-3.5" /> Mở bản dịch EN + ZH
+        </button>
+      </div>
+
+      {bodyUntranslated && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          Thân bài chưa có bản dịch — trang {LOCALE_LABEL[locale]} đang hiện thân bài tiếng Việt
+          dưới tiêu đề đã dịch.
+        </div>
+      )}
+
+      <Card>
+        <CardHeader
+          title={post.title}
+          hint={post.excerpt ?? undefined}
+          action={
+            <a
+              href={`https://thgfulfill.com/${locale}/blog/${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="h-3 w-3" /> Xem trên trang thật
+            </a>
+          }
+        />
+        <div className="p-5">
+          <MarkdownPreview markdown={post.body_md ?? ""} />
+        </div>
+      </Card>
     </div>
   );
 }

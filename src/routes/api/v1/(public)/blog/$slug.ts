@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
 import { getBlogPostForPublic, getBlogSlides } from "@/features/blog";
 import { isLocale } from "@/features/i18n";
+import { toMediaUrl } from "@/features/partners/partners.media";
 
 export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
   server: {
@@ -26,6 +27,10 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
           })),
         ]);
 
+        // Images picked from the media library are stored as bare R2 keys; the
+        // landing sets these straight onto <img src>, so resolve them against
+        // this origin. Absolute URLs (blog-bot, legacy) pass through untouched.
+        const origin = url.origin;
         return corsJson(request, {
           locale: lang,
           available_locales: localeCandidates.filter((locale) => locale !== null),
@@ -34,13 +39,16 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
             title: post.title,
             excerpt: post.excerpt,
             body_md: post.body_md,
-            thumbnail_url: post.thumbnail_url,
+            thumbnail_url: toMediaUrl(post.thumbnail_url, origin),
             category: post.category,
             published_date: post.published_date,
             seo_title: post.seo_title,
             seo_description: post.seo_description,
             updated_at: post.updated_at,
-            slides: slides.map((s) => ({ src: s.src, alt_text: s.alt_text })),
+            slides: slides.flatMap((s) => {
+              const src = toMediaUrl(s.src, origin);
+              return src ? [{ src, alt_text: s.alt_text }] : [];
+            }),
           },
         });
       },

@@ -395,6 +395,51 @@ export async function replaceBlogSlides(
   return after;
 }
 
+// Replace ALL slides for a post from media-library ids — what the editor's
+// picker produces. Legacy external-URL slides already have a media row, so an
+// existing gallery round-trips through this unchanged. The URL variant above
+// stays for blog-bot, which only has remote image URLs.
+export async function replaceBlogSlideMedia(
+  actorId: number,
+  input: { slug: string; locale: BlogLocale; slides: { media_id: number; alt_text: string }[] },
+): Promise<BlogSlideRow[]> {
+  const post = await getDb()
+    .prepare(`SELECT id FROM blog_posts WHERE slug = ? AND locale = ? LIMIT 1`)
+    .bind(input.slug, input.locale)
+    .first<{ id: number }>();
+  if (!post) throw Object.assign(new Error("Blog post không tồn tại."), { statusCode: 404 });
+
+  const ids = [...new Set(input.slides.map((s) => s.media_id))];
+  if (ids.length > 0) {
+    const found = await getDb()
+      .prepare(`SELECT id FROM media WHERE id IN (${ids.map(() => "?").join(",")})`)
+      .bind(...ids)
+      .all<{ id: number }>();
+    const known = new Set((found.results ?? []).map((r) => r.id));
+    const missing = ids.filter((id) => !known.has(id));
+    // Checked before the DELETE so a stale id cannot wipe the gallery and then fail.
+    if (missing.length > 0) {
+      throw Object.assign(new Error(`Ảnh không còn trong thư viện: #${missing.join(", #")}`), {
+        statusCode: 400,
+      });
+    }
+  }
+
+  const before = await getBlogSlides(post.id);
+  const statements = [
+    getDb().prepare(`DELETE FROM blog_slides WHERE post_id = ?`).bind(post.id),
+    ...input.slides.map((slide, i) =>
+      getDb()
+        .prepare(`INSERT INTO blog_slides (post_id, position, media_id, alt_text) VALUES (?, ?, ?, ?)`)
+        .bind(post.id, i + 1, slide.media_id, slide.alt_text),
+    ),
+  ];
+  await getDb().batch(statements);
+  const after = await getBlogSlides(post.id);
+  await auditLog(actorId, "update", "blog_slides", `${input.slug}:${input.locale}`, before, after);
+  return after;
+}
+
 export async function deleteBlogPost(actorId: number, slug: string, locale: BlogLocale): Promise<void> {
   const before = await getBlogPost(slug, locale);
   if (!before) return;

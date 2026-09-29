@@ -14,6 +14,7 @@ import {
   listBlogPostsFn,
   type BlogPostRow,
 } from "@/features/blog/blog.actions";
+import { toMediaUrl } from "@/features/partners/partners.media";
 
 export const Route = createFileRoute("/admin/content/blogs/")({
   head: () => ({ meta: [{ title: "Bài viết — THG Content OS" }] }),
@@ -128,7 +129,7 @@ function BlogsPage() {
                         >
                           {ref?.thumbnail_url ? (
                             <img
-                              src={ref.thumbnail_url}
+                              src={toMediaUrl(ref.thumbnail_url, "") ?? undefined}
                               alt=""
                               className="w-10 h-10 rounded object-cover bg-muted"
                               loading="lazy"
@@ -140,7 +141,10 @@ function BlogsPage() {
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="font-medium line-clamp-1">{ref?.title ?? g.slug}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium line-clamp-1">{ref?.title ?? g.slug}</span>
+                              {ref && <StatusBadge status={ref.status} />}
+                            </div>
                             <div className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">
                               {g.slug}
                             </div>
