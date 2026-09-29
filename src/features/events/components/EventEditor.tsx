@@ -5,7 +5,12 @@ import { toast } from "sonner";
 
 import { Card, CardHeader } from "@/components/cms/ui";
 import { StickySaveBar } from "@/components/cms/StickySaveBar";
-import { MediaPicker } from "@/features/media/components/MediaPicker";
+import { Field, areaClass, inputClass } from "@/components/cms/article/fields";
+import { MarkdownEditor } from "@/components/cms/article/MarkdownEditor";
+import { MediaField } from "@/components/cms/article/MediaField";
+import { MediaGalleryField, type GalleryItem } from "@/components/cms/article/MediaGalleryField";
+import { YouTubeUrlField } from "@/components/cms/article/YouTubeUrlField";
+import { parseYouTubeId } from "@/components/cms/article/youtube";
 import {
   createEventFn,
   deleteEventFn,
@@ -84,14 +89,16 @@ function toDraft(event: EventRow | null): Draft {
   };
 }
 
+function toGallery(photos: EventPhotoRow[]): GalleryItem[] {
+  return photos.map((photo) => ({
+    media_id: photo.media_id ?? 0,
+    caption: photo.caption ?? "",
+    preview: toMediaUrl(photo.r2_key, ""),
+  }));
+}
+
 /** "" is how a cleared text input reads; the column wants NULL for "not set". */
 const orNull = (value: string): string | null => (value.trim() === "" ? null : value.trim());
-
-interface PhotoDraft {
-  media_id: number;
-  caption: string;
-  preview: string | null;
-}
 
 export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl, onSaved }: Props) {
   const create = useServerFn(createEventFn);
@@ -103,7 +110,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
   const [draft, setDraft] = useState<Draft>(initial);
   const [coverPreview, setCoverPreview] = useState<string | null>(coverUrl);
   const [ogPreview, setOgPreview] = useState<string | null>(ogImageUrl);
-  const [gallery, setGallery] = useState<PhotoDraft[]>([]);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [galleryDirty, setGalleryDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -111,13 +118,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
     setDraft(toDraft(event));
     setCoverPreview(coverUrl);
     setOgPreview(ogImageUrl);
-    setGallery(
-      photos.map((photo) => ({
-        media_id: photo.media_id ?? 0,
-        caption: photo.caption ?? "",
-        preview: toMediaUrl(photo.r2_key, ""),
-      })),
-    );
+    setGallery(toGallery(photos));
     setGalleryDirty(false);
   }, [event, photos, coverUrl, ogImageUrl]);
 
@@ -134,6 +135,10 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
   async function onSave() {
     if (!draft.title.trim()) {
       toast.error("Tiêu đề bắt buộc.");
+      return;
+    }
+    if (draft.video_url.trim() && !parseYouTubeId(draft.video_url)) {
+      toast.error("Link video phải là link YouTube — website chỉ phát được video YouTube.");
       return;
     }
     setSaving(true);
@@ -190,8 +195,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
     }
   }
 
-  const inputClass = "mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm";
-  const areaClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm";
+  const publicUrl = `https://thgfulfill.com/${locale}/events/${slug}`;
 
   return (
     <div className="space-y-4">
@@ -208,7 +212,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
           hint={`Hiển thị tại thgfulfill.com/${locale}/events/${slug}`}
           action={
             <a
-              href={`https://thgfulfill.com/${locale}/events/${slug}`}
+              href={publicUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -218,72 +222,62 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
           }
         />
         <div className="space-y-4 p-5">
-          <label className="block">
-            <span className="text-sm font-medium">Tiêu đề</span>
+          <Field label="Tiêu đề" required count={{ length: draft.title.length, max: 200 }}>
             <input
               value={draft.title}
               onChange={(e) => set("title", e.target.value)}
               maxLength={200}
               className={inputClass}
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <span className="text-sm font-medium">Tóm tắt</span>
+          <Field
+            label="Tóm tắt"
+            count={{ length: draft.summary.length, max: 500 }}
+            hint="Hiện dưới tiêu đề ở trang Event và trên thẻ Event ở trang danh sách."
+          >
             <textarea
               value={draft.summary}
               onChange={(e) => set("summary", e.target.value)}
               maxLength={500}
               rows={3}
-              placeholder="Một hoặc hai câu hiển thị trên thẻ Event ở trang danh sách."
+              placeholder="Một hoặc hai câu: sự kiện gì, THG tham gia thế nào."
               className={areaClass}
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <span className="text-sm font-medium">Nội dung chi tiết (Markdown)</span>
-            <textarea
-              value={draft.body_md}
-              onChange={(e) => set("body_md", e.target.value)}
-              maxLength={60_000}
-              rows={18}
-              spellCheck={false}
-              placeholder={"## Tiêu đề mục\n\nNội dung…\n\n- [Tài liệu](https://…)"}
-              className={`${areaClass} font-mono leading-relaxed`}
-            />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
-              Hỗ trợ Markdown: ## tiêu đề, **in đậm**, danh sách, [liên kết](url), &gt; trích dẫn.
-            </span>
-          </label>
+          <MarkdownEditor
+            label="Nội dung chi tiết"
+            value={draft.body_md}
+            onChange={(value) => set("body_md", value)}
+            maxLength={60_000}
+            placeholder={
+              "## Về sự kiện\n\nSự kiện diễn ra khi nào, ở đâu, dành cho ai…\n\n## THG tại sự kiện\n\n- Vai trò của THG\n- Nội dung chia sẻ\n\n## Tài liệu\n\n- [Slide trình bày](https://…)"
+            }
+          />
         </div>
       </Card>
 
       <Card>
         <CardHeader title="Thời gian & hình thức tham gia" />
         <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-medium">Ngày diễn ra</span>
+          <Field label="Ngày diễn ra" required>
             <input
               type="date"
               value={draft.event_date}
               onChange={(e) => set("event_date", e.target.value)}
               className={inputClass}
             />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Ngày kết thúc</span>
+          </Field>
+          <Field label="Ngày kết thúc" hint="Chỉ điền với sự kiện nhiều ngày.">
             <input
               type="date"
               value={draft.end_date}
               onChange={(e) => set("end_date", e.target.value)}
               className={inputClass}
             />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
-              Chỉ điền với sự kiện nhiều ngày.
-            </span>
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Địa điểm</span>
+          </Field>
+          <Field label="Địa điểm">
             <input
               value={draft.location}
               onChange={(e) => set("location", e.target.value)}
@@ -291,9 +285,8 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               placeholder="TP. Hồ Chí Minh / Online"
               className={inputClass}
             />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">THG tham gia với vai trò</span>
+          </Field>
+          <Field label="THG tham gia với vai trò">
             <input
               value={draft.role}
               onChange={(e) => set("role", e.target.value)}
@@ -306,80 +299,23 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
                 <option key={role} value={role} />
               ))}
             </datalist>
-          </label>
+          </Field>
         </div>
       </Card>
 
       <Card>
-        <CardHeader
-          title="Ảnh & video"
-          hint="Ảnh bìa dùng cho thẻ Event và ảnh chia sẻ mạng xã hội"
-        />
+        <CardHeader title="Video & tài liệu" />
         <div className="space-y-4 p-5">
-          <div>
-            <span className="text-sm font-medium">Ảnh bìa</span>
-            <div className="mt-2 flex items-center gap-3">
-              {coverPreview ? (
-                <img
-                  src={coverPreview}
-                  alt=""
-                  className="h-20 w-36 rounded-lg border border-border object-cover"
-                />
-              ) : (
-                <div className="grid h-20 w-36 place-items-center rounded-lg border border-dashed border-border text-[11px] text-muted-foreground">
-                  Chưa có ảnh
-                </div>
-              )}
-              <MediaPicker
-                mode="single"
-                value={draft.cover_media_id ? [draft.cover_media_id] : []}
-                onChange={(ids, rows) => {
-                  set("cover_media_id", ids[0] ?? null);
-                  setCoverPreview(rows[0]?.url ?? rows[0]?.thumb_url ?? null);
-                }}
-                title="Chọn ảnh bìa Event"
-                trigger={
-                  <button
-                    type="button"
-                    className="h-9 rounded-lg border border-border px-3 text-sm hover:bg-muted"
-                  >
-                    Chọn ảnh bìa
-                  </button>
-                }
-              />
-              {draft.cover_media_id && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    set("cover_media_id", null);
-                    setCoverPreview(null);
-                  }}
-                  className="text-sm text-muted-foreground hover:text-red-600"
-                >
-                  Bỏ ảnh bìa
-                </button>
-              )}
-            </div>
-            <span className="mt-2 block text-[11px] text-muted-foreground">
-              Không chọn ảnh bìa mà có link YouTube thì trang Event tự lấy ảnh thumbnail của video.
-            </span>
-          </div>
-
-          <label className="block">
-            <span className="text-sm font-medium">Link video (YouTube)</span>
-            <input
-              value={draft.video_url}
-              onChange={(e) => set("video_url", e.target.value)}
-              maxLength={500}
-              placeholder="https://youtu.be/…"
-              className={inputClass}
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium">
-              Link ngoài (bài đăng, tài liệu, trang đối tác)
-            </span>
+          <YouTubeUrlField
+            label="Link video (YouTube)"
+            value={draft.video_url}
+            onChange={(value) => set("video_url", value)}
+            playsWhere="Website sẽ nhúng trình phát video này ở đầu trang Event — người xem bấm là xem được ngay."
+          />
+          <Field
+            label="Link ngoài (bài đăng, tài liệu, trang đối tác)"
+            hint="Hiện thành nút “Tài liệu / thông tin Event” ở cuối trang."
+          >
             <input
               value={draft.url}
               onChange={(e) => set("url", e.target.value)}
@@ -387,81 +323,46 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               placeholder="https://…"
               className={inputClass}
             />
-          </label>
+          </Field>
+        </div>
+      </Card>
 
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Thư viện ảnh sự kiện</span>
-              <span className="text-xs text-muted-foreground">
-                {gallery.length} ảnh — tối đa 60
-              </span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-start gap-3">
-              {gallery.map((photo, index) => (
-                <div key={`${photo.media_id}-${index}`} className="w-32 space-y-1">
-                  {photo.preview ? (
-                    <img
-                      src={photo.preview}
-                      alt=""
-                      className="h-20 w-32 rounded-lg border border-border object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-20 w-32 place-items-center rounded-lg border border-dashed border-border text-[10px] text-muted-foreground">
-                      #{photo.media_id}
-                    </div>
-                  )}
-                  <input
-                    value={photo.caption}
-                    onChange={(e) => {
-                      const caption = e.target.value;
-                      setGallery((prev) =>
-                        prev.map((item, i) => (i === index ? { ...item, caption } : item)),
-                      );
-                      setGalleryDirty(true);
-                    }}
-                    maxLength={300}
-                    placeholder="Chú thích…"
-                    className="h-7 w-full rounded-md border border-border bg-background px-2 text-[11px]"
-                  />
-                </div>
-              ))}
-              <MediaPicker
-                mode="multi"
-                value={gallery.map((photo) => photo.media_id)}
-                onChange={(ids, rows) => {
-                  const previewById = new Map(
-                    rows.map((row) => [row.id, row.url ?? row.thumb_url ?? null]),
-                  );
-                  const captionById = new Map(gallery.map((p) => [p.media_id, p.caption]));
-                  setGallery(
-                    ids.slice(0, 60).map((id) => ({
-                      media_id: id,
-                      caption: captionById.get(id) ?? "",
-                      preview: previewById.get(id) ?? null,
-                    })),
-                  );
-                  setGalleryDirty(true);
-                }}
-                title="Chọn ảnh sự kiện"
-                trigger={
-                  <button
-                    type="button"
-                    className="h-9 rounded-lg border border-border px-3 text-sm hover:bg-muted"
-                  >
-                    Thêm / sửa ảnh
-                  </button>
-                }
-              />
-            </div>
-          </div>
+      <Card>
+        <CardHeader title="Hình ảnh" hint="Ảnh bìa dùng cho thẻ Event và ảnh chia sẻ mạng xã hội" />
+        <div className="space-y-5 p-5">
+          <MediaField
+            label="Ảnh bìa"
+            mediaId={draft.cover_media_id}
+            previewUrl={coverPreview}
+            onChange={(id, preview) => {
+              set("cover_media_id", id);
+              setCoverPreview(preview);
+            }}
+            pickerTitle="Chọn ảnh bìa Event"
+            hint="Có video YouTube thì trang Event hiện trình phát video thay cho ảnh bìa; ảnh bìa vẫn dùng cho thẻ ở trang danh sách."
+          />
+          <MediaGalleryField
+            label="Thư viện ảnh sự kiện"
+            items={gallery}
+            onChange={(items) => {
+              setGallery(items);
+              setGalleryDirty(true);
+            }}
+            max={60}
+            pickerTitle="Chọn ảnh sự kiện"
+            captionPlaceholder="Chú thích…"
+          />
         </div>
       </Card>
 
       <Card>
         <CardHeader title="SEO & xuất bản" />
         <div className="space-y-4 p-5">
-          <label className="block">
-            <span className="text-sm font-medium">SEO title</span>
+          <Field
+            label="SEO title"
+            count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}
+            hint="Bỏ trống thì dùng tiêu đề Event."
+          >
             <input
               value={draft.seo_title}
               onChange={(e) => set("seo_title", e.target.value)}
@@ -469,9 +370,12 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               placeholder={draft.title ? `${draft.title} | THG Fulfill` : ""}
               className={inputClass}
             />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">SEO description</span>
+          </Field>
+          <Field
+            label="SEO description"
+            count={{ length: draft.seo_description.length, max: 300, ideal: 160 }}
+            hint="Bỏ trống thì dùng tóm tắt."
+          >
             <textarea
               value={draft.seo_description}
               onChange={(e) => set("seo_description", e.target.value)}
@@ -479,68 +383,29 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               rows={2}
               className={areaClass}
             />
-          </label>
-          <div>
-            <span className="text-sm font-medium">Ảnh chia sẻ mạng xã hội (OG image)</span>
-            <div className="mt-2 flex items-center gap-3">
-              {ogPreview ? (
-                <img
-                  src={ogPreview}
-                  alt=""
-                  className="h-20 w-36 rounded-lg border border-border object-cover"
-                />
-              ) : (
-                <div className="grid h-20 w-36 place-items-center rounded-lg border border-dashed border-border text-center text-[11px] text-muted-foreground">
-                  Dùng ảnh bìa
-                </div>
-              )}
-              <MediaPicker
-                mode="single"
-                value={draft.og_image_id ? [draft.og_image_id] : []}
-                onChange={(ids, rows) => {
-                  set("og_image_id", ids[0] ?? null);
-                  setOgPreview(rows[0]?.url ?? rows[0]?.thumb_url ?? null);
-                }}
-                title="Chọn ảnh chia sẻ mạng xã hội"
-                trigger={
-                  <button
-                    type="button"
-                    className="h-9 rounded-lg border border-border px-3 text-sm hover:bg-muted"
-                  >
-                    Chọn ảnh OG
-                  </button>
-                }
-              />
-              {draft.og_image_id && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    set("og_image_id", null);
-                    setOgPreview(null);
-                  }}
-                  className="text-sm text-muted-foreground hover:text-red-600"
-                >
-                  Bỏ ảnh OG
-                </button>
-              )}
-            </div>
-            <span className="mt-2 block text-[11px] text-muted-foreground">
-              Ảnh hiện khi chia sẻ link lên Facebook, Zalo, LinkedIn. Kích thước tốt nhất 1200×630.
-              Bỏ trống thì tự dùng ảnh bìa.
-            </span>
-          </div>
-
-          <label className="block max-w-xs">
-            <span className="text-sm font-medium">Trạng thái</span>
+          </Field>
+          <MediaField
+            label="Ảnh chia sẻ mạng xã hội (OG image)"
+            mediaId={draft.og_image_id}
+            previewUrl={ogPreview}
+            onChange={(id, preview) => {
+              set("og_image_id", id);
+              setOgPreview(preview);
+            }}
+            pickerTitle="Chọn ảnh chia sẻ mạng xã hội"
+            emptyLabel="Dùng ảnh bìa"
+            hint="Ảnh hiện khi chia sẻ link lên Facebook, Zalo, LinkedIn. Kích thước tốt nhất 1200×630. Bỏ trống thì tự dùng ảnh bìa."
+          />
+          <Field label="Trạng thái" className="max-w-xs">
             <select
               value={draft.status}
               onChange={(e) => set("status", e.target.value as "draft" | "live")}
               className={inputClass}
             >
               <option value="draft">Nháp — chưa hiển thị</option>
-              <option value="live">Xuất bản — hiển thị trên landing</option>
+              <option value="live">Xuất bản — hiển thị trên website</option>
             </select>
-          </label>
+          </Field>
         </div>
       </Card>
 
@@ -564,15 +429,14 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
           setDraft(initial);
           setCoverPreview(coverUrl);
           setOgPreview(ogImageUrl);
-          setGallery(
-            photos.map((photo) => ({
-              media_id: photo.media_id ?? 0,
-              caption: photo.caption ?? "",
-              preview: toMediaUrl(photo.r2_key, ""),
-            })),
-          );
+          setGallery(toGallery(photos));
           setGalleryDirty(false);
         }}
+        hint={
+          draft.status === "live"
+            ? "Event đang ở trạng thái Xuất bản — bấm Lưu là website cập nhật ngay."
+            : "Event đang là bản nháp — lưu xong vẫn chưa hiện trên website."
+        }
       />
     </div>
   );
