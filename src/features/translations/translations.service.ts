@@ -126,7 +126,7 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
     translationsTable: "blog_post_translations",
     sourceFkColumn: "blog_post_id",
     sourceTable: "blog_posts",
-    fieldColumns: ["title", "excerpt", "category", "seo_title", "seo_description"],
+    fieldColumns: ["title", "body_md", "excerpt", "category", "seo_title", "seo_description"],
   },
   policy: {
     translationsTable: "policy_translations",

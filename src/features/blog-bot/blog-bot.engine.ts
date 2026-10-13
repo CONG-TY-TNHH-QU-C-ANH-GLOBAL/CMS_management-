@@ -1,13 +1,5 @@
-// Blog Auto-Bot — generation engine (Phase 1).
-//
-// Phase 1 scope: generate ONE article for a campaign and save it as a REVIEW
-// draft (status='review'). Manual "Run now" only — the daily scheduler and the
-// cron drain are added in a later phase, so this file exposes runCampaignOnce()
-// but does NOT touch src/server.ts scheduled() yet.
-//
-// SAFETY: autopublish is intentionally NOT honored here. Until the verifier
-// stage exists (later phase) every generated post lands as 'review' regardless
-// of the campaign's autopublish flag — the bot proposes, a human publishes.
+// Blog Auto-Bot — save a review draft first. Opt-in automatic publication needs
+// a passing full-content verifier and, for news, retrieved article sources.
 
 import type { BlogBotCampaignRow, BlogBotRunRow } from "@/features/blog-bot/blog-bot.service";
 import {
@@ -191,7 +183,7 @@ export async function processRun(
     await updateRun(run.id, { status: "imaging" });
     const img = await resolveImages(env, campaign, result.article, actorId);
     imageCost = img.costUsd;
-    warning = img.warning;
+    warning = [warning, img.warning].filter(Boolean).join(" | ") || null;
     try {
       if (img.thumbnail) {
         const { setBlogThumbnailFromUrl } = await import("@/features/blog");
@@ -224,7 +216,10 @@ export async function processRun(
   // Otherwise it stays 'review' for a human. Images are already attached above,
   // so a published post is never public without its photo. A publish failure
   // is non-fatal — the draft is preserved and surfaced for review.
-  const shouldPublish = campaign.autopublish === 1 && verdict.passed;
+  const shouldPublish =
+    campaign.autopublish === 1 &&
+    verdict.passed &&
+    (campaign.article_type !== "news" || result.hasNewsSources);
   let runStatus: "published" | "needs_review" = "needs_review";
   if (shouldPublish) {
     try {

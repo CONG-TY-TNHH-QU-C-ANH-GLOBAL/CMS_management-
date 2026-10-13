@@ -39,6 +39,7 @@ export interface BlogSlideRow {
 export async function listBlogPosts(filter?: {
   locale?: BlogLocale;
   status?: BlogStatus;
+  summaryOnly?: boolean;
 }): Promise<BlogPostRow[]> {
   const where: string[] = [];
   const binds: unknown[] = [];
@@ -47,10 +48,10 @@ export async function listBlogPosts(filter?: {
   const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
   const sql = `
-    SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.body_md, p.thumbnail_media_id,
+    SELECT p.id, p.slug, p.locale, p.title, p.excerpt, ${filter?.summaryOnly ? "NULL" : "p.body_md"} AS body_md, p.thumbnail_media_id,
            m.r2_key AS thumbnail_url, p.category, p.published_date, p.status,
            p.seo_title, p.seo_description, p.og_image_id, p.author_id, p.updated_at,
-           (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
+           ${filter?.summaryOnly ? "0" : "(SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id)"} AS slide_count
       FROM blog_posts p
       LEFT JOIN media m ON m.id = p.thumbnail_media_id
       ${whereClause}
@@ -90,9 +91,10 @@ export async function getBlogPost(slug: string, locale: BlogLocale): Promise<Blo
 export async function listBlogPostsForPublic(filter?: {
   locale: BlogLocale;
   status?: BlogStatus;
+  summaryOnly?: boolean;
 }): Promise<BlogPostRow[]> {
   if (!filter?.locale || filter.locale === "vi") {
-    return listBlogPosts({ locale: "vi", status: filter?.status });
+    return listBlogPosts({ locale: "vi", status: filter?.status, summaryOnly: filter?.summaryOnly });
   }
 
   // Step 1 — VI-canonical
@@ -100,10 +102,10 @@ export async function listBlogPostsForPublic(filter?: {
   const binds: unknown[] = [filter.locale, filter.locale];
   if (filter.status) { where.push("p.status = ?"); binds.push(filter.status); }
   const viBackedSql = `
-    SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, COALESCE(t.body_md, p.body_md) AS body_md, p.thumbnail_media_id,
+    SELECT p.id, p.slug, ? AS locale, t.title, t.excerpt, ${filter.summaryOnly ? "NULL" : "COALESCE(t.body_md, p.body_md)"} AS body_md, p.thumbnail_media_id,
            m.r2_key AS thumbnail_url, t.category, p.published_date, p.status,
            t.seo_title, t.seo_description, p.og_image_id, p.author_id, p.updated_at,
-           (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
+           ${filter.summaryOnly ? "0" : "(SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id)"} AS slide_count
       FROM blog_posts p
       JOIN blog_post_translations t
         ON t.blog_post_id = p.id AND t.locale = ? AND t.status = 'reviewed'
@@ -116,7 +118,7 @@ export async function listBlogPostsForPublic(filter?: {
   const viBackedSlugs = new Set(viBackedRows.map((r) => r.slug));
 
   // Step 2 — Legacy fallback
-  const legacyRows = await listBlogPosts({ locale: filter.locale, status: filter.status });
+  const legacyRows = await listBlogPosts({ locale: filter.locale, status: filter.status, summaryOnly: filter.summaryOnly });
   const fallback = legacyRows.filter((r) => !viBackedSlugs.has(r.slug));
 
   return [...viBackedRows, ...fallback].sort((a, b) => {
@@ -149,6 +151,22 @@ export async function getBlogPostForPublic(
     .first<BlogPostRow>();
   if (viBacked) return viBacked;
   return getBlogPost(slug, locale);
+}
+
+export async function availableBlogLocales(slug: string): Promise<BlogLocale[]> {
+  const result = await getDb().prepare(`
+    SELECT locale FROM blog_posts own WHERE slug=? AND status='live'
+      AND (locale='vi' OR NOT EXISTS (
+        SELECT 1 FROM blog_posts source JOIN blog_post_translations translated
+          ON translated.blog_post_id=source.id AND translated.locale=own.locale AND translated.status='reviewed'
+        WHERE source.slug=own.slug AND source.locale='vi'
+      ))
+    UNION SELECT translated.locale FROM blog_posts source JOIN blog_post_translations translated
+      ON translated.blog_post_id=source.id AND translated.status='reviewed'
+      WHERE source.slug=? AND source.locale='vi' AND source.status='live'`)
+    .bind(slug, slug).all<{ locale: BlogLocale }>();
+  const locales = new Set((result.results ?? []).map(row => row.locale));
+  return (["vi", "en", "zh"] as const).filter(locale => locales.has(locale));
 }
 
 export async function getBlogSlides(postId: number): Promise<BlogSlideRow[]> {
@@ -301,23 +319,23 @@ export async function upsertBlogPost(
     after &&
     after.locale === "vi" &&
     (input.title !== undefined ||
-      input.excerpt !== undefined ||
+      input.excerpt !== undefined || input.body_md !== undefined ||
       input.category !== undefined ||
       input.seo_title !== undefined ||
       input.seo_description !== undefined)
   ) {
     try {
-      const { onBlogPostSourceChanged, autoTranslateMissingLocales } = await import(
-        "@/features/translations"
-      );
+      const { onBlogPostSourceChanged } = await import("../translations/blog-post.translation.service");
+      const { enqueueMissingTranslationLocales } = await import("../translations/translation-jobs.service");
       await onBlogPostSourceChanged(after.id, {
         title: after.title,
+        body_md: after.body_md,
         excerpt: after.excerpt,
         category: after.category,
         seo_title: after.seo_title,
         seo_description: after.seo_description,
       });
-      await autoTranslateMissingLocales(actorId, "blog_post", after.id);
+      await enqueueMissingTranslationLocales(actorId, "blog_post", after.id);
     } catch (err) {
       console.error("[blog_posts] onBlogPostSourceChanged failed", err);
     }
@@ -366,7 +384,7 @@ export async function replaceBlogSlides(
   if (!post) throw Object.assign(new Error("Blog post không tồn tại."), { statusCode: 404 });
 
   const before = await getBlogSlides(post.id);
-  await getDb().prepare(`DELETE FROM blog_slides WHERE post_id = ?`).bind(post.id).run();
+  const statements = [getDb().prepare(`DELETE FROM blog_slides WHERE post_id = ?`).bind(post.id)];
 
   for (let i = 0; i < input.slides.length; i++) {
     const { url, alt_text } = input.slides[i];
@@ -385,11 +403,11 @@ export async function replaceBlogSlides(
         .first<{ id: number }>();
       if (!media) throw new Error("Không tạo được media row.");
     }
-    await getDb()
+    statements.push(getDb()
       .prepare(`INSERT INTO blog_slides (post_id, position, media_id, alt_text) VALUES (?, ?, ?, ?)`)
-      .bind(post.id, i + 1, media.id, alt_text)
-      .run();
+      .bind(post.id, i + 1, media.id, alt_text));
   }
+  await getDb().batch(statements);
   const after = await getBlogSlides(post.id);
   await auditLog(actorId, "update", "blog_slides", `${input.slug}:${input.locale}`, before, after);
   return after;

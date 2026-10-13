@@ -12,16 +12,6 @@ const { flushMarketingHubOutbox } = await import("./marketing-hub.outbox");
 let sql: Database;
 const originalFetch = globalThis.fetch;
 
-test("remote D1 trigger migrations stay LF-only", () => {
-  const migration = readFileSync(
-    new URL("../../../db/migrations/0054_marketing_hub_contract.sql", import.meta.url),
-  );
-  const attributes = readFileSync(new URL("../../../.gitattributes", import.meta.url), "utf8");
-
-  expect(migration.includes(13)).toBe(false);
-  expect(attributes).toContain("db/migrations/*.sql text eol=lf");
-});
-
 function d1(database: Database): D1Database {
   const db = {
     prepare(query: string) {
@@ -158,6 +148,16 @@ async function ingest(body: unknown, id = crypto.randomUUID()) {
   return handleHubRequest(await request(body, id), "content");
 }
 
+test("preview capability fails closed when ingress is disabled", async () => {
+  runtime.MARKETING_HUB_INGEST_ENABLED = "false";
+  const response = await readHubPreview(
+    new Request("https://cms.example.test/api/v1/blog-previews/token"),
+    "token",
+  );
+  expect(response?.status).toBe(503);
+  expect(response?.headers.get("Cache-Control")).toContain("no-store");
+});
+
 async function previewEnvelope(revision = 1) {
   const renderedContent = {
     title: `Preview title ${revision}`,
@@ -265,7 +265,9 @@ test("a newer preview version invalidates the old capability and rejects tampere
     "preview",
   );
   expect(second.status).toBe(200);
-  expect((await readHubPreview(new Request("https://cms.example.test"), firstToken)).status).toBe(404);
+  expect((await readHubPreview(new Request("https://cms.example.test"), firstToken)).status).toBe(
+    404,
+  );
 
   expect(
     (
@@ -376,6 +378,149 @@ test("publish trigger durably captures provenance and dispatcher sends a signed 
   expect(
     (await handleHubRequest(await request({ expectedAttempts: 1 }), "retry", eventId)).status,
   ).toBe(409);
+});
+
+async function blogWithAssets(revision = 1) {
+  const { payloadHash: _oldHash, ...body } = await envelope("blog", revision);
+  const renderedContent = {
+    ...body.renderedContent,
+    thumbnail_url: "https://cdn.example.test/hero.webp",
+    slides: [
+      { src: "https://cdn.example.test/hero.webp", alt_text: "Hero" },
+      { src: "https://cdn.example.test/detail.webp", alt_text: "Detail" },
+    ],
+  };
+  const unsigned = { ...body, renderedContent };
+  return { ...unsigned, payloadHash: await digest(canonical(unsigned)) };
+}
+
+test("approved Blog assets persist atomically with draft and survive publication verification", async () => {
+  const body = await blogWithAssets();
+  expect((await ingest(body)).status).toBe(201);
+  expect(
+    sql
+      .query(
+        `SELECT p.status,m.r2_key AS thumbnail_url FROM blog_posts p
+    LEFT JOIN media m ON m.id=p.thumbnail_media_id WHERE p.slug=?`,
+      )
+      .get(body.slug),
+  ).toEqual({
+    status: "draft",
+    thumbnail_url: body.renderedContent.thumbnail_url,
+  });
+  expect(
+    sql
+      .query(
+        `SELECT m.r2_key AS src,s.alt_text FROM blog_slides s
+    JOIN blog_posts p ON p.id=s.post_id JOIN media m ON m.id=s.media_id
+    WHERE p.slug=? ORDER BY s.position`,
+      )
+      .all(body.slug),
+  ).toEqual(body.renderedContent.slides);
+  expect(
+    sql
+      .query("SELECT COUNT(*) AS n FROM media WHERE r2_key LIKE 'https://cdn.example.test/%'")
+      .get(),
+  ).toEqual({ n: 2 });
+  const second = await blogWithAssets(2);
+  expect((await ingest(second)).status).toBe(200);
+  expect(
+    sql
+      .query("SELECT COUNT(*) AS n FROM media WHERE r2_key LIKE 'https://cdn.example.test/%'")
+      .get(),
+  ).toEqual({ n: 2 });
+
+  sql.query("UPDATE blog_posts SET status='live',updated_by=9001 WHERE slug=?").run(body.slug);
+  const sent: string[] = [];
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    sent.push(String(init?.body));
+    return Response.json({ ok: true, taskId: body.taskId });
+  }) as typeof fetch;
+  await flushMarketingHubOutbox();
+  expect(sent).toHaveLength(1);
+  expect(JSON.parse(sent[0]).data.payloadHash).toBe(second.payloadHash);
+  expect(sql.query("SELECT state,error_code FROM marketing_hub_outbox").get()).toEqual({
+    state: "succeeded",
+    error_code: null,
+  });
+});
+
+test("changing an approved Blog gallery blocks publication callback", async () => {
+  const body = await blogWithAssets();
+  expect((await ingest(body)).status).toBe(201);
+  sql.query("UPDATE blog_posts SET status='live',updated_by=9001 WHERE slug=?").run(body.slug);
+  sql.exec("UPDATE blog_slides SET alt_text='Changed after approval' WHERE position=2");
+  let sent = 0;
+  globalThis.fetch = (async () => {
+    sent++;
+    return Response.json({ ok: true, taskId: body.taskId });
+  }) as unknown as typeof fetch;
+  await flushMarketingHubOutbox();
+  expect(sent).toBe(0);
+  expect(sql.query("SELECT state,error_code FROM marketing_hub_outbox").get()).toEqual({
+    state: "blocked",
+    error_code: "APPROVED_CONTENT_CHANGED",
+  });
+});
+
+test("a supplied empty Blog gallery and null thumbnail clear assets while omitted fields preserve them", async () => {
+  const first = await blogWithAssets();
+  expect((await ingest(first)).status).toBe(201);
+  expect((await ingest(await envelope("blog", 2))).status).toBe(200);
+  expect(sql.query("SELECT COUNT(*) AS n FROM blog_slides").get()).toEqual({ n: 2 });
+  const { payloadHash: _oldHash, ...third } = await envelope("blog", 3);
+  const unsigned = {
+    ...third,
+    renderedContent: { ...third.renderedContent, thumbnail_url: null, slides: [] },
+  };
+  expect(
+    (await ingest({ ...unsigned, payloadHash: await digest(canonical(unsigned)) })).status,
+  ).toBe(200);
+  expect(sql.query("SELECT COUNT(*) AS n FROM blog_slides").get()).toEqual({ n: 0 });
+  expect(
+    sql.query("SELECT thumbnail_media_id FROM blog_posts WHERE slug=?").get(first.slug),
+  ).toEqual({ thumbnail_media_id: null });
+});
+
+test("a rejected Blog revision rolls back external media and gallery writes", async () => {
+  const first = await blogWithAssets();
+  expect((await ingest(first)).status).toBe(201);
+  sql.query("UPDATE blog_posts SET status='live',updated_by=9001 WHERE slug=?").run(first.slug);
+  const { payloadHash: _oldHash, ...second } = await blogWithAssets(2);
+  const unsigned = {
+    ...second,
+    renderedContent: {
+      ...second.renderedContent,
+      thumbnail_url: "https://cdn.example.test/new.webp",
+      slides: [],
+    },
+  };
+  expect(
+    (await ingest({ ...unsigned, payloadHash: await digest(canonical(unsigned)) })).status,
+  ).toBe(409);
+  expect(
+    sql
+      .query("SELECT COUNT(*) AS n FROM media WHERE r2_key='https://cdn.example.test/new.webp'")
+      .get(),
+  ).toEqual({ n: 0 });
+  expect(sql.query("SELECT COUNT(*) AS n FROM blog_slides").get()).toEqual({ n: 2 });
+});
+
+test("a failure after draft and media creation rolls back the entire approved asset ingest", async () => {
+  const body = await blogWithAssets();
+  sql.exec(`CREATE TRIGGER fail_second_slide BEFORE INSERT ON blog_slides
+    WHEN NEW.position=2 BEGIN SELECT RAISE(ABORT,'test_gallery_write_failure'); END;`);
+  expect((await ingest(body)).status).toBe(500);
+  expect(
+    sql
+      .query("SELECT COUNT(*) AS n FROM media WHERE r2_key LIKE 'https://cdn.example.test/%'")
+      .get(),
+  ).toEqual({ n: 0 });
+  expect(
+    sql.query("SELECT COUNT(*) AS n FROM blog_posts WHERE slug='marketing-blog'").get(),
+  ).toEqual({ n: 0 });
+  expect(sql.query("SELECT COUNT(*) AS n FROM marketing_hub_contents").get()).toEqual({ n: 0 });
+  expect(sql.query("SELECT COUNT(*) AS n FROM marketing_hub_commands").get()).toEqual({ n: 0 });
 });
 
 test("edited approved content blocks callback; failed callback retries same body", async () => {

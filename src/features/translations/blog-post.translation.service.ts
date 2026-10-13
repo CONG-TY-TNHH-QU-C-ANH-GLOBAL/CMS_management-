@@ -20,6 +20,7 @@ export interface BlogPostTranslationRow {
   blog_post_id: number;
   locale: TargetLocale;
   title: string;
+  body_md: string | null;
   excerpt: string | null;
   category: string | null;
   seo_title: string | null;
@@ -39,7 +40,7 @@ export interface BlogPostTranslationRow {
   updated_at: number;
 }
 
-const BP_TRANS_COLUMNS = `id, blog_post_id, locale, title, excerpt, category,
+const BP_TRANS_COLUMNS = `id, blog_post_id, locale, title, body_md, excerpt, category,
   seo_title, seo_description, status, stale_reason, source_locale, source_hash,
   source_snapshot, ai_generated_at, ai_model, prompt_version, reviewed_at,
   reviewed_by, in_flight_until, created_at, updated_at`;
@@ -80,6 +81,7 @@ export async function approveBlogPostTranslation(
 export interface BlogPostEditInput {
   id: number;
   title: string;
+  body_md: string | null;
   excerpt: string | null;
   category: string | null;
   seo_title: string | null;
@@ -102,12 +104,13 @@ export async function editBlogPostTranslation(
   await getDb()
     .prepare(
       `UPDATE blog_post_translations
-          SET title = ?, excerpt = ?, category = ?, seo_title = ?, seo_description = ?,
+          SET title = ?, body_md = ?, excerpt = ?, category = ?, seo_title = ?, seo_description = ?,
               updated_at = ?
         WHERE id = ?`,
     )
     .bind(
       input.title,
+      input.body_md,
       input.excerpt,
       input.category,
       input.seo_title,
@@ -124,6 +127,7 @@ export async function editBlogPostTranslation(
     input.id,
     {
       title: before.title,
+      body_md: before.body_md,
       excerpt: before.excerpt,
       category: before.category,
       seo_title: before.seo_title,
@@ -131,6 +135,7 @@ export async function editBlogPostTranslation(
     },
     {
       title: input.title,
+      body_md: input.body_md,
       excerpt: input.excerpt,
       category: input.category,
       seo_title: input.seo_title,
@@ -171,6 +176,7 @@ export async function onBlogPostSourceChanged(
   blogPostId: number,
   newSource: {
     title: string;
+    body_md: string | null;
     excerpt: string | null;
     category: string | null;
     seo_title: string | null;
@@ -179,6 +185,7 @@ export async function onBlogPostSourceChanged(
 ): Promise<{ stale_count: number }> {
   const newHash = await computeSourceHash({
     title: newSource.title,
+    body_md: newSource.body_md ?? "",
     excerpt: newSource.excerpt ?? "",
     category: newSource.category ?? "",
     seo_title: newSource.seo_title ?? "",

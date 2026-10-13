@@ -54,6 +54,8 @@ export interface GenerateResult {
   error: string | null;
   /** Soft, non-fatal note (e.g. news sources unavailable). */
   warning: string | null;
+  /** News needs an actual article source before opt-in automatic publication. */
+  hasNewsSources: boolean;
   rawResponse: string;
 }
 
@@ -196,6 +198,7 @@ export async function generateArticle(
       costUsd: cost,
       error: res.apiError.message,
       warning,
+      hasNewsSources: newsContext !== null,
       rawResponse: res.rawResponse,
     };
   }
@@ -207,6 +210,7 @@ export async function generateArticle(
       costUsd: cost,
       error: "OpenAI trả JSON không hợp lệ (parse thất bại sau 2 lần).",
       warning,
+      hasNewsSources: newsContext !== null,
       rawResponse: res.rawResponse,
     };
   }
@@ -220,6 +224,7 @@ export async function generateArticle(
       costUsd: cost,
       error: `Bài sinh ra không đúng cấu trúc: ${parsed.error.issues.map((i) => i.path.join(".") + " " + i.message).join("; ")}`,
       warning,
+      hasNewsSources: newsContext !== null,
       rawResponse: res.rawResponse,
     };
   }
@@ -231,6 +236,7 @@ export async function generateArticle(
     costUsd: cost,
     error: null,
     warning,
+    hasNewsSources: newsContext !== null,
     rawResponse: res.rawResponse,
   };
 }

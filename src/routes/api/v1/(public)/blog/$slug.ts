@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { corsError, corsJson, corsOptions } from "@/core/middlewares/cors";
-import { getBlogPostForPublic, getBlogSlides } from "@/features/blog";
+import { availableBlogLocales, getBlogPostForPublic, getBlogSlides } from "@/features/blog";
 import { isLocale } from "@/features/i18n";
 import { toMediaUrl } from "@/features/partners/partners.media";
 
@@ -19,12 +19,9 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
         if (post.status !== "live") {
           return corsError(request, 404, `Blog post "${params.slug}" not published`);
         }
-        const [slides, localeCandidates] = await Promise.all([
+        const [slides, available_locales] = await Promise.all([
           getBlogSlides(post.id),
-          Promise.all((["vi", "en", "zh"] as const).map(async (locale) => {
-            const candidate = await getBlogPostForPublic(params.slug, locale);
-            return candidate?.status === "live" ? locale : null;
-          })),
+          availableBlogLocales(params.slug),
         ]);
 
         // Images picked from the media library are stored as bare R2 keys; the
@@ -33,7 +30,7 @@ export const Route = createFileRoute("/api/v1/(public)/blog/$slug")({
         const origin = url.origin;
         return corsJson(request, {
           locale: lang,
-          available_locales: localeCandidates.filter((locale) => locale !== null),
+          available_locales,
           post: {
             slug: post.slug,
             title: post.title,
