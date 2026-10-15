@@ -51,3 +51,9 @@ test("segments Chinese content and accepts the event length guidance", () => {
   });
   expect(result.checks.find((c) => c.id === "body")?.passed).toBe(true);
 });
+
+test("unfinished Markdown links stay editable and titled links still count", () => {
+  const unfinished = "[unfinished ".repeat(4000);
+  expect(evaluateArticleSeo({ ...full, markdown: unfinished }).checks.find(c => c.id === "links")?.passed).toBe(false);
+  expect(evaluateArticleSeo({ ...full, markdown: `${unfinished}\n[THG](/vi "Trang chủ")` }).checks.find(c => c.id === "links")?.passed).toBe(true);
+});

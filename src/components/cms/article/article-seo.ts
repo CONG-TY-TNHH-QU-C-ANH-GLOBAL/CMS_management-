@@ -17,12 +17,12 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
   const body = input.markdown
     .split(/\r?\n/)
     .filter((line) => {
-      const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
       if (marker) {
         if (!fence) {
           fence = marker[1][0];
           fenceLength = marker[1].length;
-        } else if (marker[1][0] === fence && marker[1].length >= fenceLength && !marker[2].trim())
+        } else if (marker[1][0] === fence && marker[1].length >= fenceLength && !line.slice(marker[0].length).trim())
           fence = "";
         return false;
       }
@@ -31,11 +31,11 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
     .join("\n")
     .replace(/`+[^`]*`+/g, "");
   const headings = [...body.matchAll(/^ {0,3}(#{1,6})[ \t]+\S.*$/gm)].map((m) => m[1].length);
-  const images = [...body.matchAll(/!\[([^\]]*)\]\([^\n]+?\)/g)].map((m) => m[1].trim());
+  const images = [...body.matchAll(/!\[([^\[\]\n]*)\]\([^()\n]*\)/g)].map((m) => m[1].trim());
   const alts = [...images, ...(input.imageAlts ?? [])];
   const prose = body
-    .replace(/!\[[^\]]*\]\([^\n]+?\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^\n]+?\)/g, "$1");
+    .replace(/!\[[^\[\]\n]*\]\([^()\n]*\)/g, " ")
+    .replace(/\[([^\[\]\n]*)\]\([^()\n]*\)/g, "$1");
   const words = [
     ...new Intl.Segmenter(input.locale || "vi", { granularity: "word" }).segment(prose),
   ].filter((s) => s.isWordLike).length;
@@ -44,11 +44,12 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
   const titleLength = [...title].length;
   const descriptionLength = [...description].length;
   const minimum = input.kind === "event" ? 100 : 300;
-  const links = [...body.matchAll(/(?<!!)\[[^\]]+\]\(([^\s)]+)(?:\s+[^)]*)?\)/g)];
+  const links = [...body.matchAll(/(?<!!)\[[^\[\]\n]+\]\(([^()\n]*)\)/g)];
   const internal = links.some((match) => {
     try {
-      const url = new URL(match[1], "https://thgfulfill.com");
-      return !match[1].startsWith("#") && url.origin === "https://thgfulfill.com";
+      const href = match[1].trim().split(/\s+/)[0];
+      const url = new URL(href, "https://thgfulfill.com");
+      return !!href && !href.startsWith("#") && url.origin === "https://thgfulfill.com";
     } catch {
       return false;
     }
