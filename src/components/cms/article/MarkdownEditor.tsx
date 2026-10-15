@@ -12,6 +12,7 @@ import {
   Minus,
   PenLine,
   Quote,
+  Table2,
   Youtube,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -165,6 +166,7 @@ export function MarkdownEditor({
       run: () => apply(toggleLinePrefix(current(), "quote")),
     },
     { icon: Link2, title: "Chèn liên kết (Ctrl+K)", run: onLink },
+    { icon: Table2, title: "Chèn bảng so sánh", run: () => apply(insertBlock(current(), "| Tiêu chí | Phương án A | Phương án B |\n| --- | --- | --- |\n| Chi phí | Nội dung A | Nội dung B |\n| Thời gian | Nội dung A | Nội dung B |")) },
     { icon: Minus, title: "Đường kẻ ngang", run: () => apply(insertBlock(current(), "---")) },
   ];
 
@@ -179,6 +181,7 @@ export function MarkdownEditor({
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={onKeyDown}
       rows={rows}
+      aria-label={label}
       spellCheck={false}
       placeholder={placeholder}
       className="block w-full resize-y rounded-b-lg border-0 bg-background px-3 py-2.5 font-mono text-sm leading-relaxed focus:outline-none"
@@ -277,6 +280,7 @@ export function MarkdownEditor({
       <span className="mt-1 block text-[11px] text-muted-foreground">
         Bôi đen chữ rồi bấm nút trên thanh công cụ. Video YouTube và ảnh phải nằm trên một dòng
         riêng — website sẽ hiện trình phát video ngay trong bài.
+        Dùng H2/H3 để tạo mục lục tự động. Bấm nút bảng để chèn bảng so sánh rồi sửa nội dung từng ô.
       </span>
     </div>
   );
