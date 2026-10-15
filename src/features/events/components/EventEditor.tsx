@@ -7,6 +7,7 @@ import { Card, CardHeader } from "@/components/cms/ui";
 import { StickySaveBar } from "@/components/cms/StickySaveBar";
 import { Field, areaClass, inputClass } from "@/components/cms/article/fields";
 import { MarkdownEditor } from "@/components/cms/article/MarkdownEditor";
+import { SeoChecklist } from "@/components/cms/article/SeoChecklist";
 import { MediaField } from "@/components/cms/article/MediaField";
 import { MediaGalleryField, type GalleryItem } from "@/components/cms/article/MediaGalleryField";
 import { YouTubeUrlField } from "@/components/cms/article/YouTubeUrlField";
@@ -358,6 +359,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
       <Card>
         <CardHeader title="SEO & xuất bản" />
         <div className="space-y-4 p-5">
+          <SeoChecklist title={draft.title} seoTitle={draft.seo_title} description={draft.seo_description || draft.summary} slug={slug} markdown={draft.body_md} hasCover={!!draft.cover_media_id || !!parseYouTubeId(draft.video_url)} imageAlts={[]} locale={locale} kind="event" />
           <Field
             label="SEO title"
             count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}
