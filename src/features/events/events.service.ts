@@ -167,13 +167,14 @@ export async function listLiveEventsForPublic(locale: EventLocale): Promise<Even
          JOIN event_translations t
            ON t.event_id = e.id AND t.locale = ? AND t.status = 'reviewed'
         WHERE e.locale = 'vi' AND e.status = 'live'
-          AND NOT EXISTS (
-            SELECT 1 FROM events own
-             WHERE own.slug = e.slug AND own.locale = ? AND own.status = 'live'
-          )
         UNION ALL
-        SELECT ${PUBLIC_COLUMNS} FROM events
+        SELECT ${PUBLIC_COLUMNS} FROM events own
          WHERE locale = ? AND status = 'live'
+           AND NOT EXISTS (
+             SELECT 1 FROM events source JOIN event_translations translated
+               ON translated.event_id=source.id AND translated.locale=? AND translated.status='reviewed'
+             WHERE source.slug=own.slug AND source.locale='vi' AND source.status='live'
+           )
         ORDER BY event_date DESC, id DESC`,
     )
     .bind(locale, locale, locale, locale)
@@ -185,11 +186,14 @@ export async function listLiveEventsForPublic(locale: EventLocale): Promise<Even
  *  blog detail endpoint already publishes, so the landing can offer a language
  *  switch that only lists languages with real content. */
 export async function availableEventLocales(slug: string): Promise<EventLocale[]> {
-  const out: EventLocale[] = [];
-  for (const locale of EVENT_LOCALES) {
-    if (await getLiveEventForPublic(slug, locale)) out.push(locale);
-  }
-  return out;
+  const result = await getDb().prepare(`
+    SELECT locale FROM events WHERE slug=? AND status='live'
+    UNION SELECT translated.locale FROM events source JOIN event_translations translated
+      ON translated.event_id=source.id AND translated.status='reviewed'
+      WHERE source.slug=? AND source.locale='vi' AND source.status='live'`)
+    .bind(slug, slug).all<{ locale: EventLocale }>();
+  const locales = new Set((result.results ?? []).map(row => row.locale));
+  return EVENT_LOCALES.filter(locale => locales.has(locale));
 }
 
 // ── Admin reads ─────────────────────────────────────────────────────────────
@@ -282,12 +286,18 @@ export async function createEvent(actorId: number, input: EventInput): Promise<E
     .first<EventRow>();
   if (!inserted) throw new Error("Không tạo được Event.");
   await auditLog(actorId, "create", "events", inserted.id, null, inserted);
+  if (inserted.locale === "vi") {
+    try {
+      const { enqueueMissingTranslationLocales } = await import("../translations/translation-jobs.service");
+      await enqueueMissingTranslationLocales(actorId, "event", inserted.id);
+    } catch (error) { console.error("[events] translation enqueue failed", error); }
+  }
   return inserted;
 }
 
 export type UpdateEventInput = { id: number } & Partial<Pick<EventInput, EventWritableField>>;
 
-export async function updateEvent(actorId: number, input: UpdateEventInput): Promise<EventRow> {
+export async function updateEvent(actorId: number, input: UpdateEventInput, agentDraftOnly = false): Promise<EventRow> {
   const db = getDb();
   const before = await db
     .prepare(`SELECT ${ADMIN_COLUMNS} FROM events WHERE id = ? LIMIT 1`)
@@ -307,15 +317,11 @@ export async function updateEvent(actorId: number, input: UpdateEventInput): Pro
 
   fields.push("updated_at = unixepoch()", "updated_by = ?");
   values.push(actorId, input.id);
-  await db
-    .prepare(`UPDATE events SET ${fields.join(", ")} WHERE id = ?`)
-    .bind(...values)
-    .run();
-
   const after = await db
-    .prepare(`SELECT ${ADMIN_COLUMNS} FROM events WHERE id = ?`)
-    .bind(input.id)
+    .prepare(`UPDATE events SET ${fields.join(", ")} WHERE id = ?${agentDraftOnly ? " AND status <> 'live'" : ""} RETURNING ${ADMIN_COLUMNS}`)
+    .bind(...values)
     .first<EventRow>();
+  if (!after) throw Object.assign(new Error(agentDraftOnly ? "Event vừa được xuất bản; agent không thể ghi đè." : "Không tìm thấy Event."), { statusCode: agentDraftOnly ? 409 : 404 });
   await auditLog(actorId, "update", "events", input.id, before, after);
 
   // Editing the VI source invalidates its translations: any reviewed EN/ZH copy
@@ -329,8 +335,8 @@ export async function updateEvent(actorId: number, input: UpdateEventInput): Pro
     TRANSLATED_FIELDS.some((field) => input[field] !== undefined)
   ) {
     try {
-      const { onEventSourceChanged, autoTranslateMissingLocales } =
-        await import("@/features/translations");
+      const { onEventSourceChanged } = await import("../translations/event.translation.service");
+      const { enqueueMissingTranslationLocales } = await import("../translations/translation-jobs.service");
       await onEventSourceChanged(after.id, {
         title: after.title,
         summary: after.summary,
@@ -340,7 +346,7 @@ export async function updateEvent(actorId: number, input: UpdateEventInput): Pro
         seo_title: after.seo_title,
         seo_description: after.seo_description,
       });
-      await autoTranslateMissingLocales(actorId, "event", after.id);
+      await enqueueMissingTranslationLocales(actorId, "event", after.id);
     } catch (err) {
       console.error("[events] onEventSourceChanged failed", err);
     }
@@ -392,19 +398,18 @@ export async function replaceEventPhotos(
   if (!event) throw Object.assign(new Error("Không tìm thấy Event."), { statusCode: 404 });
 
   const before = await listEventPhotos(eventId);
-  await db.prepare(`DELETE FROM event_photos WHERE event_id = ?`).bind(eventId).run();
+  const statements = [db.prepare(`DELETE FROM event_photos WHERE event_id = ?`).bind(eventId)];
   for (let position = 0; position < photos.length; position++) {
-    await db
+    statements.push(db
       .prepare(
         `INSERT INTO event_photos (event_id, media_id, position, caption) VALUES (?, ?, ?, ?)`,
       )
-      .bind(eventId, photos[position].media_id, position, photos[position].caption ?? null)
-      .run();
+      .bind(eventId, photos[position].media_id, position, photos[position].caption ?? null));
   }
-  await db
+  statements.push(db
     .prepare(`UPDATE events SET updated_at = unixepoch(), updated_by = ? WHERE id = ?`)
-    .bind(actorId, eventId)
-    .run();
+    .bind(actorId, eventId));
+  await db.batch(statements);
   const after = await listEventPhotos(eventId);
   await auditLog(actorId, "update", "event_photos", eventId, before, after);
   return after;

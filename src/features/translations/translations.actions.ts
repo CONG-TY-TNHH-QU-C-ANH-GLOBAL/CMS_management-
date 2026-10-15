@@ -25,6 +25,7 @@ const ENTITY_TYPE = z.enum([
   "homepage_block",
   "careers_job",
   "blog_post",
+  "event",
   "policy",
   "contact_location",
   "shipping_route",
@@ -660,6 +661,7 @@ export const editBlogPostTranslationFn = createServerFn({ method: "POST" })
       .object({
         id: ID,
         title: z.string().trim().min(1).max(2000),
+        body_md: z.string().max(100000).nullable(),
         excerpt: z.string().max(5000).nullable(),
         category: z.string().max(200).nullable(),
         seo_title: z.string().max(2000).nullable(),

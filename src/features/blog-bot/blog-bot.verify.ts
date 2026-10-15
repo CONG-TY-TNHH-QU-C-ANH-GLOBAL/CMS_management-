@@ -24,7 +24,7 @@ import { estimateCostUsd } from "@/features/blog-bot/blog-bot.openai";
 
 /** Minimum judge score (0-100) to be considered publish-safe. */
 export const SCORE_THRESHOLD = 70;
-const JUDGE_BODY_CAP = 8000;
+const JUDGE_INPUT_CAP = 8000;
 const MOD_INPUT_CAP = 20_000;
 
 export interface JudgeIssue {
@@ -56,6 +56,17 @@ const judgeSchema = z.object({
     .default([]),
 });
 
+const moderationSchema = z.object({
+  results: z
+    .array(
+      z.object({
+        flagged: z.boolean(),
+        categories: z.record(z.boolean()),
+      }),
+    )
+    .length(1),
+});
+
 const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
 
 /** OpenAI Moderation API — free categorical harmful-content classifier. */
@@ -67,25 +78,17 @@ async function moderate(
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}/moderations`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "omni-moderation-latest", input: text.slice(0, MOD_INPUT_CAP) }),
+    body: JSON.stringify({ model: "omni-moderation-latest", input: text }),
   });
   if (!res.ok) throw new Error(`Moderation ${res.status}`);
-  const body = (await res.json()) as {
-    results?: Array<{ flagged?: boolean; categories?: Record<string, boolean> }>;
-  };
-  const r = body.results?.[0];
-  const categories = r?.categories
-    ? Object.entries(r.categories)
-        .filter(([, v]) => v === true)
-        .map(([k]) => k)
-    : [];
-  return { flagged: r?.flagged === true || categories.length > 0, categories };
+  const r = moderationSchema.parse(await res.json()).results[0];
+  const categories = Object.entries(r.categories)
+    .filter(([, v]) => v === true)
+    .map(([k]) => k);
+  return { flagged: r.flagged || categories.length > 0, categories };
 }
 
-function buildJudgeMessages(
-  campaign: BlogBotCampaignRow,
-  article: GeneratedArticle,
-): PromptMessage[] {
+function buildJudgeMessages(campaign: BlogBotCampaignRow, articleText: string): PromptMessage[] {
   const system = `You are a STRICT content-safety and brand reviewer for THG Fulfill — a cross-border fulfillment / POD / dropshipping company. You review a draft blog article before it is allowed to publish and return a JSON verdict.
 
 Score 0-100 (100 = perfectly safe & on-brand). Mark safe=false if ANY high-severity issue exists.
@@ -106,8 +109,7 @@ Output STRICT JSON only:
   "issues": [ { "severity": "low"|"medium"|"high", "message": string (in Vietnamese) } ]
 }`;
 
-  const body = (article.body_md ?? "").slice(0, JUDGE_BODY_CAP);
-  const user = `Review this draft:\n\nTITLE: ${article.title}\nEXCERPT: ${article.excerpt ?? ""}\nBODY:\n${body}`;
+  const user = `Review this draft:\n\n${articleText}`;
 
   return [
     { role: "system", content: system },
@@ -134,7 +136,11 @@ export async function verifyArticle(
   if (!apiKey) return failClosed("OPENAI_API_KEY chưa được set — không kiểm duyệt được.");
   const baseUrl = env.OPENAI_BASE_URL || DEFAULT_OPENAI_BASE;
 
-  const fullText = `${article.title}\n\n${article.excerpt ?? ""}\n\n${article.body_md ?? ""}`;
+  const fullText = `TITLE: ${article.title}\nSLUG: ${article.slug}\nEXCERPT: ${article.excerpt ?? ""}\nCATEGORY: ${article.category ?? ""}\nSEO TITLE: ${article.seo_title ?? ""}\nSEO DESCRIPTION: ${article.seo_description ?? ""}\nBODY:\n${article.body_md ?? ""}`;
+  // A prefix verdict cannot authorize publishing the unchecked remainder.
+  if (fullText.length > JUDGE_INPUT_CAP || fullText.length > MOD_INPUT_CAP) {
+    return failClosed("Nội dung vượt giới hạn kiểm duyệt đầy đủ — giữ bản nháp để duyệt thủ công.");
+  }
 
   // Layer 1: moderation (free). A moderation transport failure is non-fatal —
   // we continue to the judge but note it.
@@ -150,7 +156,7 @@ export async function verifyArticle(
   const judgeRes = await callOpenAiWithJsonRecovery(
     apiKey,
     campaign.model,
-    buildJudgeMessages(campaign, article),
+    buildJudgeMessages(campaign, fullText),
     baseUrl,
   );
   const cost = estimateCostUsd(campaign.model, judgeRes.tokensIn, judgeRes.tokensOut);
@@ -165,7 +171,11 @@ export async function verifyArticle(
 
   const judge = parsed.data;
   const passed =
-    !moderation.flagged && judge.safe && judge.score >= SCORE_THRESHOLD && modError === null;
+    !moderation.flagged &&
+    judge.safe &&
+    judge.score >= SCORE_THRESHOLD &&
+    modError === null &&
+    !judge.issues.some((issue) => issue.severity === "high");
 
   return {
     passed,
@@ -173,6 +183,6 @@ export async function verifyArticle(
     judge,
     costUsd: cost,
     model: campaign.model,
-    error: modError ? `Moderation lỗi (bỏ qua): ${modError}` : null,
+    error: modError ? `Moderation lỗi (giữ bản nháp): ${modError}` : null,
   };
 }

@@ -53,7 +53,7 @@ export const hubEventSchema = z
     (value) => !value.end_date || value.end_date >= value.event_date,
     "End date precedes event date",
   );
-export const hubBlogSchema = z
+const hubBlogTextSchema = z
   .object({
     title: z.string().min(1).max(500),
     excerpt: nullable(2000),
@@ -74,7 +74,7 @@ const previewAssetUrl = z
     return url.protocol === "https:" && !url.username && !url.password;
   }, "Preview assets must use HTTPS without credentials");
 
-export const hubPreviewBlogSchema = hubBlogSchema.extend({
+export const hubPreviewBlogSchema = hubBlogTextSchema.extend({
   thumbnail_url: previewAssetUrl.nullable().optional(),
   slides: z
     .array(
@@ -89,6 +89,9 @@ export const hubPreviewBlogSchema = hubBlogSchema.extend({
     .optional(),
 });
 
+// Older approved projections omit assets; supplied assets are part of approval.
+export const hubBlogSchema = hubPreviewBlogSchema;
+
 export const hubPreviewSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -102,7 +105,10 @@ export const hubPreviewSchema = z
     sourceRevision: z.number().int().positive().safe(),
     kind: z.literal("blog"),
     locale: z.enum(["vi", "en", "zh"]),
-    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(120),
+    slug: z
+      .string()
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+      .max(120),
     renderedContent: hubPreviewBlogSchema,
     contentHash: z.string().regex(/^[a-f0-9]{64}$/),
     payloadHash: z.string().regex(/^[a-f0-9]{64}$/),

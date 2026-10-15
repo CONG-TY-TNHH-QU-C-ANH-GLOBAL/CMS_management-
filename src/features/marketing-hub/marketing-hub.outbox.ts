@@ -65,8 +65,30 @@ async function deliver(row: OutboxRow) {
       .bind(current.content_id)
       .first<{ status: string }>();
     if (published?.status !== "live") deliveryError("CONTENT_NOT_LIVE");
-    if (canonical(JSON.parse(row.snapshot_json)) !== canonical(source.renderedContent))
+    const { thumbnail_url, slides, ...approvedText } = source.renderedContent;
+    if (canonical(JSON.parse(row.snapshot_json)) !== canonical(approvedText))
       deliveryError("APPROVED_CONTENT_CHANGED");
+    // Legacy text-only approvals do not constrain assets. New approvals do.
+    if (current.kind === "blog" && thumbnail_url !== undefined) {
+      const thumbnail = await db
+        .prepare(
+          "SELECT m.r2_key AS url FROM blog_posts p LEFT JOIN media m ON m.id=p.thumbnail_media_id WHERE p.id=?",
+        )
+        .bind(current.content_id)
+        .first<{ url: string | null }>();
+      if (!thumbnail || thumbnail.url !== thumbnail_url) deliveryError("APPROVED_CONTENT_CHANGED");
+    }
+    if (current.kind === "blog" && slides !== undefined) {
+      const actual = await db
+        .prepare(
+          `SELECT m.r2_key AS src,s.alt_text FROM blog_slides s JOIN media m ON m.id=s.media_id
+         WHERE s.post_id=? ORDER BY s.position,s.id`,
+        )
+        .bind(current.content_id)
+        .all<{ src: string; alt_text: string | null }>();
+      if (canonical(actual.results || []) !== canonical(slides))
+        deliveryError("APPROVED_CONTENT_CHANGED");
+    }
     const publisher = await db
       .prepare("SELECT id FROM users WHERE id=? AND role IN ('admin','editor') AND status='active'")
       .bind(row.publisher_id)

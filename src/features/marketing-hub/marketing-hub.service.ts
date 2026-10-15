@@ -227,6 +227,8 @@ export async function readHubPreview(request: Request, token: string): Promise<R
   headers.set("Cache-Control", "no-store");
   headers.set("X-Robots-Tag", "noindex, nofollow");
   headers.set("Referrer-Policy", "no-referrer");
+  if (env.MARKETING_HUB_INGEST_ENABLED !== "true" || !env.MARKETING_HUB_PREVIEW_SECRET)
+    return new Response(JSON.stringify({ error: "Preview unavailable" }), { status: 503, headers });
   if (!/^[a-f0-9]{64}$/.test(token))
     return new Response(JSON.stringify({ error: "Preview not found" }), { status: 404, headers });
   const row = await getDb()
@@ -278,10 +280,9 @@ export async function ingestHubContent(
     (await digest(canonical(payload.content))) !== payload.contentHash
   )
     fail("CONTENT_HASH_MISMATCH", 422);
-  const projection =
-    payload.kind === "event"
-      ? hubEventSchema.parse(payload.renderedContent)
-      : hubBlogSchema.parse(payload.renderedContent);
+  const blogProjection =
+    payload.kind === "blog" ? hubBlogSchema.parse(payload.renderedContent) : null;
+  const projection = blogProjection || hubEventSchema.parse(payload.renderedContent);
   const old = await getHubContent(payload.externalId);
   if (
     old &&
@@ -311,8 +312,24 @@ export async function ingestHubContent(
     locale: payload.locale,
   };
   // Column names originate ONLY from strict kind-specific schemas, never arbitrary JSON keys.
-  const columns = Object.keys(projection);
-  const values = Object.values(projection);
+  const columns = Object.keys(projection).filter(
+    (key) => key !== "thumbnail_url" && key !== "slides",
+  );
+  const values = columns.map((key) => (projection as Record<string, unknown>)[key]);
+  const hasThumbnail = blogProjection?.thumbnail_url !== undefined;
+  const thumbnailBinding = hasThumbnail ? [blogProjection!.thumbnail_url] : [];
+  const media = new Map<string, string>();
+  if (blogProjection?.thumbnail_url) media.set(blogProjection.thumbnail_url, projection.title);
+  for (const slide of blogProjection?.slides || []) {
+    if (!media.has(slide.src)) media.set(slide.src, slide.alt_text);
+  }
+  const mediaStatements = [...media].map(([url, alt]) =>
+    db
+      .prepare(
+        "INSERT INTO media(r2_key,mime,bytes,alt_text,status,uploaded_by) VALUES (?,'image/external',0,?,'ready',?) ON CONFLICT(r2_key) DO NOTHING",
+      )
+      .bind(url, alt, actor),
+  );
   const statements = old
     ? [
         guard(
@@ -320,11 +337,12 @@ export async function ingestHubContent(
       WHERE m.external_id=? AND m.cms_revision=? AND m.source_revision=? AND c.status='draft')`,
           [old.external_id, old.cms_revision, old.source_revision],
         ),
+        ...mediaStatements,
         db
           .prepare(
-            `UPDATE ${table} SET ${columns.map((column) => `${column}=?`).join(",")},updated_by=?,updated_at=unixepoch() WHERE id=?`,
+            `UPDATE ${table} SET ${columns.map((column) => `${column}=?`).join(",")}${hasThumbnail ? ",thumbnail_media_id=(SELECT id FROM media WHERE r2_key=?)" : ""},updated_by=?,updated_at=unixepoch() WHERE id=?`,
           )
-          .bind(...values, actor, old.content_id),
+          .bind(...values, ...thumbnailBinding, actor, old.content_id),
         db
           .prepare(
             `UPDATE marketing_hub_contents SET source_revision=?,cms_revision=?,payload_json=?,payload_hash=?,projection_json=?,updated_at=? WHERE external_id=?`,
@@ -344,15 +362,17 @@ export async function ingestHubContent(
           `NOT EXISTS(SELECT 1 FROM marketing_hub_contents WHERE external_id=?) AND NOT EXISTS(SELECT 1 FROM ${table} WHERE slug=? AND locale=?)`,
           [payload.externalId, payload.slug, payload.locale],
         ),
+        ...mediaStatements,
         db
           .prepare(
-            `INSERT INTO ${table}(slug,locale,${columns.join(",")},status,updated_by,updated_at${payload.kind === "blog" ? ",author_id" : ""})
-      VALUES (?, ?, ${columns.map(() => "?").join(",")},'draft',?,unixepoch()${payload.kind === "blog" ? ",?" : ""})`,
+            `INSERT INTO ${table}(slug,locale,${columns.join(",")}${hasThumbnail ? ",thumbnail_media_id" : ""},status,updated_by,updated_at${payload.kind === "blog" ? ",author_id" : ""})
+      VALUES (?, ?, ${columns.map(() => "?").join(",")}${hasThumbnail ? ",(SELECT id FROM media WHERE r2_key=?)" : ""},'draft',?,unixepoch()${payload.kind === "blog" ? ",?" : ""})`,
           )
           .bind(
             payload.slug,
             payload.locale,
             ...values,
+            ...thumbnailBinding,
             actor,
             ...(payload.kind === "blog" ? [actor] : []),
           ),
@@ -376,6 +396,25 @@ export async function ingestHubContent(
             payload.locale,
           ),
       ];
+  if (blogProjection?.slides !== undefined) {
+    statements.push(
+      db
+        .prepare(
+          "DELETE FROM blog_slides WHERE post_id=(SELECT id FROM blog_posts WHERE slug=? AND locale=?)",
+        )
+        .bind(payload.slug, payload.locale),
+    );
+    for (const [index, slide] of blogProjection.slides.entries()) {
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO blog_slides(post_id,position,media_id,alt_text)
+         SELECT p.id,?,m.id,? FROM blog_posts p JOIN media m ON m.r2_key=? WHERE p.slug=? AND p.locale=?`,
+          )
+          .bind(index + 1, slide.alt_text, slide.src, payload.slug, payload.locale),
+      );
+    }
+  }
   statements.push(
     db
       .prepare(

@@ -22,6 +22,7 @@ import {
 
 const BLOG_POST_FIELDS = [
   { key: "title", label: "Title", rows: 2 },
+  { key: "body_md", label: "Nội dung bài viết", rows: 12 },
   { key: "excerpt", label: "Excerpt", rows: 4 },
   { key: "category", label: "Category", rows: 1 },
   { key: "seo_title", label: "SEO title", rows: 2 },
@@ -151,6 +152,7 @@ function BlogDetailPage() {
           entityLabel="Blog post"
           source={{
             title: reviewing.title,
+            body_md: reviewing.body_md ?? "",
             excerpt: reviewing.excerpt ?? "",
             category: reviewing.category ?? "",
             seo_title: reviewing.seo_title ?? "",

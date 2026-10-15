@@ -61,14 +61,21 @@ function parseRss(xml: string, limit: number): NewsItem[] {
     const title = stripTags(rawTitle);
     if (!title) continue;
     const link = stripTags(firstMatch(block, /<link>([\s\S]*?)<\/link>/));
+    // A publisher homepage is not the source article's citation.
+    try {
+      const parsed = new URL(link);
+      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
+        continue;
+    } catch {
+      continue;
+    }
     const date = stripTags(firstMatch(block, /<pubDate>([\s\S]*?)<\/pubDate>/));
     // <source url="...">Publisher</source>
     const sourceName = stripTags(firstMatch(block, /<source[^>]*>([\s\S]*?)<\/source>/));
-    const sourceUrl = firstMatch(block, /<source[^>]*url="([^"]*)"/);
     items.push({
       title,
       source: sourceName || "",
-      link: sourceUrl || link,
+      link,
       date,
     });
   }
@@ -108,6 +115,9 @@ export async function fetchNews(
 /** Format news items as a compact context block for the generation prompt. */
 export function formatNewsContext(items: NewsItem[]): string {
   return items
-    .map((it, i) => `${i + 1}. "${it.title}"${it.source ? ` — ${it.source}` : ""}\n   ${it.link}`)
+    .map(
+      (it, i) =>
+        `${i + 1}. "${it.title}"${it.source ? ` — ${it.source}` : ""}\n   Ngày đăng: ${it.date || "không rõ"}\n   ${it.link}`,
+    )
     .join("\n");
 }

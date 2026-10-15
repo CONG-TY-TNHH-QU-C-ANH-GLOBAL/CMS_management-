@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/v1/(public)/blog/")({
         const category = url.searchParams.get("category") ?? undefined;
         if (!isLocale(lang)) return corsError(request, 400, "Invalid `lang` (en|vi|zh)");
 
-        const all = await listBlogPostsForPublic({ locale: lang, status: "live" });
+        const all = await listBlogPostsForPublic({ locale: lang, status: "live", summaryOnly: true });
         const filtered = category ? all.filter((p) => p.category === category) : all;
 
         return corsJson(request, {

@@ -167,7 +167,7 @@ export async function ingestAgentEvent(input: AgentEventInput): Promise<AgentEve
   };
 
   const event = existing
-    ? await updateEvent(actorId, { id: existing.id, ...fields })
+    ? await updateEvent(actorId, { id: existing.id, ...fields }, true)
     : await createEvent(actorId, { slug: input.slug, locale: input.locale, ...fields });
 
   // A second, agent-specific audit entry on top of the one the service writes:
