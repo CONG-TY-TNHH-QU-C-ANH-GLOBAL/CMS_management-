@@ -5,7 +5,7 @@ import { CmsTopbar } from "@/components/app-shell/Topbar";
 import { Card, PageContainer } from "@/components/cms/ui";
 
 export const Route = createFileRoute("/admin/ai/reviews/")({
-  head: () => ({ meta: [{ title: "Reviews — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Reviews — TH Group Content OS" }] }),
   component: ReviewsPage,
 });
 

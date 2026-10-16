@@ -181,7 +181,7 @@ openApiRegistry.registerPath(integrationsRouteConfig);
 export const partnersRouteConfig = {
   method: "get" as const,
   path: "/api/v1/partners",
-  summary: "List THG business partners",
+  summary: "List TH Group business partners",
   description:
     "Returns live partner rows sorted by `position`. Not localized — rows are " +
     "company names and URLs. `logo_url` is a fully-resolved absolute URL, or " +
@@ -196,7 +196,7 @@ openApiRegistry.registerPath(partnersRouteConfig);
 export const leadershipRouteConfig = {
   method: "get" as const,
   path: "/api/v1/leadership",
-  summary: "List THG leadership cards",
+  summary: "List TH Group leadership cards",
   description:
     "Returns live Leadership cards sorted by position. Each card may carry one " +
     "portrait or an ordered avatar group; media URLs are resolved server-side.",
@@ -210,7 +210,7 @@ openApiRegistry.registerPath(leadershipRouteConfig);
 export const eventsRouteConfig = {
   method: "get" as const,
   path: "/api/v1/events",
-  summary: "List live THG events for a locale",
+  summary: "List live TH Group events for a locale",
   description: "Returns published Event cards ordered by event date, newest first.",
   request: { query: LANG_QUERY },
   responses: { 200: jsonResponse("Live event list", eventsResponseSchema), 400: BAD_LANG },
@@ -221,7 +221,7 @@ openApiRegistry.registerPath(eventsRouteConfig);
 export const eventRouteConfig = {
   method: "get" as const,
   path: "/api/v1/events/{slug}",
-  summary: "Get one live THG event by slug and locale",
+  summary: "Get one live TH Group event by slug and locale",
   description: "Returns an event only when its locale row is published.",
   request: { params: SLUG_PARAM, query: LANG_QUERY },
   responses: {
@@ -579,7 +579,7 @@ export const communityQuestionRouteConfig = {
   path: "/api/v1/community/questions/{slug}",
   summary: "Get one published community question by slug",
   description:
-    "404 unless the question status is `published`. Includes the THG " +
+    "404 unless the question status is `published`. Includes the TH Group " +
     "expert answer (nullable) and the computed `indexable` flag.",
   request: {
     params: SLUG_PARAM,
@@ -666,8 +666,8 @@ openApiRegistry.registerPath(communityReviewRouteConfig);
 // ══════════════════════════════════════════════════════════════════════════
 
 // Mirrors src/routes/api/v1/(public)/service-blocks/index.ts.
-// This is the generic page-block endpoint behind THG Order and the Next.js
-// THG Fulfill route. Identity is `page_slug + kind + <block key>`; the wire
+// This is the generic page-block endpoint behind TH Group Order and the Next.js
+// TH Group Fulfill route. Identity is `page_slug + kind + <block key>`; the wire
 // item currently exposes only the numeric D1 `id`, so consumers deriving a
 // stable role do it from `kind + position`.
 export const serviceBlocksRouteConfig = {

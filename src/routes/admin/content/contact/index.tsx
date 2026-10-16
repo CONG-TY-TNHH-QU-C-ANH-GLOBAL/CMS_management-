@@ -29,7 +29,7 @@ const CONTACT_LOCATION_FIELDS = [
 ] as const;
 
 export const Route = createFileRoute("/admin/content/contact/")({
-  head: () => ({ meta: [{ title: "Liên hệ — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Liên hệ — TH Group Content OS" }] }),
   loader: () => listContactLocationsFn(),
   component: ContactPage,
 });

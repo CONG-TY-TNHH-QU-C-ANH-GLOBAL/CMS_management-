@@ -16,7 +16,7 @@ import {
 } from "@/features/policies/policies.actions";
 
 export const Route = createFileRoute("/admin/content/policies/")({
-  head: () => ({ meta: [{ title: "Chính sách — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Chính sách — TH Group Content OS" }] }),
   loader: () => listPoliciesFn(),
   component: PoliciesPage,
 });

@@ -13,7 +13,7 @@
 // the landing app (next/src/shared/ui/lead-services.ts). THIS backend validation is authoritative;
 // the landing keys must stay compatible. Adding a service requires a COORDINATED change in both
 // repos (a key + details schema here, a mirror key + optional field group there). CMS service
-// slugs and display labels (e.g. thg-order / "THG Dropship") are NOT canonical service keys.
+// slugs and display labels (e.g. thg-order / "TH Group Dropship") are NOT canonical service keys.
 import { z } from "zod";
 
 // ─── Canonical service registry (code-owned, extensible) ──────────────────────────────────────

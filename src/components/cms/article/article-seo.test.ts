@@ -8,7 +8,7 @@ const full: ArticleSeoInput = {
     "Hướng dẫn cho seller cách chọn kho fulfillment tại Mỹ, chuẩn bị hàng và theo dõi quá trình tiếp nhận, xử lý đơn hàng.",
   slug: "kho-fulfillment-my",
   hasCover: true,
-  markdown: `## Chọn kho\n\n${"Hàng hóa cần xử lý đầy đủ. ".repeat(65)}\n\n### Chi phí\n\n[THG](/vi/thg-warehouse)\n\n![Kho Mỹ](https://example.com/a.jpg)`,
+  markdown: `## Chọn kho\n\n${"Hàng hóa cần xử lý đầy đủ. ".repeat(65)}\n\n### Chi phí\n\n[TH Group](/vi/thg-warehouse)\n\n![Kho Mỹ](https://example.com/a.jpg)`,
 };
 
 test("complete article receives 100 and weights total 100", () => {
@@ -28,7 +28,7 @@ test("unsaved changes lower the score and identify missing descriptions and imag
 test("fake headings and links inside code do not pass structural checks", () => {
   const result = evaluateArticleSeo({
     ...full,
-    markdown: "```markdown\n## Heading\n[THG](/vi)\n```\n~~~\n## Fake\n~~~\n`[THG](/vi)`",
+    markdown: "```markdown\n## Heading\n[TH Group](/vi)\n```\n~~~\n## Fake\n~~~\n`[TH Group](/vi)`",
   });
   for (const id of ["headings", "hierarchy", "links", "body"])
     expect(result.checks.find((c) => c.id === id)?.passed).toBe(false);
@@ -37,7 +37,7 @@ test("rejects an extra H1, skipped heading levels, and lookalike external domain
   const result = evaluateArticleSeo({
     ...full,
     markdown:
-      "# Duplicate\n\n## Heading\n\n#### Jump\n\n[THG](https://thgfulfill.com.evil.test/vi)",
+      "# Duplicate\n\n## Heading\n\n#### Jump\n\n[TH Group](https://thgfulfill.com.evil.test/vi)",
   });
   for (const id of ["h1", "hierarchy", "links"])
     expect(result.checks.find((c) => c.id === id)?.passed).toBe(false);
@@ -55,5 +55,5 @@ test("segments Chinese content and accepts the event length guidance", () => {
 test("unfinished Markdown links stay editable and titled links still count", () => {
   const unfinished = "[unfinished ".repeat(4000);
   expect(evaluateArticleSeo({ ...full, markdown: unfinished }).checks.find(c => c.id === "links")?.passed).toBe(false);
-  expect(evaluateArticleSeo({ ...full, markdown: `${unfinished}\n[THG](/vi "Trang chủ")` }).checks.find(c => c.id === "links")?.passed).toBe(true);
+  expect(evaluateArticleSeo({ ...full, markdown: `${unfinished}\n[TH Group](/vi "Trang chủ")` }).checks.find(c => c.id === "links")?.passed).toBe(true);
 });

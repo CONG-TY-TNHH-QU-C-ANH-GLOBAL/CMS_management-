@@ -9,7 +9,7 @@ import { listSeoPagesFn, saveSeoPageFn } from "@/features/seo/seo.actions";
 import type { SeoPageRow } from "@/features/seo/seo.service";
 
 export const Route = createFileRoute("/admin/system/seo/")({
-  head: () => ({ meta: [{ title: "SEO — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "SEO — TH Group Content OS" }] }),
   loader: () => listSeoPagesFn(),
   component: SeoPage,
 });

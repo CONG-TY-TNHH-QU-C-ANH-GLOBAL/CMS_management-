@@ -15,7 +15,7 @@ import {
 } from "@/features/shipping/shipping.actions";
 
 export const Route = createFileRoute("/admin/content/shipping-routes/")({
-  head: () => ({ meta: [{ title: "Shipping routes — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Shipping routes — TH Group Content OS" }] }),
   loader: () => listShippingRoutesFn(),
   component: ShippingRoutesPage,
 });

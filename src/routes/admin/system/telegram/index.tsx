@@ -59,7 +59,7 @@ interface LoaderData {
 }
 
 export const Route = createFileRoute("/admin/system/telegram/")({
-  head: () => ({ meta: [{ title: "Telegram — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Telegram — TH Group Content OS" }] }),
   loader: async (): Promise<LoaderData> => {
     const [config, channelsRes, subsRes, legacy, failedRes, crmDelivery] = await Promise.all([
       getTelegramConfigFn(),

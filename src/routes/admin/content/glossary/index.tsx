@@ -37,7 +37,7 @@ const CATEGORY_BADGE_TINT: Record<GlossaryCategory, string> = {
 };
 
 export const Route = createFileRoute("/admin/content/glossary/")({
-  head: () => ({ meta: [{ title: "Glossary — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Glossary — TH Group Content OS" }] }),
   loader: () => listGlossaryFn(),
   component: GlossaryPage,
 });

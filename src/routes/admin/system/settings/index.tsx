@@ -14,7 +14,7 @@ import {
 } from "@/features/settings/settings.actions";
 
 export const Route = createFileRoute("/admin/system/settings/")({
-  head: () => ({ meta: [{ title: "Cài đặt site — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Cài đặt site — TH Group Content OS" }] }),
   loader: () => getSiteSettingsFn(),
   component: SettingsPage,
 });
@@ -85,7 +85,7 @@ function SettingsPage() {
       const payload: Record<string, string | null> = {};
       for (const [k, v] of Object.entries(form)) payload[k] = v === "" ? null : v;
       // brand_name shouldn't be null (server schema requires non-empty string)
-      if (payload.brand_name === null) payload.brand_name = "THG Fulfill";
+      if (payload.brand_name === null) payload.brand_name = "TH Group Fulfill";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await update({ data: payload as any });
       toast.success("Đã lưu cài đặt website");
@@ -132,7 +132,7 @@ function SettingsPage() {
           </Card>
 
           <Card className="lg:col-span-2">
-            <CardHeader title="Video giới thiệu trang chủ" hint="Video YouTube hiển thị ở khu vực “Tìm hiểu THG qua video” trên trang chủ" />
+            <CardHeader title="Video giới thiệu trang chủ" hint="Video YouTube hiển thị ở khu vực “Tìm hiểu TH Group qua video” trên trang chủ" />
             <div className="p-5 space-y-3">
               <Field
                 label="Đường dẫn YouTube"

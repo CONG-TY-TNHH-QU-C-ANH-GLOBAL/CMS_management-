@@ -26,7 +26,7 @@ export function buildPrompt(input: BuildPromptInput): PromptMessage[] {
 
   const localesText = input.targetLocales.join(" + ");
 
-  const systemContent = `You localize Vietnamese marketing copy for THG Fulfill — a cross-border fulfillment service connecting Vietnam, China, and the USA. Goal: produce naturally persuasive English and Mandarin copy. This is LOCALIZATION, not literal translation: preserve sales tone, urgency, and clarity.
+  const systemContent = `You localize Vietnamese marketing copy for TH Group Fulfill — a cross-border fulfillment service connecting Vietnam, China, and the USA. Goal: produce naturally persuasive English and Mandarin copy. This is LOCALIZATION, not literal translation: preserve sales tone, urgency, and clarity.
 
 GLOSSARY — translate these terms exactly as specified:
 ${glossaryLines || "  (no glossary terms configured yet)"}

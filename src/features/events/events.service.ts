@@ -1,4 +1,4 @@
-// Events service — sự kiện / webinar THG tổ chức hoặc tham gia.
+// Events service — sự kiện / webinar TH Group tổ chức hoặc tham gia.
 //
 // Localization shape: ONE ROW PER LOCALE, keyed by (slug, locale) — the same
 // shape blog_posts uses, not the side-table shape (careers, policies). A slug

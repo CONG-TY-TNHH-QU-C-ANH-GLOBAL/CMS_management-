@@ -5,7 +5,7 @@
 // verified AND expert answer); landing derives its noindex rules from it.
 //
 // VI-canonical, not localized in MVP: questions are served as submitted.
-// Expert answer is a column pair on the question row (one curated THG answer
+// Expert answer is a column pair on the question row (one curated TH Group answer
 // per question); a separate answers table is deferred until community-authored
 // answers are in scope.
 

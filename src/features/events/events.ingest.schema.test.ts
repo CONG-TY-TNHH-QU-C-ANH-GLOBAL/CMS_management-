@@ -11,7 +11,7 @@ import { agentEventBodySchema } from "./events.ingest.schema";
 
 const minimal = {
   slug: "thg-x-onpoint",
-  title: "THG x ONPOINT",
+  title: "TH Group x ONPOINT",
   event_date: "2026-09-01",
 };
 
@@ -81,15 +81,15 @@ describe("agent ingest body", () => {
       ...minimal,
       locale: "vi",
       summary: "Câu chuyện hợp tác cùng ONPOINT.",
-      body_md: "## THG x ONPOINT\n\nNội dung…",
+      body_md: "## TH Group x ONPOINT\n\nNội dung…",
       end_date: "2026-09-02",
       location: "TP. Hồ Chí Minh",
       role: "Sự kiện đối tác",
       url: "https://www.facebook.com/share/p/1Spw5uMYPT/",
       video_url: "https://youtu.be/q7NiFssAaRE",
       cover_url: "https://cdn.example.com/cover.jpg",
-      seo_title: "THG x ONPOINT | THG Fulfill",
-      seo_description: "Sự kiện hợp tác giữa THG Fulfill và ONPOINT.",
+      seo_title: "TH Group x ONPOINT | TH Group Fulfill",
+      seo_description: "Sự kiện hợp tác giữa TH Group Fulfill và ONPOINT.",
       agent: "marketing-writer-v1",
     });
     expect(parsed.agent).toBe("marketing-writer-v1");

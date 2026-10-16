@@ -32,7 +32,7 @@ function parseGroups(raw: string | null | undefined): Group[] {
 }
 
 export const Route = createFileRoute("/admin/sales/terminology/")({
-  head: () => ({ meta: [{ title: "Bảng thuật ngữ — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bảng thuật ngữ — TH Group Content OS" }] }),
   loader: () => getSiteSettingsFn(),
   component: TerminologyPage,
 });

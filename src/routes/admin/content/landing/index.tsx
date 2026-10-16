@@ -32,7 +32,7 @@ const HB_FIELDS = [
 ] as const;
 
 export const Route = createFileRoute("/admin/content/landing/")({
-  head: () => ({ meta: [{ title: "Trang chủ — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Trang chủ — TH Group Content OS" }] }),
   loader: () => listHomepageBlocksFn({ data: { locale: "vi" } }),
   component: LandingPage,
 });
@@ -83,7 +83,7 @@ const SECTIONS: SectionMeta[] = [
   {
     kind: "about_video",
     title: "Video giới thiệu công ty",
-    desc: "Khu vực có video YouTube giới thiệu THG kèm 4 điểm nổi bật bên cạnh",
+    desc: "Khu vực có video YouTube giới thiệu TH Group kèm 4 điểm nổi bật bên cạnh",
     fields: [
       { key: "video_url", label: "Đường dẫn video YouTube (dạng watch?v=… hoặc youtu.be/…)" },
       { key: "title", label: "Tiêu đề khu vực" },
@@ -97,7 +97,7 @@ const SECTIONS: SectionMeta[] = [
   {
     kind: "process",
     title: "Quy trình 4 bước",
-    desc: "4 bước seller làm việc với THG sau khi đăng ký",
+    desc: "4 bước seller làm việc với TH Group sau khi đăng ký",
     fields: [
       { key: "step1", label: "Bước 1" },
       { key: "step2", label: "Bước 2" },
@@ -108,7 +108,7 @@ const SECTIONS: SectionMeta[] = [
   {
     kind: "integrations",
     title: "Logo sàn thương mại điện tử",
-    desc: "Logo các sàn đối tác THG hỗ trợ kết nối. Danh sách logo sửa ở mục “Sàn TMĐT”.",
+    desc: "Logo các sàn đối tác TH Group hỗ trợ kết nối. Danh sách logo sửa ở mục “Sàn TMĐT”.",
     fields: [{ key: "title", label: "Tiêu đề khu vực" }],
   },
   {

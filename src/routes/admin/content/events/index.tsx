@@ -17,7 +17,7 @@ import {
 } from "@/features/events/events.actions";
 
 export const Route = createFileRoute("/admin/content/events/")({
-  head: () => ({ meta: [{ title: "Event — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Event — TH Group Content OS" }] }),
   loader: () => listEventsFn(),
   component: EventsPage,
 });

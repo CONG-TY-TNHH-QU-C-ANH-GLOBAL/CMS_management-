@@ -24,7 +24,7 @@ import {
 } from "@/features/community/community.actions";
 
 export const Route = createFileRoute("/admin/content/community/reviews/")({
-  head: () => ({ meta: [{ title: "Cộng đồng (Đánh giá) — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Cộng đồng (Đánh giá) — TH Group Content OS" }] }),
   loader: () => listCommunityReviewsFn(),
   component: CommunityReviewsModerationPage,
 });
@@ -93,7 +93,7 @@ function CommunityReviewsModerationPage() {
             <ModerationEmpty title="Không có đánh giá nào ở filter này">
               Đánh giá mới xuất hiện khi seller submit trên landing (POST
               /api/v1/community/reviews) — mặc định "Chờ duyệt". Chỉ hiển thị
-              công khai khi Đã đăng + "Verified by THG".
+              công khai khi Đã đăng + "Verified by TH Group".
             </ModerationEmpty>
           ) : (
             <ul className="divide-y divide-border">
@@ -152,7 +152,7 @@ function CommunityReviewsModerationPage() {
                               onChange={(e) => setDraftVerified(e.target.checked)}
                             />
                             <span>
-                              Đánh dấu "Verified by THG" — chỉ khi Đã đăng + Verified thì trang mới được Google index
+                              Đánh dấu "Verified by TH Group" — chỉ khi Đã đăng + Verified thì trang mới được Google index
                             </span>
                           </label>
                           <div className="flex gap-2">

@@ -13,7 +13,7 @@ import {
 const PAGE_SIZE = 50;
 
 export const Route = createFileRoute("/admin/system/audit/")({
-  head: () => ({ meta: [{ title: "Lịch sử thay đổi — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Lịch sử thay đổi — TH Group Content OS" }] }),
   loader: () => listAuditLogFn({ data: { limit: PAGE_SIZE, offset: 0 } }),
   component: AuditPage,
 });

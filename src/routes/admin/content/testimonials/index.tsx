@@ -30,7 +30,7 @@ const TESTIMONIAL_FIELDS = [
 ] as const;
 
 export const Route = createFileRoute("/admin/content/testimonials/")({
-  head: () => ({ meta: [{ title: "Testimonials — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Testimonials — TH Group Content OS" }] }),
   loader: () => listTestimonialsFn(),
   component: TestimonialsPage,
 });

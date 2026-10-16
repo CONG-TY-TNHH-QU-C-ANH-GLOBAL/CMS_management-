@@ -131,7 +131,7 @@ const processSteps: BaseBlock[] = [
     },
     description: {
       en: "Copy link from Taobao or 1688, send via Facebook / Messenger",
-      vi: "Copy link từ Taobao hoặc 1688 gửi cho THG qua Facebook / Messenger",
+      vi: "Copy link từ Taobao hoặc 1688 gửi cho TH Group qua Facebook / Messenger",
       zh: "复制淘宝或1688链接，通过Facebook/Messenger发送",
     },
   },
@@ -145,9 +145,9 @@ const processSteps: BaseBlock[] = [
       zh: "咨询报价",
     },
     description: {
-      en: "THG verifies supplier, quotes all-in price: goods + shipping + service fee",
-      vi: "THG kiểm tra nhà cung cấp, báo giá trọn gói: hàng + ship + phí dịch vụ",
-      zh: "THG验证供应商，报全包价：商品+运费+服务费",
+      en: "TH Group verifies supplier, quotes all-in price: goods + shipping + service fee",
+      vi: "TH Group kiểm tra nhà cung cấp, báo giá trọn gói: hàng + ship + phí dịch vụ",
+      zh: "TH Group验证供应商，报全包价：商品+运费+服务费",
     },
   },
   {
@@ -160,9 +160,9 @@ const processSteps: BaseBlock[] = [
       zh: "下单付款",
     },
     description: {
-      en: "You confirm, THG orders in Mandarin – nothing more needed from you",
-      vi: "Bạn xác nhận, THG đặt hàng bằng tiếng Trung – không cần bạn làm gì thêm",
-      zh: "您确认后，THG用中文下单——无需您做更多",
+      en: "You confirm, TH Group orders in Mandarin – nothing more needed from you",
+      vi: "Bạn xác nhận, TH Group đặt hàng bằng tiếng Trung – không cần bạn làm gì thêm",
+      zh: "您确认后，TH Group用中文下单——无需您做更多",
     },
   },
   {
@@ -175,9 +175,9 @@ const processSteps: BaseBlock[] = [
       zh: "检验录像",
     },
     description: {
-      en: "Goods arrive at THG warehouse, fully inspected, video sent to you before shipping",
-      vi: "Hàng về kho THG, kiểm tra kỹ, quay video gửi bạn xem rồi mới ship",
-      zh: "货物到THG仓库，全面检查，发货前发视频给您",
+      en: "Goods arrive at TH Group warehouse, fully inspected, video sent to you before shipping",
+      vi: "Hàng về kho TH Group, kiểm tra kỹ, quay video gửi bạn xem rồi mới ship",
+      zh: "货物到TH Group仓库，全面检查，发货前发视频给您",
     },
   },
   {
@@ -212,9 +212,9 @@ const solutions: BaseBlock[] = [
       zh: "真实地址，真实企业，过往业绩",
     },
     description: {
-      en: "THG Fulfill is a registered business with offices in HCMC, warehouses in Guangdong (China), Milford PA & Winston-Salem NC. Thousands of successful orders.",
-      vi: "THG Fulfill có văn phòng tại TP.HCM, kho tại Trung Quốc và Mỹ. Hàng nghìn đơn hàng thành công.",
-      zh: "THG Fulfill是注册企业，办公室在胡志明市，仓库在广东（中国）、宾州和北卡。数千成功订单。",
+      en: "TH Group Fulfill is a registered business with offices in HCMC, warehouses in Guangdong (China), Milford PA & Winston-Salem NC. Thousands of successful orders.",
+      vi: "TH Group Fulfill có văn phòng tại TP.HCM, kho tại Trung Quốc và Mỹ. Hàng nghìn đơn hàng thành công.",
+      zh: "TH Group Fulfill是注册企业，办公室在胡志明市，仓库在广东（中国）、宾州和北卡。数千成功订单。",
     },
   },
   {
@@ -247,7 +247,7 @@ const solutions: BaseBlock[] = [
     },
     description: {
       en: "100% of orders are inspected and video-recorded before packing. You review the video, approve, then we ship. Fully transparent.",
-      vi: "100% đơn hàng được kiểm tra và quay video chi tiết trước khi đóng gói. Bạn xem, xác nhận rồi THG mới gửi đi.",
+      vi: "100% đơn hàng được kiểm tra và quay video chi tiết trước khi đóng gói. Bạn xem, xác nhận rồi TH Group mới gửi đi.",
       zh: "100%订单在包装前进行检查和录像。您审核视频、确认后我们才发货。完全透明。",
     },
   },
@@ -258,14 +258,14 @@ const solutions: BaseBlock[] = [
       tag: { en: "Buyer Protection", vi: "Bảo vệ quyền lợi", zh: "买家保障" },
     },
     title: {
-      en: "Defective goods? THG refunds or reships – free",
-      vi: "Hàng lỗi – THG hoàn tiền hoặc gửi lại miễn phí",
-      zh: "商品有缺陷？THG免费退款或重新发货",
+      en: "Defective goods? TH Group refunds or reships – free",
+      vi: "Hàng lỗi – TH Group hoàn tiền hoặc gửi lại miễn phí",
+      zh: "商品有缺陷？TH Group免费退款或重新发货",
     },
     description: {
-      en: "If goods don't match description or are defective, THG takes full responsibility – we work with the Chinese supplier to refund or send new goods at no cost.",
-      vi: "Nếu hàng không đúng mô tả hoặc bị lỗi, THG chịu trách nhiệm hoàn toàn – làm việc với nhà cung cấp để hoàn tiền hoặc gửi lại hàng mới.",
-      zh: "如果商品与描述不符或有缺陷，THG承担全部责任——与供应商协商退款或免费重发。",
+      en: "If goods don't match description or are defective, TH Group takes full responsibility – we work with the Chinese supplier to refund or send new goods at no cost.",
+      vi: "Nếu hàng không đúng mô tả hoặc bị lỗi, TH Group chịu trách nhiệm hoàn toàn – làm việc với nhà cung cấp để hoàn tiền hoặc gửi lại hàng mới.",
+      zh: "如果商品与描述不符或有缺陷，TH Group承担全部责任——与供应商协商退款或免费重发。",
     },
   },
   {
@@ -280,9 +280,9 @@ const solutions: BaseBlock[] = [
       zh: "跳过越南中转，节省3-4周和150-300美元",
     },
     description: {
-      en: "THG has warehouses in Guangdong (China), Milford PA & Winston-Salem NC. Goods inspected at China warehouse, then shipped directly to your US address.",
-      vi: "THG có kho tại Đông Hoản (Trung Quốc), Milford PA & Winston-Salem NC. Hàng kiểm tra tại China rồi ship thẳng đến địa chỉ Mỹ.",
-      zh: "THG在广东（中国）、宾州和北卡设有仓库。货物在中国仓库检查后直接发往您的美国地址。",
+      en: "TH Group has warehouses in Guangdong (China), Milford PA & Winston-Salem NC. Goods inspected at China warehouse, then shipped directly to your US address.",
+      vi: "TH Group có kho tại Đông Hoản (Trung Quốc), Milford PA & Winston-Salem NC. Hàng kiểm tra tại China rồi ship thẳng đến địa chỉ Mỹ.",
+      zh: "TH Group在广东（中国）、宾州和北卡设有仓库。货物在中国仓库检查后直接发往您的美国地址。",
     },
   },
   {
@@ -298,7 +298,7 @@ const solutions: BaseBlock[] = [
     },
     description: {
       en: "Updates via Facebook, Messenger, or email. You don't have to ask – we proactively notify you at every step until your package arrives.",
-      vi: "Cập nhật qua Facebook, Messenger hoặc email. Không cần bạn hỏi – THG chủ động thông báo từng bước đến khi hàng gõ cửa nhà bạn.",
+      vi: "Cập nhật qua Facebook, Messenger hoặc email. Không cần bạn hỏi – TH Group chủ động thông báo từng bước đến khi hàng gõ cửa nhà bạn.",
       zh: "通过Facebook、Messenger或邮件更新。无需您询问——我们在每个步骤主动通知您。",
     },
   },
@@ -342,7 +342,7 @@ const shippingLanes: BaseBlock[] = [
         { en: "Higher cost per kg vs. standard air", vi: "Giá cao hơn line thường", zh: "每公斤成本高于标准空运" },
         { en: "Best for: time-sensitive, lightweight, high-value items", vi: "Phù hợp: hàng khẩn, nhẹ, giá trị cao", zh: "适合：时效性强、轻量、高价值物品" },
       ],
-      note: { en: "Contact THG for exact express quote", vi: "Liên hệ THG để được báo giá express chính xác", zh: "联系THG获取准确快递报价" },
+      note: { en: "Contact TH Group for exact express quote", vi: "Liên hệ TH Group để được báo giá express chính xác", zh: "联系TH Group获取准确快递报价" },
     },
     title: {
       en: "DHL / Express – Fastest option",
@@ -384,16 +384,16 @@ const policies: BaseBlock[] = [
     payload: {
       tag: { en: "Compensation Policy", vi: "Chính sách đền bù", zh: "赔偿政策" },
       items: [
-        { en: "✅ Delayed 20+ BSD due to THG error → 100% shipping refund", vi: "✅ Chậm hơn 20 ngày làm việc do lỗi THG → Hoàn 100% phí vận chuyển", zh: "✅ 因THG失误延迟20+工作日 → 100%退运费" },
+        { en: "✅ Delayed 20+ BSD due to TH Group error → 100% shipping refund", vi: "✅ Chậm hơn 20 ngày làm việc do lỗi TH Group → Hoàn 100% phí vận chuyển", zh: "✅ 因TH Group失误延迟20+工作日 → 100%退运费" },
         { en: "✅ Lost / damaged small package → Up to $20–$50/order compensation", vi: "✅ Hàng lẻ thất lạc, hư hỏng → Đền bù tối đa $20–$50/đơn", zh: "✅ 小包丢失/损坏 → 最高$20-$50/单赔偿" },
         { en: "✅ Bulk goods lost in transit → $5/kg compensation", vi: "✅ Hàng lô mất trong vận chuyển → Bồi thường $5/kg", zh: "✅ 散货运输中丢失 → $5/kg赔偿" },
         { en: "✅ Refund to account within 15 business days", vi: "✅ Hoàn tiền về tài khoản trong vòng 15 ngày làm việc", zh: "✅ 15个工作日内退款到账" },
       ],
     },
     title: {
-      en: "THG compensates if things go wrong",
-      vi: "THG cam kết bồi thường nếu có sự cố",
-      zh: "THG出问题时赔偿",
+      en: "TH Group compensates if things go wrong",
+      vi: "TH Group cam kết bồi thường nếu có sự cố",
+      zh: "TH Group出问题时赔偿",
     },
     description: { en: "", vi: "", zh: "" },
   },
@@ -427,7 +427,7 @@ const policies: BaseBlock[] = [
         { en: "📌 Delivery times are estimates – excludes weekends, holidays & force majeure", vi: "📌 Thời gian giao hàng là ước tính – không tính cuối tuần, lễ, bất khả kháng", zh: "📌 交货时间为估计值——不含周末、节假日和不可抗力" },
         { en: "📌 Customer is responsible for accurate goods declaration", vi: "📌 Khách hàng chịu trách nhiệm khai báo đúng thông tin hàng hóa", zh: "📌 客户负责准确申报货物信息" },
         { en: "📌 Tracking inactive 21+ days → investigated as lost", vi: "📌 Tracking quá 21 ngày không hoạt động → xem xét thất lạc", zh: "📌 追踪21+天无更新 → 视为丢失调查" },
-        { en: "📌 THG does not offer return-to-Vietnam / China service", vi: "📌 THG không cung cấp dịch vụ trả hàng về Việt Nam / Trung Quốc", zh: "📌 THG不提供退回越南/中国服务" },
+        { en: "📌 TH Group does not offer return-to-Vietnam / China service", vi: "📌 TH Group không cung cấp dịch vụ trả hàng về Việt Nam / Trung Quốc", zh: "📌 TH Group不提供退回越南/中国服务" },
         { en: "📌 Fragile goods: customer must ensure adequate protective packaging", vi: "📌 Hàng dễ vỡ: khách hàng tự đảm bảo đóng gói chống sốc", zh: "📌 易碎品：客户须确保充分防护包装" },
       ],
     },
@@ -446,7 +446,7 @@ const policies: BaseBlock[] = [
       items: [
         { en: "⏱️ Lost goods: claim within 2 months of ship date", vi: "⏱️ Mất hàng: Khiếu nại trong vòng 2 tháng kể từ ngày ship", zh: "⏱️ 丢失货物：发货日起2个月内索赔" },
         { en: "⏱️ Damaged / price disputes: claim within 3 days of delivery", vi: "⏱️ Hư hỏng / giá cước: Trong vòng 3 ngày nhận hàng", zh: "⏱️ 损坏/价格争议：收货3天内索赔" },
-        { en: "⚡ THG resolves claims within 7–20 business days", vi: "⚡ THG xử lý khiếu nại trong vòng 7–20 ngày làm việc", zh: "⚡ THG在7-20个工作日内解决索赔" },
+        { en: "⚡ TH Group resolves claims within 7–20 business days", vi: "⚡ TH Group xử lý khiếu nại trong vòng 7–20 ngày làm việc", zh: "⚡ TH Group在7-20个工作日内解决索赔" },
         { en: "💬 Contact directly via Facebook or Hotline for fastest support", vi: "💬 Liên hệ trực tiếp qua Facebook hoặc Hotline để được hỗ trợ nhanh nhất", zh: "💬 通过Facebook或热线直接联系获取最快支持" },
       ],
     },

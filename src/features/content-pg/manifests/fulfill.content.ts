@@ -1,4 +1,4 @@
-// Versioned, NON-EXECUTABLE content manifest — the 14 low-risk THG Fulfill roles preserved from the
+// Versioned, NON-EXECUTABLE content manifest — the 14 low-risk TH Group Fulfill roles preserved from the
 // superseded PR #70 seed. This is IMPORTER INPUT, not SQL: it is validated through the kind registry
 // and imported transactionally by the content importer against the PostgreSQL data plane. Text is
 // mirrored verbatim from the merged Next landing fallback (localized-content.ts); nothing runs on load.
@@ -207,15 +207,15 @@ export const FULFILL_CONTENT_MANIFEST: ContentManifest = {
       localizations: {
         vi: t(
           null,
-          "Không cấp báo giá tự động. Mô tả sản phẩm và nhu cầu — đội ngũ THG sẽ thiết kế luồng vận hành phù hợp và liên hệ trực tiếp.",
+          "Không cấp báo giá tự động. Mô tả sản phẩm và nhu cầu — đội ngũ TH Group sẽ thiết kế luồng vận hành phù hợp và liên hệ trực tiếp.",
         ),
         en: t(
           null,
-          "No automated quotes. Describe your product and needs — the THG team designs the right operational flow and contacts you directly.",
+          "No automated quotes. Describe your product and needs — the TH Group team designs the right operational flow and contacts you directly.",
         ),
         zh: t(
           null,
-          "不提供自动报价。描述您的产品与需求——THG团队将设计合适的运营流程并直接联系您。",
+          "不提供自动报价。描述您的产品与需求——TH Group团队将设计合适的运营流程并直接联系您。",
         ),
       },
     },

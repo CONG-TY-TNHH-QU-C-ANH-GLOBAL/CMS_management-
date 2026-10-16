@@ -87,7 +87,7 @@ export function TestimonialDialog({ open, onOpenChange, onSaved, locale, row }: 
               value={quote}
               onChange={(e) => setQuote(e.target.value)}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              placeholder="THG đã giúp shop tôi giảm 30% chi phí ship..."
+              placeholder="TH Group đã giúp shop tôi giảm 30% chi phí ship..."
               disabled={pending}
               maxLength={2000}
             />

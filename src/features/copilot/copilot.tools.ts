@@ -197,7 +197,7 @@ function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
 }
 
 const DESCRIPTIONS: Record<ToolName, string> = {
-  list_services: "Liệt kê toàn bộ services (THG Fulfill / Express / Warehouse / Order). Trả về id, status, gallery, videos, products kèm tất cả i18n.",
+  list_services: "Liệt kê toàn bộ services (TH Group Fulfill / Express / Warehouse / Order). Trả về id, status, gallery, videos, products kèm tất cả i18n.",
   list_faqs: "Lấy danh sách FAQ theo scope (default 'home'). Trả về id, locale, question, answer, position.",
   list_testimonials: "Lấy toàn bộ testimonials (đánh giá khách hàng).",
   list_contact_locations: "Lấy toàn bộ contact locations (văn phòng, kho, hotline, email).",

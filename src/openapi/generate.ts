@@ -24,7 +24,7 @@ import "./paths";
 // explicit non-JSON exclusion, and src/openapi/public-surface.test.ts fails
 // the build otherwise.
 const INFO = {
-  title: "THG CMS API",
+  title: "TH Group CMS API",
   version: "1.1.0",
   description:
     "Public API consumed by THG_landingpage. Covers content (FAQ, " +

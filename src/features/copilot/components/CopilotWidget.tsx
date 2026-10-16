@@ -287,7 +287,7 @@ export function CopilotWidget() {
                 <Bot className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold leading-tight">THG Copilot</div>
+                <div className="text-sm font-semibold leading-tight">TH Group Copilot</div>
                 <div className="text-[10px] text-muted-foreground leading-tight">
                   {budget
                     ? `${budget.used_in.toLocaleString()} / ${budget.limit_in.toLocaleString()} token`

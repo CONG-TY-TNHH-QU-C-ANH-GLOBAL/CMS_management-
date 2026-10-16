@@ -1,5 +1,5 @@
 // Compatibility mapper: normalized published rows → the EXISTING public service-block DTO consumed by
-// legacy THG Order and Next THG Fulfill. Adds `block_key` as a first-class field (additive) while the
+// legacy TH Group Order and Next TH Group Fulfill. Adds `block_key` as a first-class field (additive) while the
 // `payload` is rebuilt per-kind by the registry's explicit mapper plus the injected `key` (Fulfill
 // currently reads payload.key). The landing never sees the V2 database model.
 import { PUBLIC_PAYLOAD, isKnownKind } from "./content.kinds";

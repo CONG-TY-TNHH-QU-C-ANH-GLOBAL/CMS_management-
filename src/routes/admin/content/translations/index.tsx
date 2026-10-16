@@ -18,7 +18,7 @@ type Locale = "en" | "vi" | "zh";
 const LOCALES: Locale[] = ["en", "vi", "zh"];
 
 export const Route = createFileRoute("/admin/content/translations/")({
-  head: () => ({ meta: [{ title: "UI Translations — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "UI Translations — TH Group Content OS" }] }),
   loader: () => listAllTranslationsFn(),
   component: TranslationsPage,
 });

@@ -30,7 +30,7 @@ const SB_FIELDS = [
 ] as const;
 
 export const Route = createFileRoute("/admin/content/service-blocks/")({
-  head: () => ({ meta: [{ title: "Service blocks — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Service blocks — TH Group Content OS" }] }),
   loader: () => listAllServiceBlocksFn(),
   component: ServiceBlocksPage,
 });

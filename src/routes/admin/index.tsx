@@ -19,7 +19,7 @@ import { Card, CardHeader, PageContainer } from "@/components/cms/ui";
 import { getDashboardSummaryFn, type DashboardSummary } from "@/features/dashboard/dashboard.actions";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Dashboard — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — TH Group Content OS" }] }),
   loader: () => getDashboardSummaryFn(),
   component: Dashboard,
 });

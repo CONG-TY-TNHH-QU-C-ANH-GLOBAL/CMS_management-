@@ -396,7 +396,7 @@ test("services keeps all three status values even though archived is filtered se
         position: 1,
         icon: null,
         status: "live",
-        name: "THG Fulfill",
+        name: "TH Group Fulfill",
         tagline: null,
         hero_eyebrow: null,
         hero_title: null,
