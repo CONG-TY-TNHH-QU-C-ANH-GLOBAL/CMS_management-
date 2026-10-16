@@ -395,7 +395,7 @@ function TelegramPage() {
             </div>
             {data.channels.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                Chưa có kênh nào. Thêm kênh đầu tiên (vd. THG-Ops, kind=ops) để bắt đầu nhận lead.
+                Chưa có kênh nào. Thêm kênh đầu tiên (vd. TH Group Ops, kind=ops) để bắt đầu nhận lead.
               </div>
             ) : (
               <div className="overflow-x-auto -mx-5">
@@ -816,7 +816,7 @@ function ChannelDialog({
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="vd. THG-Ops"
+              placeholder="vd. TH Group Ops"
               className="mt-1 w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </label>
