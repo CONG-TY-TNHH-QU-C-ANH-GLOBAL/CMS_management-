@@ -18,7 +18,7 @@ import {
 import { toMediaUrl } from "@/features/partners/partners.media";
 
 export const Route = createFileRoute("/admin/content/leadership/")({
-  head: () => ({ meta: [{ title: "Leadership — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Leadership — TH Group Content OS" }] }),
   loader: () => listLeadershipFn(),
   component: LeadershipPage,
 });

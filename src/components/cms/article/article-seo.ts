@@ -39,7 +39,7 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
   const words = [
     ...new Intl.Segmenter(input.locale || "vi", { granularity: "word" }).segment(prose),
   ].filter((s) => s.isWordLike).length;
-  const title = (input.seoTitle?.trim() || `${input.title.trim()} — THG Fulfill`).trim();
+  const title = (input.seoTitle?.trim() || `${input.title.trim()} — TH Group Fulfill`).trim();
   const description = input.description?.trim() || "";
   const titleLength = [...title].length;
   const descriptionLength = [...description].length;
@@ -112,7 +112,7 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
       label: "Liên kết nội bộ",
       weight: 10,
       passed: internal,
-      hint: "Thêm liên kết tới bài viết hoặc dịch vụ THG có liên quan.",
+      hint: "Thêm liên kết tới bài viết hoặc dịch vụ TH Group có liên quan.",
     },
     {
       id: "alt",

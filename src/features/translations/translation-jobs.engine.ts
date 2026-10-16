@@ -96,13 +96,13 @@ async function translateChunk(
           {
             role: "system",
             content:
-              `You localize cross-border fulfilment content for THG Fulfill. Translate the ` +
+              `You localize cross-border fulfilment content for TH Group Fulfill. Translate the ` +
               `user's markdown into ${LOCALE_NAMES[targetLocale]}. STRICT RULES:\n` +
               `- Preserve ALL markdown structure exactly: ## headings, ### subheadings, ` +
               `- bullets, [text](url) links, blank lines, 🚨/⚠/📌 callout prefixes.\n` +
               `- Keep verbatim (do NOT translate): numbers, prices, currency codes/symbols, ` +
               `country codes, dates, URLs, weights/dimensions, and proper nouns/acronyms ` +
-              `(THG, Yunexpress, IOSS, USPS, DHL, Evri, VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
+              `(TH Group, Yunexpress, IOSS, USPS, DHL, Evri, VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
               `- Translate naturally and professionally for a seller audience.\n` +
               `- Output ONLY the translated markdown — no preamble, no code fences.`,
           },

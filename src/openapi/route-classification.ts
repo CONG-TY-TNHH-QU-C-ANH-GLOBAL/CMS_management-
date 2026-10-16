@@ -296,7 +296,7 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
   "v1/(public)/service-blocks/index.ts": read(
     "/api/v1/service-blocks",
     "content",
-    `${LANDING} THG Order + Next service routes`,
+    `${LANDING} TH Group Order + Next service routes`,
   ),
   "v1/(public)/services/index.ts": read("/api/v1/services", "content", `${LANDING} service routes`),
   "v1/(public)/shipping-routes/index.ts": read(

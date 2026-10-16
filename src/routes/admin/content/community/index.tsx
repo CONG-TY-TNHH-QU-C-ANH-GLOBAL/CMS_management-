@@ -24,7 +24,7 @@ import {
 } from "@/features/community/community.actions";
 
 export const Route = createFileRoute("/admin/content/community/")({
-  head: () => ({ meta: [{ title: "Cộng đồng (Q&A) — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Cộng đồng (Q&A) — TH Group Content OS" }] }),
   loader: () => listCommunityQuestionsFn(),
   component: CommunityModerationPage,
 });
@@ -123,7 +123,7 @@ function CommunityModerationPage() {
                             value={draftAnswer}
                             onChange={(e) => setDraftAnswer(e.target.value)}
                             rows={5}
-                            placeholder="Câu trả lời chính thức của chuyên gia THG (markdown)…"
+                            placeholder="Câu trả lời chính thức của chuyên gia TH Group (markdown)…"
                             className="w-full text-sm rounded-md border border-border bg-background p-2"
                           />
                           <label className="flex items-center gap-2 text-xs">
@@ -133,7 +133,7 @@ function CommunityModerationPage() {
                               onChange={(e) => setDraftVerified(e.target.checked)}
                             />
                             <span>
-                              Đánh dấu "Verified by THG" — bắt buộc có câu trả lời chuyên gia; chỉ khi đó trang mới được Google index
+                              Đánh dấu "Verified by TH Group" — bắt buộc có câu trả lời chuyên gia; chỉ khi đó trang mới được Google index
                             </span>
                           </label>
                           <div className="flex gap-2">
@@ -156,7 +156,7 @@ function CommunityModerationPage() {
                         q.expert_answer && (
                           <div className="mt-2 text-sm leading-relaxed border-l-2 border-emerald-400 pl-3 whitespace-pre-wrap">
                             <span className="text-[10px] font-semibold text-emerald-700 block mb-1">
-                              THG EXPERT ANSWER
+                              TH Group EXPERT ANSWER
                             </span>
                             {q.expert_answer}
                           </div>

@@ -145,15 +145,15 @@ const INTEGRATIONS: IntegrationSeed[] = [
 ];
 
 const MARQUEE_IMAGES = [
-  { position: 1, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-10-1-20250729095528-mkcfd.jpg",         alt: "THG warehouse PA — packing area 10" },
-  { position: 2, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-11-1-20250729095528-nzruq.jpg",         alt: "THG warehouse PA — packing area 11" },
-  { position: 3, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-14-1-20250729095528-dcsxm.jpg",         alt: "THG warehouse PA — packing area 14" },
-  { position: 4, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/1-20250724024641-4oczs.png",                   alt: "THG warehouse PA — overview" },
-  { position: 5, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-13-20250724024632-bt6u-.jpg",           alt: "THG warehouse PA — packing area 13" },
-  { position: 6, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_9873-20250801074610-q-tfu.jpg",            alt: "THG warehouse — fulfillment workflow" },
-  { position: 7, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_9988-20250801074609-jjvij.jpg",            alt: "THG warehouse — outbound packages" },
-  { position: 8, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/retouch_2025072518361201-20250801074608-tsi9a.jpg", alt: "THG warehouse — staff at work" },
-  { position: 9, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_7181-20250801190217-bvrod.jpg",            alt: "THG warehouse — pallet area" },
+  { position: 1, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-10-1-20250729095528-mkcfd.jpg",         alt: "TH Group warehouse PA — packing area 10" },
+  { position: 2, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-11-1-20250729095528-nzruq.jpg",         alt: "TH Group warehouse PA — packing area 11" },
+  { position: 3, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-14-1-20250729095528-dcsxm.jpg",         alt: "TH Group warehouse PA — packing area 14" },
+  { position: 4, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/1-20250724024641-4oczs.png",                   alt: "TH Group warehouse PA — overview" },
+  { position: 5, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/kho-my-13-20250724024632-bt6u-.jpg",           alt: "TH Group warehouse PA — packing area 13" },
+  { position: 6, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_9873-20250801074610-q-tfu.jpg",            alt: "TH Group warehouse — fulfillment workflow" },
+  { position: 7, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_9988-20250801074609-jjvij.jpg",            alt: "TH Group warehouse — outbound packages" },
+  { position: 8, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/retouch_2025072518361201-20250801074608-tsi9a.jpg", alt: "TH Group warehouse — staff at work" },
+  { position: 9, url: "https://w.ladicdn.com/s1500x1100/67e69e24e8a7ba001127c80a/img_7181-20250801190217-bvrod.jpg",            alt: "TH Group warehouse — pallet area" },
 ];
 
 // ================================================================

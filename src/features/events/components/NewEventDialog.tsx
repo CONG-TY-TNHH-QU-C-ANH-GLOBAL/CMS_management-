@@ -106,7 +106,7 @@ export function NewEventDialog({ open, onOpenChange, onCreated }: Props) {
             onChange={(e) => onTitleChange(e.target.value)}
             required
             maxLength={200}
-            placeholder="THG x ONPOINT"
+            placeholder="TH Group x ONPOINT"
             className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm"
           />
         </label>

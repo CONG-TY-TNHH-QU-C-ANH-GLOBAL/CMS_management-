@@ -89,7 +89,7 @@ export function FaqDialog({ open, onOpenChange, onSaved, scope, locale, row }: P
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="VD: THG có hỗ trợ vận chuyển hàng dễ vỡ không?"
+              placeholder="VD: TH Group có hỗ trợ vận chuyển hàng dễ vỡ không?"
               disabled={pending}
               maxLength={500}
             />

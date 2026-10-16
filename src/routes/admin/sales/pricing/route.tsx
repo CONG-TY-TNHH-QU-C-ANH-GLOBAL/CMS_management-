@@ -4,7 +4,7 @@ import { Lock } from "lucide-react";
 import { CmsTopbar } from "@/components/app-shell/Topbar";
 
 export const Route = createFileRoute("/admin/sales/pricing")({
-  head: () => ({ meta: [{ title: "Bảng giá — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bảng giá — TH Group Content OS" }] }),
   component: PricingLayout,
 });
 

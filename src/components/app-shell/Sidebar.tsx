@@ -84,7 +84,7 @@ export function CmsSidebar() {
         </div>
         {!collapsed && (
           <div className="flex-1 min-w-0 leading-tight">
-            <div className="font-semibold text-[13px] text-white truncate">THG Content OS</div>
+            <div className="font-semibold text-[13px] text-white truncate">TH Group Content OS</div>
             <div className="text-[10.5px] text-sidebar-foreground/60 truncate">Hệ thống quản trị nội bộ</div>
           </div>
         )}

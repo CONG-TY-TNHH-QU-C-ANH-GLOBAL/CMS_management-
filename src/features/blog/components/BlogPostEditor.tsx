@@ -254,7 +254,7 @@ function PostForm({
             maxLength={100_000}
             rows={22}
             placeholder={
-              "## Câu hỏi bài viết trả lời\n\nTrả lời ngắn trước, sau đó giải thích kèm ví dụ…\n\n## Các bước / các khoản cần biết\n\n- **Ý 1**: mô tả\n- **Ý 2**: mô tả\n\n## Điều kiện áp dụng và bước tiếp theo với THG\n\n…"
+              "## Câu hỏi bài viết trả lời\n\nTrả lời ngắn trước, sau đó giải thích kèm ví dụ…\n\n## Các bước / các khoản cần biết\n\n- **Ý 1**: mô tả\n- **Ý 2**: mô tả\n\n## Điều kiện áp dụng và bước tiếp theo với TH Group\n\n…"
             }
           />
         </div>

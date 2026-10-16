@@ -21,7 +21,7 @@ const article = {
   excerpt: "For sellers",
   body_md: "## Overview\nA brief introduction.",
   category: "Operations",
-  seo_title: "Overview | THG",
+  seo_title: "Overview | TH Group",
   seo_description: "How fulfillment works",
   image_keywords: [],
 } satisfies GeneratedArticle;
@@ -205,7 +205,7 @@ describe("Blog verifier host safety", () => {
     const h = harness();
     const long = {
       ...article,
-      body_md: "a".repeat(8001) + "\nTHG guarantees delivery in 24 hours.",
+      body_md: "a".repeat(8001) + "\nTH Group guarantees delivery in 24 hours.",
     };
     const verdict = await h.verify.verifyArticle({ OPENAI_API_KEY: "test-stub" }, campaign, long);
     expect(verdict.passed).toBe(false);

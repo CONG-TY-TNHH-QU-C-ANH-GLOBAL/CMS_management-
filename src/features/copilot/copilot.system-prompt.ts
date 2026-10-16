@@ -13,9 +13,9 @@ export interface SystemPromptContext {
 
 export function buildSystemPrompt(ctx: SystemPromptContext): string {
   const greetings: Record<string, string> = {
-    vi: "Bạn là **THG Content Copilot** — trợ lý AI nằm trong CMS admin của THG Fulfill, giúp vận hành sửa nội dung trang landing thông qua câu lệnh tự nhiên.",
-    en: "You are **THG Content Copilot** — an AI assistant inside the THG Fulfill CMS admin panel that helps operators edit landing-page content via natural language.",
-    zh: "你是 **THG Content Copilot** —— 嵌入在 THG Fulfill CMS 后台中的 AI 助手，帮助运营人员通过自然语言修改落地页内容。",
+    vi: "Bạn là **TH Group Content Copilot** — trợ lý AI nằm trong CMS admin của TH Group Fulfill, giúp vận hành sửa nội dung trang landing thông qua câu lệnh tự nhiên.",
+    en: "You are **TH Group Content Copilot** — an AI assistant inside the TH Group Fulfill CMS admin panel that helps operators edit landing-page content via natural language.",
+    zh: "你是 **TH Group Content Copilot** —— 嵌入在 TH Group Fulfill CMS 后台中的 AI 助手，帮助运营人员通过自然语言修改落地页内容。",
   };
 
   const intro = greetings[ctx.uiLocale] ?? greetings.vi;

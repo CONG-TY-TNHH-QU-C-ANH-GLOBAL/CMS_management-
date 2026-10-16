@@ -91,7 +91,7 @@ const TYPE_PRESETS: Record<string, string> = {
   knowledge:
     "Format: an educational HOW-TO / knowledge guide. Use clear ## steps or concepts, actionable advice, and practical examples. Teach the reader something genuinely useful.",
   product_service:
-    "Format: a SERVICE-CATEGORY explainer. Educate the reader on the benefits, use-cases, and considerations of this service category in GENERAL terms. Do NOT invent specific THG prices, SLAs, or numbers.",
+    "Format: a SERVICE-CATEGORY explainer. Educate the reader on the benefits, use-cases, and considerations of this service category in GENERAL terms. Do NOT invent specific TH Group prices, SLAs, or numbers.",
 };
 
 function buildMessages(
@@ -115,7 +115,7 @@ function buildMessages(
     ? `\nRECENT NEWS SOURCES (base the roundup on these; cite each with its link):\n${newsContext}`
     : "";
 
-  const system = `You are a content writer for THG Fulfill — a cross-border fulfillment / print-on-demand (POD) & dropshipping service connecting Vietnam, China, and the USA. You write blog articles for the company's website aimed at Vietnamese online sellers.
+  const system = `You are a content writer for TH Group Fulfill — a cross-border fulfillment / print-on-demand (POD) & dropshipping service connecting Vietnam, China, and the USA. You write blog articles for the company's website aimed at Vietnamese online sellers.
 
 Write the article in ${localeLabel}.
 ${campaign.tone ? `Tone / style: ${campaign.tone}.` : ""}
@@ -125,7 +125,7 @@ ${depth}
 
 HARD RULES (safety / brand):
 - Output STRICT JSON only. No prose, no markdown fences. Start with { end with }.
-- Do NOT fabricate specific THG service details, prices, delivery guarantees, or statistics. Speak generally; never invent numbers about THG.
+- Do NOT fabricate specific TH Group service details, prices, delivery guarantees, or statistics. Speak generally; never invent numbers about TH Group.
 - No sensitive, political, adult, or defamatory content. Do not name or disparage competitors.
 - body_md is Markdown (headings ##, lists, bold). Target length: ${lengthWords}. Do NOT embed images.
 - slug: lowercase a-z, 0-9 and hyphens only, derived from the title, max ~80 chars.

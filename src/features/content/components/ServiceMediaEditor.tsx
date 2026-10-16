@@ -231,7 +231,7 @@ export function ServiceMediaEditor({ serviceId, gallery, videos, products }: Pro
           <div className="flex items-center justify-between mb-3">
             <CardHeader
               title={`Sản phẩm showcase (${productsList.length})`}
-              hint="Các thẻ sản phẩm hiển thị trên trang dịch vụ (chủ yếu THG_Fulfill). Để trống nếu không cần."
+              hint="Các thẻ sản phẩm hiển thị trên trang dịch vụ (chủ yếu TH Group Fulfill). Để trống nếu không cần."
             />
             <button
               type="button"

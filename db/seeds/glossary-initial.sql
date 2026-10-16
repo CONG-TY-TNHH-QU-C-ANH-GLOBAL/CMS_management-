@@ -1,7 +1,7 @@
 -- Seed initial 25 glossary terms for the AI translation pipeline.
 -- Curation rules (see docs/ai-localization-spec.md §13):
 --   ✓ Repeated domain vocabulary (terms used across 3+ pages)
---   ✓ Brand-critical phrases (THG product names)
+--   ✓ Brand-critical phrases (TH Group product names)
 --   ✓ Operational terminology (shipping / carrier specific)
 --   ✗ NO generic sentences, CTA copy, marketing lines
 --   ✗ NO numbers / prices / addresses (handled by prompt rules)
@@ -15,11 +15,11 @@
 
 -- ── brand (5) — never retranslate proper names ────────────────────────
 INSERT OR IGNORE INTO glossary (term_vi, term_en, term_zh, category, priority, notes) VALUES
-  ('THG Fulfill',    'THG Fulfill',    'THG Fulfill',    'brand', 100, 'Brand name — never translate'),
-  ('THG Express',    'THG Express',    'THG Express',    'brand', 100, 'Brand name — never translate'),
-  ('THG Warehouse',  'THG Warehouse',  'THG Warehouse',  'brand', 100, 'Brand name — never translate'),
-  ('THG Dropship',   'THG Dropship',   'THG代发',         'brand', 100, 'Brand name — ZH localized'),
-  ('THG Order',      'THG Order',      'THG代购',         'brand', 100, 'Brand name — ZH localized');
+  ('TH Group Fulfill',    'TH Group Fulfill',    'TH Group Fulfill',    'brand', 100, 'Brand name — never translate'),
+  ('TH Group Express',    'TH Group Express',    'TH Group Express',    'brand', 100, 'Brand name — never translate'),
+  ('TH Group Warehouse',  'TH Group Warehouse',  'TH Group Warehouse',  'brand', 100, 'Brand name — never translate'),
+  ('TH Group Dropship',   'TH Group Dropship',   'TH Group代发',         'brand', 100, 'Brand name — ZH localized'),
+  ('TH Group Order',      'TH Group Order',      'TH Group代购',         'brand', 100, 'Brand name — ZH localized');
 
 -- ── warehouse (4) ────────────────────────────────────────────────────
 INSERT OR IGNORE INTO glossary (term_vi, term_en, term_zh, category, priority, notes) VALUES

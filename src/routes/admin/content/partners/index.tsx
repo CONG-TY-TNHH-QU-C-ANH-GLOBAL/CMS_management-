@@ -17,7 +17,7 @@ import {
 } from "@/features/partners/partners.actions";
 
 export const Route = createFileRoute("/admin/content/partners/")({
-  head: () => ({ meta: [{ title: "Đối tác — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Đối tác — TH Group Content OS" }] }),
   loader: () => listPartnersFn(),
   component: PartnersPage,
 });

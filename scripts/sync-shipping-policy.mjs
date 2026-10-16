@@ -2,7 +2,7 @@
  * Sync shipping-route POLICY content from the master Google Sheet into D1.
  *
  * The /shipping-policy page on landing fetches shipping_routes from the CMS.
- * The authoritative policy text lives in the THG master sheet (English),
+ * The authoritative policy text lives in the TH Group master sheet (English),
  * one "Policy ..." tab per route. This script pulls those tabs, converts the
  * prose into markdown, and writes it into shipping_routes.body_md so the CMS
  * (and therefore landing) reflects the sheet.
@@ -372,13 +372,13 @@ async function translateChunkOnce(md, targetLang) {
           {
             role: "system",
             content:
-              `You localize cross-border shipping policy for THG Fulfill. Translate the ` +
+              `You localize cross-border shipping policy for TH Group Fulfill. Translate the ` +
               `user's markdown from English to ${targetLang}. STRICT RULES:\n` +
               `- Preserve ALL markdown structure exactly: ## headings, ### subheadings, ` +
               `- bullets, [text](url) links, blank lines.\n` +
               `- Keep verbatim (do NOT translate): numbers, prices, currency codes/symbols ` +
               `($ € £ NOK CHF RMB ₫), country codes (US, EU, UK...), dates, URLs, weights/` +
-              `dimensions, and proper nouns/acronyms (THG, Yunexpress, IOSS, USPS, DHL, Evri, ` +
+              `dimensions, and proper nouns/acronyms (TH Group, Yunexpress, IOSS, USPS, DHL, Evri, ` +
               `VAT, GST, CE, APO/FPO, SKU, HS, VOEC).\n` +
               `- Translate naturally and professionally for a seller audience.\n` +
               `- Output ONLY the translated markdown — no preamble, no code fences.`,

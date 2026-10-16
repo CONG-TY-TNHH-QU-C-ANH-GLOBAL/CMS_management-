@@ -16,7 +16,7 @@ import {
 } from "@/features/content/content.actions";
 
 export const Route = createFileRoute("/admin/content/marketplaces/")({
-  head: () => ({ meta: [{ title: "Sàn thương mại — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Sàn thương mại — TH Group Content OS" }] }),
   loader: () => listIntegrationsFn(),
   component: MarketplacesPage,
 });

@@ -38,11 +38,11 @@ const FAQ_FIELDS = [
  *  `useCmsFaqs(language, "<scope-id>")` with that scope id. */
 const SCOPE_OPTIONS: { id: string; label: string; routeHint: string }[] = [
   { id: "home", label: "Trang chủ", routeHint: "/" },
-  { id: "order", label: "THG Order", routeHint: "/thg-order" },
+  { id: "order", label: "TH Group Order", routeHint: "/thg-order" },
 ];
 
 export const Route = createFileRoute("/admin/content/faqs/")({
-  head: () => ({ meta: [{ title: "FAQ — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "FAQ — TH Group Content OS" }] }),
   loader: async () => {
     const [faqsRes, transRes] = await Promise.all([listAllFaqsFn(), listAllFaqTranslationsFn()]);
     return { faqs: faqsRes.faqs, translations: transRes.rows };

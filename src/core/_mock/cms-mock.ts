@@ -1,4 +1,4 @@
-// Mock data cho THG Content OS (CMS prototype) — bám theo thgfulfill.com
+// Mock data cho TH Group Content OS (CMS prototype) — bám theo thgfulfill.com
 
 export const CURRENT_USER = {
   name: "Minh Nguyễn",
@@ -42,9 +42,9 @@ export const BLOGS = [
 ];
 
 export const SERVICES = [
-  { id: "thg-fulfill", name: "THG Fulfill", icon: "📦", tagline: "Ecosystem A-Z, POD printing VN/CN/US", priceFrom: "$2.50", routes: 12, status: "active" },
-  { id: "thg-express", name: "THG Express", icon: "✈️", tagline: "Air freight VN/CN → US/UK 5–8 ngày", priceFrom: "$4.20/kg", routes: 8, status: "active" },
-  { id: "thg-warehouse", name: "THG Warehouse", icon: "🏭", tagline: "US domestic fulfill từ $1.2", priceFrom: "$1.20", routes: 4, status: "active" },
+  { id: "thg-fulfill", name: "TH Group Fulfill", icon: "📦", tagline: "Ecosystem A-Z, POD printing VN/CN/US", priceFrom: "$2.50", routes: 12, status: "active" },
+  { id: "thg-express", name: "TH Group Express", icon: "✈️", tagline: "Air freight VN/CN → US/UK 5–8 ngày", priceFrom: "$4.20/kg", routes: 8, status: "active" },
+  { id: "thg-warehouse", name: "TH Group Warehouse", icon: "🏭", tagline: "US domestic fulfill từ $1.2", priceFrom: "$1.20", routes: 4, status: "active" },
 ];
 
 // Service detail pages
@@ -56,7 +56,7 @@ export const SERVICE_PAGES: Record<string, {
   "thg-fulfill": {
     hero: {
       eyebrow: "Fulfill Ecosystem A-Z",
-      title: "THG Fulfill — POD printing VN, CN & USA",
+      title: "TH Group Fulfill — POD printing VN, CN & USA",
       sub: "POD printing tại Vietnam, China, USA với base price cạnh tranh. Hỗ trợ dropship trending products.",
       ctaText: "Tìm hiểu thêm",
       ctaUrl: "/thg-fulfill",
@@ -75,7 +75,7 @@ export const SERVICE_PAGES: Record<string, {
   "thg-express": {
     hero: {
       eyebrow: "International Shipping",
-      title: "THG Express — Air freight chuyên tuyến",
+      title: "TH Group Express — Air freight chuyên tuyến",
       sub: "Tuyến chuyên dụng VN/CN → US/UK. Pricing minh bạch, real-time order tracking.",
       ctaText: "Xem bảng giá",
       ctaUrl: "/thg-express",
@@ -88,13 +88,13 @@ export const SERVICE_PAGES: Record<string, {
     ],
     faqs: [
       { q: "Có ship hàng pin lithium không?", a: "Có, theo quy định IATA, cần khai báo trước." },
-      { q: "Tracking realtime ở đâu?", a: "Dashboard THG OMS hoặc qua API webhook." },
+      { q: "Tracking realtime ở đâu?", a: "Dashboard TH Group OMS hoặc qua API webhook." },
     ],
   },
   "thg-warehouse": {
     hero: {
       eyebrow: "US Warehousing",
-      title: "THG Warehouse — Fulfill từ Mỹ chỉ $1.2",
+      title: "TH Group Warehouse — Fulfill từ Mỹ chỉ $1.2",
       sub: "US domestic fulfillment từ kho PA & NC. Free inbound, 90-day storage. OMS/WMS integrated.",
       ctaText: "Đăng ký kho",
       ctaUrl: "/thg-warehouse",
@@ -116,12 +116,12 @@ export const SERVICE_PAGES: Record<string, {
 export const LANDING_SECTIONS = [
   { id: "hero", title: "Hero Section", desc: "Tiêu đề chính, sub-headline, CTA, ảnh nền 3D globe", fields: 6, lastEdit: "2 giờ trước", status: "review" },
   { id: "trust", title: "Trust Bar", desc: "5-8 days delivery, 4 warehouses in 3 countries, US fulfill từ $1.2", fields: 8, lastEdit: "1 tuần trước", status: "live" },
-  { id: "services", title: "Services Grid (A-Z)", desc: "3 service cards: THG Fulfill, THG Express, THG Warehouse", fields: 12, lastEdit: "3 ngày trước", status: "live" },
+  { id: "services", title: "Services Grid (A-Z)", desc: "3 service cards: TH Group Fulfill, TH Group Express, TH Group Warehouse", fields: 12, lastEdit: "3 ngày trước", status: "live" },
   { id: "about", title: "About + YouTube", desc: "Embed video, end-to-end fulfillment ASEAN → US", fields: 5, lastEdit: "2 tuần trước", status: "live" },
   { id: "glance", title: "Services at a Glance", desc: "4 mini cards: Sourcing, POD, Warehouse, Express", fields: 8, lastEdit: "5 ngày trước", status: "live" },
   { id: "personas", title: "Who We Serve", desc: "New / Scaling / Team / Brand & DTC sellers", fields: 8, lastEdit: "2 tuần trước", status: "live" },
   { id: "process", title: "How It Works (4 steps)", desc: "Register → Ship to warehouse → Process → Deliver", fields: 16, lastEdit: "2 tuần trước", status: "live" },
-  { id: "advantages", title: "Why THG (6 advantages)", desc: "Cost, Fast delivery, Coverage, Reliability, Tech, Support", fields: 18, lastEdit: "1 tháng trước", status: "live" },
+  { id: "advantages", title: "Why TH Group (6 advantages)", desc: "Cost, Fast delivery, Coverage, Reliability, Tech, Support", fields: 18, lastEdit: "1 tháng trước", status: "live" },
   { id: "marketplaces", title: "Marketplaces Sync", desc: "Etsy, Amazon, TikTok Shop, eBay, Shopify, Woo", fields: 12, lastEdit: "1 tháng trước", status: "live" },
   { id: "testimonials", title: "Customer Reviews", desc: "4 reviews từ POD/Dropship/Brand sellers", fields: 16, lastEdit: "3 tuần trước", status: "live" },
   { id: "faq", title: "FAQ Preview", desc: "5 câu Q&A xuất hiện trên homepage", fields: 10, lastEdit: "2 tuần trước", status: "live" },
@@ -140,19 +140,19 @@ export const HERO_DEFAULT = {
   ctaSecondary: "Learn More",
 };
 
-// Pricing — international air freight (THG Express)
+// Pricing — international air freight (TH Group Express)
 export const PRICING_INTL = [
-  { id: "i1", route: "VN → US (East Coast)", carrier: "THG Express Air", from: "$4.20/kg", eta: "5–8 ngày", min: "100g", max: "30kg", status: "live" },
-  { id: "i2", route: "VN → US (West Coast)", carrier: "THG Express Air", from: "$3.80/kg", eta: "4–7 ngày", min: "100g", max: "30kg", status: "live" },
-  { id: "i3", route: "CN → US (East Coast)", carrier: "THG Express Air", from: "$4.50/kg", eta: "5–8 ngày", min: "100g", max: "50kg", status: "live" },
-  { id: "i4", route: "CN → US (West Coast)", carrier: "THG Express Air", from: "$4.10/kg", eta: "4–6 ngày", min: "100g", max: "50kg", status: "live" },
-  { id: "i5", route: "VN → UK", carrier: "THG Express Air", from: "$5.20/kg", eta: "6–9 ngày", min: "100g", max: "20kg", status: "live" },
-  { id: "i6", route: "VN → EU (DE/FR/NL)", carrier: "THG Express Air", from: "$5.80/kg", eta: "5–8 ngày", min: "100g", max: "20kg", status: "review" },
+  { id: "i1", route: "VN → US (East Coast)", carrier: "TH Group Express Air", from: "$4.20/kg", eta: "5–8 ngày", min: "100g", max: "30kg", status: "live" },
+  { id: "i2", route: "VN → US (West Coast)", carrier: "TH Group Express Air", from: "$3.80/kg", eta: "4–7 ngày", min: "100g", max: "30kg", status: "live" },
+  { id: "i3", route: "CN → US (East Coast)", carrier: "TH Group Express Air", from: "$4.50/kg", eta: "5–8 ngày", min: "100g", max: "50kg", status: "live" },
+  { id: "i4", route: "CN → US (West Coast)", carrier: "TH Group Express Air", from: "$4.10/kg", eta: "4–6 ngày", min: "100g", max: "50kg", status: "live" },
+  { id: "i5", route: "VN → UK", carrier: "TH Group Express Air", from: "$5.20/kg", eta: "6–9 ngày", min: "100g", max: "20kg", status: "live" },
+  { id: "i6", route: "VN → EU (DE/FR/NL)", carrier: "TH Group Express Air", from: "$5.80/kg", eta: "5–8 ngày", min: "100g", max: "20kg", status: "review" },
   { id: "i7", route: "Epacket VN → US", carrier: "Epacket", from: "$8.50/kg", eta: "10–15 ngày", min: "50g", max: "2kg", status: "live" },
   { id: "i8", route: "DHL Express US", carrier: "DHL", from: "$22.00/kg", eta: "3–5 ngày", min: "100g", max: "30kg", status: "live" },
 ];
 
-// Pricing — US domestic (THG Warehouse)
+// Pricing — US domestic (TH Group Warehouse)
 export const PRICING_US = [
   { id: "u1", service: "Pick & Pack — 1 SKU", warehouse: "PA & NC", from: "$1.20/order", note: "Bao gồm label, túi shipping", status: "live" },
   { id: "u2", service: "Pick & Pack — 2-5 SKUs", warehouse: "PA & NC", from: "$1.80/order", note: "+ $0.30/SKU thêm", status: "live" },
@@ -201,11 +201,11 @@ export const APPLICANTS = [
 
 // Testimonials
 export const TESTIMONIALS = [
-  { id: "t1", name: "Nguyen Minh Tuan", role: "POD Seller • Etsy & TikTok", flag: "🇻🇳", quote: "THG Fulfill helped me grow from 50 to 500+ orders/month. Their base cost is unbeatable and support is always responsive.", rating: 5, featured: true },
+  { id: "t1", name: "Nguyen Minh Tuan", role: "POD Seller • Etsy & TikTok", flag: "🇻🇳", quote: "TH Group Fulfill helped me grow from 50 to 500+ orders/month. Their base cost is unbeatable and support is always responsive.", rating: 5, featured: true },
   { id: "t2", name: "David Chen", role: "Dropship Seller • Amazon", flag: "🇺🇸", quote: "US domestic fulfillment from $1.2/order is a real game-changer. My customers receive orders in 2–5 days instead of 2–3 weeks.", rating: 5, featured: true },
   { id: "t3", name: "Tran Thi Mai", role: "Brand Owner • Shopify", flag: "🇻🇳", quote: "Transparent pricing, no hidden fees. The packing video feature gives me peace of mind for every order shipped.", rating: 5, featured: true },
-  { id: "t4", name: "Kevin Nguyen", role: "eCommerce Team Lead", flag: "🇺🇸", quote: "We used 3 different fulfillment partners before switching to THG. One single ecosystem handling everything from POD to US warehouse. Amazing.", rating: 5, featured: true },
-  { id: "t5", name: "Sophia Park", role: "Brand Director • Etsy", flag: "🇰🇷", quote: "Print quality is consistently excellent. We've shipped 20k+ POD shirts via THG with under 0.5% defect rate.", rating: 4, featured: false },
+  { id: "t4", name: "Kevin Nguyen", role: "eCommerce Team Lead", flag: "🇺🇸", quote: "We used 3 different fulfillment partners before switching to TH Group. One single ecosystem handling everything from POD to US warehouse. Amazing.", rating: 5, featured: true },
+  { id: "t5", name: "Sophia Park", role: "Brand Director • Etsy", flag: "🇰🇷", quote: "Print quality is consistently excellent. We've shipped 20k+ POD shirts via TH Group with under 0.5% defect rate.", rating: 4, featured: false },
   { id: "t6", name: "Le Hoang Phuc", role: "TikTok Shop seller", flag: "🇻🇳", quote: "Tracking realtime + Vietnamese support 24/7 = không cần stress mỗi mùa peak.", rating: 5, featured: false },
 ];
 

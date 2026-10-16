@@ -42,7 +42,7 @@ test("a non-YouTube link alone in a paragraph stays a link", () => {
 });
 
 test("website paths point at thgfulfill.com, not the CMS origin", () => {
-  expect(html("[THG Express](/vi/thg-express)")).toContain(
+  expect(html("[TH Group Express](/vi/thg-express)")).toContain(
     'href="https://thgfulfill.com/vi/thg-express"',
   );
 });

@@ -16,7 +16,7 @@ import {
 } from "@/features/content/content.actions";
 
 export const Route = createFileRoute("/admin/content/gallery/")({
-  head: () => ({ meta: [{ title: "Banner cuộn trang chủ — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Banner cuộn trang chủ — TH Group Content OS" }] }),
   loader: () => listMarqueeImagesFn(),
   component: GalleryPage,
 });

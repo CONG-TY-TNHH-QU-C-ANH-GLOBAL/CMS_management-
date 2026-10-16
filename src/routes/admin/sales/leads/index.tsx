@@ -14,7 +14,7 @@ import {
 } from "@/features/leads/leads.actions";
 
 export const Route = createFileRoute("/admin/sales/leads/")({
-  head: () => ({ meta: [{ title: "Leads — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Leads — TH Group Content OS" }] }),
   loader: () => listLeadsFn(),
   component: LeadsPage,
 });

@@ -136,7 +136,7 @@ export function setCommunityReviewStatus(id: number, status: CommunityReviewStat
   return setStatusById("community_reviews", id, status);
 }
 
-/** Operator moderation edit: optional public gloss + the "Verified by THG"
+/** Operator moderation edit: optional public gloss + the "Verified by TH Group"
  *  trust stamp. Unlike Q&A, verifying a review needs no separate answer — the
  *  review body itself is the content (NOT NULL), so there is no invariant. */
 export async function saveCommunityReviewModeration(

@@ -42,7 +42,7 @@ const LOCALE_LABEL: Record<BlogLocale, string> = {
 };
 
 export const Route = createFileRoute("/admin/content/blogs/$slug")({
-  head: () => ({ meta: [{ title: "Bài viết — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bài viết — TH Group Content OS" }] }),
   loader: async ({ params }) => {
     // All three locales up front: switching tabs is the main interaction here,
     // and a per-tab fetch would make every switch a loading state.

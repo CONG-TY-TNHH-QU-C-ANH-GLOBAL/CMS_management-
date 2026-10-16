@@ -23,7 +23,7 @@ interface LoaderData {
 }
 
 export const Route = createFileRoute("/admin/ai/agent-jobs/")({
-  head: () => ({ meta: [{ title: "Blog Auto-Bot — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Blog Auto-Bot — TH Group Content OS" }] }),
   loader: async (): Promise<LoaderData> => {
     const { campaigns, runs } = await listBotCampaignsFn();
     return { campaigns, runs };
@@ -693,7 +693,7 @@ function CampaignDialog({
               value={guidelines}
               onChange={(e) => setGuidelines(e.target.value)}
               rows={3}
-              placeholder="vd. Không bịa số liệu về dịch vụ/giá THG. Không hứa hẹn cam kết. Không nội dung nhạy cảm/chính trị..."
+              placeholder="vd. Không bịa số liệu về dịch vụ/giá TH Group. Không hứa hẹn cam kết. Không nội dung nhạy cảm/chính trị..."
               className={areaCls}
             />
           </label>

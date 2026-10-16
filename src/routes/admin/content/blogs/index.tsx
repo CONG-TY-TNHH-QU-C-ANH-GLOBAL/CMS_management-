@@ -17,7 +17,7 @@ import {
 import { toMediaUrl } from "@/features/partners/partners.media";
 
 export const Route = createFileRoute("/admin/content/blogs/")({
-  head: () => ({ meta: [{ title: "Bài viết — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Bài viết — TH Group Content OS" }] }),
   loader: () => listBlogPostsFn(),
   component: BlogsPage,
 });

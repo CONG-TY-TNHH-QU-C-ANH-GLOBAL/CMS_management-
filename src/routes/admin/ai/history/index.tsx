@@ -4,7 +4,7 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/admin/ai/history/")({
-  head: () => ({ meta: [{ title: "Lịch sử publish — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Lịch sử publish — TH Group Content OS" }] }),
   component: HistoryPage,
 });
 

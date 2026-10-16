@@ -42,7 +42,7 @@ const LOCALE_LABEL: Record<EventLocale, string> = {
   zh: "中文",
 };
 
-/** The four ways THG has actually taken part, offered as suggestions rather than
+/** The four ways TH Group has actually taken part, offered as suggestions rather than
  *  a closed <select>: `role` is free text in the schema (migration 0043) and
  *  marketing keeps inventing new ones ("Đồng tổ chức webinar"). */
 const ROLE_SUGGESTIONS = [
@@ -242,7 +242,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               onChange={(e) => set("summary", e.target.value)}
               maxLength={500}
               rows={3}
-              placeholder="Một hoặc hai câu: sự kiện gì, THG tham gia thế nào."
+              placeholder="Một hoặc hai câu: sự kiện gì, TH Group tham gia thế nào."
               className={areaClass}
             />
           </Field>
@@ -253,7 +253,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
             onChange={(value) => set("body_md", value)}
             maxLength={60_000}
             placeholder={
-              "## Về sự kiện\n\nSự kiện diễn ra khi nào, ở đâu, dành cho ai…\n\n## THG tại sự kiện\n\n- Vai trò của THG\n- Nội dung chia sẻ\n\n## Tài liệu\n\n- [Slide trình bày](https://…)"
+              "## Về sự kiện\n\nSự kiện diễn ra khi nào, ở đâu, dành cho ai…\n\n## TH Group tại sự kiện\n\n- Vai trò của TH Group\n- Nội dung chia sẻ\n\n## Tài liệu\n\n- [Slide trình bày](https://…)"
             }
           />
         </div>
@@ -287,7 +287,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               className={inputClass}
             />
           </Field>
-          <Field label="THG tham gia với vai trò">
+          <Field label="TH Group tham gia với vai trò">
             <input
               value={draft.role}
               onChange={(e) => set("role", e.target.value)}
@@ -369,7 +369,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               value={draft.seo_title}
               onChange={(e) => set("seo_title", e.target.value)}
               maxLength={200}
-              placeholder={draft.title ? `${draft.title} | THG Fulfill` : ""}
+              placeholder={draft.title ? `${draft.title} | TH Group Fulfill` : ""}
               className={inputClass}
             />
           </Field>

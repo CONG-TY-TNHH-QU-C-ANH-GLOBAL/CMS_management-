@@ -17,7 +17,7 @@ import {
 const PAGE_SIZE = 24;
 
 export const Route = createFileRoute("/admin/content/media/")({
-  head: () => ({ meta: [{ title: "Thư viện ảnh — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Thư viện ảnh — TH Group Content OS" }] }),
   loader: () => listMediaFn({ data: { limit: PAGE_SIZE, offset: 0 } }),
   component: MediaPage,
 });

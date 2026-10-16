@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
     const { user } = await meFn();
     if (user) throw redirect({ to: search.redirect || "/" });
   },
-  head: () => ({ meta: [{ title: "Đăng nhập — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Đăng nhập — TH Group Content OS" }] }),
   component: LoginPage,
 });
 
@@ -33,7 +33,7 @@ function LoginPage() {
             <span className="text-white font-bold text-base tracking-tight">T</span>
           </div>
           <div className="leading-tight">
-            <div className="font-semibold text-[15px] text-foreground">THG Content OS</div>
+            <div className="font-semibold text-[15px] text-foreground">TH Group Content OS</div>
             <div className="text-[11px] text-muted-foreground">Hệ thống quản trị nội bộ</div>
           </div>
         </div>

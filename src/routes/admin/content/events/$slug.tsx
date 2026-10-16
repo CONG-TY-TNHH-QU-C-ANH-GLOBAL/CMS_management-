@@ -27,7 +27,7 @@ const EVENT_FIELDS = [
   { key: "summary", label: "Tóm tắt", rows: 4 },
   { key: "body_md", label: "Nội dung (Markdown)", rows: 14 },
   { key: "location", label: "Địa điểm", rows: 1 },
-  { key: "role", label: "Vai trò của THG", rows: 1 },
+  { key: "role", label: "Vai trò của TH Group", rows: 1 },
   { key: "seo_title", label: "SEO title", rows: 2 },
   { key: "seo_description", label: "SEO description", rows: 3 },
 ] as const;
@@ -40,7 +40,7 @@ interface LocaleDetail {
 }
 
 export const Route = createFileRoute("/admin/content/events/$slug")({
-  head: () => ({ meta: [{ title: "Event — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Event — TH Group Content OS" }] }),
   // All three locales up front, same as the blog editor: switching tabs is the
   // main interaction here, and a per-tab fetch would make every switch a
   // loading state.

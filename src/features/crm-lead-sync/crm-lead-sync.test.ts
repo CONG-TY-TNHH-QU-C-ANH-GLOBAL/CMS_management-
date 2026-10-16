@@ -99,11 +99,11 @@ test("retry only reopens a permanently failed CRM row", async () => {
 test("new website submissions emit consultation v2 and require a ticket receipt", async () => {
   sql.exec(`INSERT INTO leads(id,name,email,crm_projection) VALUES
     (8,'Legacy Customer','legacy@example.test','lead'),
-    (9,'THG Customer','customer@example.test','consultation');
+    (9,'TH Group Customer','customer@example.test','consultation');
     INSERT INTO crm_lead_outbox(lead_id,event_key,payload_json,next_attempt_at)
       VALUES (8,'cms:lead:8','{"schemaVersion":1}',0);`);
   await enqueueCrmLeadSync(9, {
-    name: "THG Customer",
+    name: "TH Group Customer",
     email: "customer@example.test",
     company_url: "https://shop.example.test",
     monthly_order_band: "500_1999",

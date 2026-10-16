@@ -9,7 +9,7 @@ import { UserActionsMenu } from "@/features/users/components/UserActionsMenu";
 import { listUsersFn, type Role, type UserRow } from "@/features/users/users.actions";
 
 export const Route = createFileRoute("/admin/system/users/")({
-  head: () => ({ meta: [{ title: "Người dùng — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Người dùng — TH Group Content OS" }] }),
   loader: () => listUsersFn(),
   component: UsersPage,
 });

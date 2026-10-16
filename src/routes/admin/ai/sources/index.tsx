@@ -4,7 +4,7 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import { Inbox, Send, FileText, Link2, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/admin/ai/sources/")({
-  head: () => ({ meta: [{ title: "Source Inbox — THG Content OS" }] }),
+  head: () => ({ meta: [{ title: "Source Inbox — TH Group Content OS" }] }),
   component: SourcesPage,
 });
 
