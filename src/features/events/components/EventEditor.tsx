@@ -369,7 +369,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
               value={draft.seo_title}
               onChange={(e) => set("seo_title", e.target.value)}
               maxLength={200}
-              placeholder={draft.title ? `${draft.title} | TH Group Fulfill` : ""}
+              placeholder={draft.title ? `${draft.title} | TH Group` : ""}
               className={inputClass}
             />
           </Field>

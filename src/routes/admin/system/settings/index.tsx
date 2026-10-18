@@ -85,7 +85,7 @@ function SettingsPage() {
       const payload: Record<string, string | null> = {};
       for (const [k, v] of Object.entries(form)) payload[k] = v === "" ? null : v;
       // brand_name shouldn't be null (server schema requires non-empty string)
-      if (payload.brand_name === null) payload.brand_name = "TH Group Fulfill";
+      if (payload.brand_name === null) payload.brand_name = "TH Group";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await update({ data: payload as any });
       toast.success("Đã lưu cài đặt website");
