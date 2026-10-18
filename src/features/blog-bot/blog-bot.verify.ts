@@ -89,12 +89,13 @@ async function moderate(
 }
 
 function buildJudgeMessages(campaign: BlogBotCampaignRow, articleText: string): PromptMessage[] {
-  const system = `You are a STRICT content-safety and brand reviewer for TH Group Fulfill — a cross-border fulfillment / POD / dropshipping company. You review a draft blog article before it is allowed to publish and return a JSON verdict.
+  const system = `You are a STRICT content-safety and brand reviewer for TH Group — a cross-border fulfillment / POD / dropshipping company. You review a draft blog article before it is allowed to publish and return a JSON verdict.
 
 Score 0-100 (100 = perfectly safe & on-brand). Mark safe=false if ANY high-severity issue exists.
 
 Reject / flag for these (brand & safety):
 - Fabricated specifics about TH Group's services, prices, delivery times, guarantees, or invented statistics. TH Group facts must stay general — no invented numbers.
+- The company called "TH Group Fulfill" instead of "TH Group" (low severity). "TH Group Fulfill" is correct only for the Fulfill service line.
 - False or unverifiable promises ("guaranteed", "100%", specific ROI claims).
 - Sensitive, political, adult, hateful, violent, or defamatory content; naming/disparaging competitors.
 - Legal/medical/financial advice presented as fact.

@@ -115,7 +115,7 @@ function buildMessages(
     ? `\nRECENT NEWS SOURCES (base the roundup on these; cite each with its link):\n${newsContext}`
     : "";
 
-  const system = `You are a content writer for TH Group Fulfill — a cross-border fulfillment / print-on-demand (POD) & dropshipping service connecting Vietnam, China, and the USA. You write blog articles for the company's website aimed at Vietnamese online sellers.
+  const system = `You are a content writer for TH Group — a cross-border fulfillment / print-on-demand (POD) & dropshipping service connecting Vietnam, China, and the USA. You write blog articles for the company's website aimed at Vietnamese online sellers.
 
 Write the article in ${localeLabel}.
 ${campaign.tone ? `Tone / style: ${campaign.tone}.` : ""}
@@ -126,6 +126,7 @@ ${depth}
 HARD RULES (safety / brand):
 - Output STRICT JSON only. No prose, no markdown fences. Start with { end with }.
 - Do NOT fabricate specific TH Group service details, prices, delivery guarantees, or statistics. Speak generally; never invent numbers about TH Group.
+- Call the company "TH Group". "TH Group Fulfill" is only the name of its Fulfill service line (alongside TH Group Express, TH Group Warehouse and TH Group Dropship) — use it only when that service is meant.
 - No sensitive, political, adult, or defamatory content. Do not name or disparage competitors.
 - body_md is Markdown (headings ##, lists, bold). Target length: ${lengthWords}. Do NOT embed images.
 - slug: lowercase a-z, 0-9 and hyphens only, derived from the title, max ~80 chars.
