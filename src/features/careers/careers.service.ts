@@ -4,6 +4,8 @@
 import { getDb } from "@/core/db/client";
 import { auditLog } from "@/core/db/mutations";
 
+import { overlayViJobFacts, type ViJobFacts } from "./legacy-overlay";
+
 export type CareerStatus = "open" | "closed" | "archived";
 export type CareerLocale = "en" | "vi" | "zh";
 export type ApplicantStatus = "new" | "reviewing" | "interview" | "offer" | "rejected" | "archived";
@@ -134,8 +136,9 @@ export async function listCareersJobsForPublic(filter?: {
   // leak it back onto the public site (the "closed VI job still shows in ZH"
   // bug). Collect those slugs and exclude them from the fallback.
   const viAll = await getDb()
-    .prepare(`SELECT slug, status, category FROM careers_jobs WHERE locale = 'vi'`)
-    .all<{ slug: string; status: CareerStatus; category: string | null }>();
+    .prepare(`SELECT slug, status, category, deadline, posted_at, employment_type FROM careers_jobs WHERE locale = 'vi'`)
+    .all<ViJobFacts & { slug: string }>();
+  const viBySlug = new Map((viAll.results ?? []).map((r) => [r.slug, r]));
   const viHiddenSlugs = new Set(
     (viAll.results ?? [])
       .filter(
@@ -155,9 +158,12 @@ export async function listCareersJobsForPublic(filter?: {
     .prepare(`SELECT * FROM careers_jobs sr WHERE ${legacyWhere.join(" AND ")} ORDER BY sr.position, sr.posted_at DESC`)
     .bind(...legacyBinds)
     .all<CareersJobRow>();
-  const fallback = (legacy.results ?? []).filter(
-    (r) => !viBackedSlugs.has(r.slug) && !viHiddenSlugs.has(r.slug),
-  );
+  const fallback = (legacy.results ?? [])
+    .filter((r) => !viBackedSlugs.has(r.slug) && !viHiddenSlugs.has(r.slug))
+    .map((r) => {
+      const vi = viBySlug.get(r.slug);
+      return vi ? overlayViJobFacts(r, vi) : r;
+    });
 
   return [...viBackedRows, ...fallback].sort(
     (a, b) => a.position - b.position || b.posted_at - a.posted_at,
@@ -190,11 +196,12 @@ export async function getCareersJobForPublic(
   // (status) and other job-level attributes are owned by the VI source when one
   // exists. Override status/category from VI so a closed VI job whose ZH
   // translation isn't reviewed can't still serve through its stale 'open' ZH
-  // row (the public detail endpoint gates on status === 'open').
+  // row (the public detail endpoint gates on status === 'open'), and the
+  // deadline/posted_at/employment_type that feed the JobPosting markup.
   const legacy = await getCareersJob(slug, locale);
   if (legacy) {
     const viSrc = await getCareersJob(slug, "vi");
-    if (viSrc) return { ...legacy, status: viSrc.status, category: viSrc.category };
+    if (viSrc) return overlayViJobFacts(legacy, viSrc);
   }
   return legacy;
 }
