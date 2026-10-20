@@ -75,7 +75,7 @@ const { computeSourceHash } = load(resolve(directory, "../translations/translati
 
 beforeEach(() => {
   sql = new Database(":memory:");
-  for (const migration of ["0001_init", "0024_blog_post_translations", "0029_translation_jobs", "0033_blog_body_md", "0043_partners_events", "0047_seed_thg_events", "0051_event_translations_and_og_image", "0054_marketing_hub_contract"]) {
+  for (const migration of ["0001_init", "0024_blog_post_translations", "0029_translation_jobs", "0033_blog_body_md", "0043_partners_events", "0047_seed_thg_events", "0051_event_translations_and_og_image", "0054_marketing_hub_contract", "0060_article_focus_keyword"]) {
     sql.exec(readFileSync(new URL(`../../../db/migrations/${migration}.sql`, import.meta.url), "utf8"));
   }
   sql.exec("DELETE FROM event_translations; DELETE FROM events; DELETE FROM blog_post_translations; DELETE FROM blog_posts;");
@@ -113,6 +113,31 @@ test("admin can still update a live Event", async () => {
   const changed = await events.updateEvent(9, { id: 2, title: "Admin edit", status: "live" });
   expect(changed.title).toBe("Admin edit");
   expect(changed.status).toBe("live");
+});
+
+test("focus keyword survives Blog/Event create, reload, unrelated update and clearing without invalidating translations", async () => {
+  seedBlog();
+  seedEvent();
+  const sourceHash = await computeSourceHash({ title: "Source", excerpt: "", category: "", seo_title: "", seo_description: "", body_md: "# Original" });
+  sql.query("UPDATE blog_post_translations SET source_hash=? WHERE blog_post_id=1").run(sourceHash);
+  await blog.upsertBlogPost(9, { slug: "article", locale: "vi", title: "Source", focus_keyword: "kho Mỹ" });
+  expect((await blog.getBlogPost("article", "vi"))?.focus_keyword).toBe("kho Mỹ");
+  expect(sql.query("SELECT status FROM blog_post_translations WHERE blog_post_id=1").get()).toEqual({ status: "reviewed" });
+  await blog.upsertBlogPost(9, { slug: "new", locale: "en", title: "New", focus_keyword: "shipping" });
+  await blog.upsertBlogPost(9, { slug: "new", locale: "en", title: "Changed" });
+  expect((await blog.getBlogPost("new", "en"))?.focus_keyword).toBe("shipping");
+  await blog.upsertBlogPost(9, { slug: "new", locale: "en", title: "Changed", focus_keyword: null });
+  expect((await blog.getBlogPost("new", "en"))?.focus_keyword).toBeNull();
+  await events.updateEvent(9, { id: 1, focus_keyword: "webinar" });
+  expect((await events.getEvent("event", "vi"))?.focus_keyword).toBe("webinar");
+  expect(sql.query("SELECT status FROM event_translations WHERE event_id=1").get()).toEqual({ status: "reviewed" });
+  expect(await events.getLiveEvent("event", "vi")).not.toHaveProperty("focus_keyword");
+  const created = await events.createEvent(9, { slug: "new", locale: "en", title: "New", event_date: "2026-10-20", focus_keyword: "shipping" });
+  await events.updateEvent(9, { id: created.id, title: "Updated" });
+  expect((await events.getEvent("new", "en"))?.focus_keyword).toBe("shipping");
+  await events.updateEvent(9, { id: created.id, focus_keyword: null });
+  expect((await events.getEvent("new", "en"))?.focus_keyword).toBeNull();
+  expect(() => sql.exec("UPDATE events SET focus_keyword=printf('%201s','x')")).toThrow();
 });
 
 test("Event list and detail choose the same reviewed translation over legacy", async () => {

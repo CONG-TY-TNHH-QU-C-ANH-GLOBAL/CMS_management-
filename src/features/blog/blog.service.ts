@@ -21,6 +21,7 @@ export interface BlogPostRow {
   status: BlogStatus;
   seo_title: string | null;
   seo_description: string | null;
+  focus_keyword?: string | null;
   og_image_id: number | null;
   author_id: number | null;
   updated_at: number;
@@ -67,7 +68,7 @@ export async function getBlogPost(slug: string, locale: BlogLocale): Promise<Blo
     .prepare(
       `SELECT p.id, p.slug, p.locale, p.title, p.excerpt, p.body_md, p.thumbnail_media_id,
               m.r2_key AS thumbnail_url, p.category, p.published_date, p.status,
-              p.seo_title, p.seo_description, p.og_image_id, p.author_id, p.updated_at,
+              p.seo_title, p.seo_description, p.focus_keyword, p.og_image_id, p.author_id, p.updated_at,
               (SELECT COUNT(*) FROM blog_slides s WHERE s.post_id = p.id) AS slide_count
          FROM blog_posts p
          LEFT JOIN media m ON m.id = p.thumbnail_media_id
@@ -258,6 +259,7 @@ export async function upsertBlogPost(
     status?: BlogStatus;
     seo_title?: string | null;
     seo_description?: string | null;
+    focus_keyword?: string | null;
     og_image_id?: number | null;
   },
 ): Promise<BlogPostRow> {
@@ -275,6 +277,7 @@ export async function upsertBlogPost(
     if (input.status !== undefined) { fields.push("status = ?"); values.push(input.status); }
     if (input.seo_title !== undefined) { fields.push("seo_title = ?"); values.push(input.seo_title); }
     if (input.seo_description !== undefined) { fields.push("seo_description = ?"); values.push(input.seo_description); }
+    if (input.focus_keyword !== undefined) { fields.push("focus_keyword = ?"); values.push(input.focus_keyword); }
     if (input.og_image_id !== undefined) { fields.push("og_image_id = ?"); values.push(input.og_image_id); }
     fields.push("updated_by = ?", "updated_at = unixepoch()");
     values.push(actorId);
@@ -288,8 +291,8 @@ export async function upsertBlogPost(
   } else {
     await getDb()
       .prepare(
-        `INSERT INTO blog_posts (slug, locale, title, excerpt, body_md, thumbnail_media_id, category, published_date, status, seo_title, seo_description, og_image_id, author_id, updated_by, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
+        `INSERT INTO blog_posts (slug, locale, title, excerpt, body_md, thumbnail_media_id, category, published_date, status, seo_title, seo_description, focus_keyword, og_image_id, author_id, updated_by, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())`,
       )
       .bind(
         input.slug,
@@ -303,6 +306,7 @@ export async function upsertBlogPost(
         input.status ?? "draft",
         input.seo_title ?? null,
         input.seo_description ?? null,
+        input.focus_keyword ?? null,
         input.og_image_id ?? null,
         actorId,
         actorId,

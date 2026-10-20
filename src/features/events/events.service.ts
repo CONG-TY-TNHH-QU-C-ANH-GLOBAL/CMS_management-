@@ -45,6 +45,7 @@ export interface EventRow {
   status: EventStatus;
   seo_title: string | null;
   seo_description: string | null;
+  focus_keyword?: string | null;
   updated_at: number;
 }
 
@@ -54,7 +55,7 @@ export interface EventRow {
 const PUBLIC_COLUMNS =
   "id, slug, locale, title, summary, body_md, cover_media_id, og_image_id, event_date, end_date, location, role, url, video_url, seo_title, seo_description";
 
-const ADMIN_COLUMNS = `${PUBLIC_COLUMNS}, status, updated_at`;
+const ADMIN_COLUMNS = `${PUBLIC_COLUMNS}, status, updated_at, focus_keyword`;
 
 /** Fields an update may set. Single source of truth for the UPDATE builder, so
  *  adding a column to the editor cannot silently skip the persistence layer. */
@@ -73,6 +74,7 @@ const WRITABLE = [
   "status",
   "seo_title",
   "seo_description",
+  "focus_keyword",
 ] as const;
 
 export type EventWritableField = (typeof WRITABLE)[number];
@@ -246,6 +248,7 @@ export interface EventInput {
   status?: EventStatus;
   seo_title?: string | null;
   seo_description?: string | null;
+  focus_keyword?: string | null;
 }
 
 export async function createEvent(actorId: number, input: EventInput): Promise<EventRow> {
@@ -260,8 +263,8 @@ export async function createEvent(actorId: number, input: EventInput): Promise<E
     .prepare(
       `INSERT INTO events
          (slug, locale, title, summary, body_md, cover_media_id, og_image_id, event_date, end_date,
-          location, role, url, video_url, status, seo_title, seo_description, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), ?)
+          location, role, url, video_url, status, seo_title, seo_description, focus_keyword, updated_at, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), ?)
        RETURNING ${ADMIN_COLUMNS}`,
     )
     .bind(
@@ -281,6 +284,7 @@ export async function createEvent(actorId: number, input: EventInput): Promise<E
       input.status ?? "draft",
       input.seo_title ?? null,
       input.seo_description ?? null,
+      input.focus_keyword ?? null,
       actorId,
     )
     .first<EventRow>();
