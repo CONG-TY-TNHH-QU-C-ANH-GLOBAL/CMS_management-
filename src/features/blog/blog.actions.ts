@@ -69,6 +69,7 @@ const upsertSchema = z.object({
   status: STATUS.optional(),
   seo_title: z.string().max(200).nullable().optional(),
   seo_description: z.string().max(500).nullable().optional(),
+  focus_keyword: z.string().trim().max(200).nullable().optional(),
   og_image_id: z.number().int().positive().nullable().optional(),
 });
 

@@ -66,6 +66,7 @@ interface Draft {
   video_url: string;
   seo_title: string;
   seo_description: string;
+  focus_keyword: string;
   status: "draft" | "live";
   cover_media_id: number | null;
   og_image_id: number | null;
@@ -84,6 +85,7 @@ function toDraft(event: EventRow | null): Draft {
     video_url: event?.video_url ?? "",
     seo_title: event?.seo_title ?? "",
     seo_description: event?.seo_description ?? "",
+    focus_keyword: event?.focus_keyword ?? "",
     status: event?.status === "live" ? "live" : "draft",
     cover_media_id: event?.cover_media_id ?? null,
     og_image_id: event?.og_image_id ?? null,
@@ -158,6 +160,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
         video_url: orNull(draft.video_url),
         seo_title: orNull(draft.seo_title),
         seo_description: orNull(draft.seo_description),
+        focus_keyword: orNull(draft.focus_keyword),
         status: draft.status,
       };
       // A locale tab with no row yet saves as a create, so adding the EN/ZH
@@ -359,7 +362,10 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
       <Card>
         <CardHeader title="SEO & xuất bản" />
         <div className="space-y-4 p-5">
-          <SeoChecklist title={draft.title} seoTitle={draft.seo_title} description={draft.seo_description || draft.summary} slug={slug} markdown={draft.body_md} hasCover={!!draft.cover_media_id || !!parseYouTubeId(draft.video_url)} imageAlts={[]} locale={locale} kind="event" />
+          <Field label="Từ khóa chính" hint="Cụm từ tập trung tối ưu cho sự kiện; lưu cùng nội dung Event.">
+            <input aria-label="Từ khóa chính" value={draft.focus_keyword} onChange={e => set("focus_keyword", e.target.value)} maxLength={200} placeholder="Ví dụ: webinar bán hàng Amazon" className={inputClass} />
+          </Field>
+          <SeoChecklist title={draft.title} seoTitle={draft.seo_title} description={draft.seo_description || draft.summary} focusKeyword={draft.focus_keyword} slug={slug} markdown={draft.body_md} hasCover={!!draft.cover_media_id || !!parseYouTubeId(draft.video_url)} imageAlts={[...gallery.map(image => image.caption), ...(draft.cover_media_id ? [draft.title] : [])]} locale={locale} kind="event" />
           <Field
             label="SEO title"
             count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}

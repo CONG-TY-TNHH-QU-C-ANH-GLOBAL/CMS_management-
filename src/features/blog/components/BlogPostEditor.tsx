@@ -61,6 +61,7 @@ interface Draft {
   status: BlogStatus;
   seo_title: string;
   seo_description: string;
+  focus_keyword: string;
   thumbnail_media_id: number | null;
 }
 
@@ -74,6 +75,7 @@ function toDraft(post: BlogPostRow | null): Draft {
     status: post?.status ?? "draft",
     seo_title: post?.seo_title ?? "",
     seo_description: post?.seo_description ?? "",
+    focus_keyword: post?.focus_keyword ?? "",
     thumbnail_media_id: post?.thumbnail_media_id ?? null,
   };
 }
@@ -152,6 +154,7 @@ function PostForm({
           status: draft.status,
           seo_title: orNull(draft.seo_title),
           seo_description: orNull(draft.seo_description),
+          focus_keyword: orNull(draft.focus_keyword),
           thumbnail_media_id: draft.thumbnail_media_id,
         },
       });
@@ -324,7 +327,10 @@ function PostForm({
       <Card>
         <CardHeader title="SEO & xuất bản" />
         <div className="space-y-4 p-5">
-          <SeoChecklist title={draft.title} seoTitle={draft.seo_title} description={draft.seo_description || draft.excerpt} slug={slug} markdown={draft.body_md} hasCover={!!draft.thumbnail_media_id || gallery.length > 0} imageAlts={gallery.map(image => image.caption)} locale={locale} />
+          <Field label="Từ khóa chính" hint="Cụm từ bài viết muốn tập trung tối ưu. Được lưu cùng bài; không phải thẻ meta keywords.">
+            <input aria-label="Từ khóa chính" value={draft.focus_keyword} onChange={e => set("focus_keyword", e.target.value)} maxLength={200} placeholder="Ví dụ: kho fulfillment Mỹ" className={inputClass} />
+          </Field>
+          <SeoChecklist title={draft.title} seoTitle={draft.seo_title} description={draft.seo_description || draft.excerpt} focusKeyword={draft.focus_keyword} slug={slug} markdown={draft.body_md} hasCover={!!draft.thumbnail_media_id || gallery.length > 0} imageAlts={gallery.length ? gallery.map(image => image.caption) : draft.thumbnail_media_id ? [draft.title] : []} locale={locale} />
           <Field
             label="Tiêu đề trên Google"
             count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}

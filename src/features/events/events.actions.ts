@@ -85,6 +85,7 @@ const eventCreate = z.object({
   status: STATUS.optional(),
   seo_title: text(200),
   seo_description: text(300),
+  focus_keyword: z.string().trim().max(200).nullable().optional(),
 });
 
 export const createEventFn = createServerFn({ method: "POST" })
