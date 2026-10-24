@@ -97,6 +97,32 @@ describe("runDeterministicChecks on the Christmas sample", () => {
     expect(by("accessibility")).toEqual([]);
   });
 
+  test("on the bare sample the rules report exactly the known issues, nothing else", () => {
+    expect(findings.map((f) => `${f.severity}:${f.category}`)).toEqual([
+      "critical:asset",
+      "major:brand",
+      "major:form",
+      "major:price",
+      "major:price",
+      "minor:countdown",
+    ]);
+  });
+
+  test("each of the 25 referenced files, removed alone, brings the asset finding back", () => {
+    const all = referencedAssets(SAMPLE).filter((p) => p !== "index.html");
+    expect(all).toHaveLength(25);
+    for (const missing of all) {
+      const paths = new Set(["index.html", ...all.filter((p) => p !== missing)]);
+      const asset = runDeterministicChecks({ html, paths }).filter((f) => f.category === "asset");
+      expect({ missing, severities: asset.map((f) => f.severity) }).toEqual({
+        missing,
+        severities: ["critical"],
+      });
+      const name = missing.slice(missing.lastIndexOf("/") + 1);
+      expect(asset[0].evidence).toContain(name);
+    }
+  });
+
   test("with the assets present, only the content findings remain", () => {
     const complete = runDeterministicChecks({ html, paths: new Set(referencedAssets(SAMPLE)) });
     expect(complete.filter((f) => f.category === "asset")).toEqual([]);
