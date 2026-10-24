@@ -245,7 +245,7 @@ describe("process", () => {
       zip: sampleZip(),
     });
     const ai = stubAi(
-      { edits: [{ op: "replace_header", target: "h2", replacement: "none" }], notes: "" },
+      { edits: [{ op: "replace_header", target: "h1", replacement: "none" }], notes: "" },
       {
         findings: [
           {

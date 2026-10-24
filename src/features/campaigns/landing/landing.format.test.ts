@@ -101,12 +101,14 @@ const edit = (op: string, target: string, replacement = "none") => ({ op, target
 
 const candidates = findFormatCandidates(BASE.html);
 const siteHeader = candidates.header.find((h) => h.tag === "header")!;
-const topbar = candidates.header.find((h) => h.tag === "div")!;
+const TOPBAR_START = BASE.html.indexOf('<div class="topbar">');
+const TOPBAR = BASE.html.slice(TOPBAR_START, BASE.html.indexOf("</div>", TOPBAR_START) + 6);
 
 describe("format candidates on the Christmas sample", () => {
-  test("finds the page header, the promo topbar, six old-brand spots and no broken links", () => {
+  test("offers only the real site header (never the promo topbar), six old-brand spots and no broken links", () => {
+    expect(candidates.header.map((h) => [h.id, h.tag])).toEqual([["h1", "header"]]);
     expect(siteHeader.text).toContain("THG FULFILL");
-    expect(topbar.text).toContain("Mùa cao điểm Q4");
+    expect(candidates.header.some((h) => h.text.includes("Mùa cao điểm Q4"))).toBe(false);
     expect(candidates.brand).toHaveLength(6);
     expect(candidates.links).toEqual([]);
     // Buttons that already carry data-consult are not offered again.
@@ -204,7 +206,7 @@ describe("runFormatStep falls back to deterministic output", () => {
 
   test("when the AI picks two headers", async () => {
     replyWith({
-      edits: [edit("replace_header", siteHeader.id), edit("replace_header", topbar.id)],
+      edits: [edit("replace_header", siteHeader.id), edit("replace_header", "h2")],
       notes: "",
     });
     await expectFallback(/nhiều hơn một header/);
@@ -276,6 +278,48 @@ describe("runFormatStep falls back to deterministic output", () => {
     expect(report.mode).toBe("deterministic");
     expect(report.note).toContain("ANTHROPIC_API_KEY");
     expect(requests).toEqual([]);
+  });
+
+  test("the promo topbar survives a header swap byte-identically, leaving exactly one header", async () => {
+    expect(TOPBAR).toContain("Mùa cao điểm Q4 đã bắt đầu");
+    replyWith({ edits: [edit("replace_header", siteHeader.id)], notes: "" });
+    const { html, report } = await format();
+    expect(report.mode).toBe("ai");
+    expect(html.split(TOPBAR)).toHaveLength(2);
+    expect(html.match(/<header\b/g)).toHaveLength(1);
+    expect(html).toContain('<header id="thg-header">');
+  });
+
+  test("an id for the topbar (no longer offered) is rejected", async () => {
+    replyWith({ edits: [edit("replace_header", "h2")], notes: "" });
+    await expectFallback(/không tồn tại: h2/);
+  });
+
+  test("replacing one of two site headers is rejected (would leave two headers)", async () => {
+    const page = normalizeLandingHtml(
+      `<html><body><header><a href="/">Logo</a></header><nav><a href="#a">A</a></nav><section>${"x ".repeat(2000)}</section></body></html>`,
+      "x",
+    ).html;
+    const found = findFormatCandidates(page);
+    expect(found.header.map((h) => h.tag)).toEqual(["header", "nav"]);
+    expect(() =>
+      applyFormatEdits(page, found, [{ op: "replace_header", target: "h1" }], "vi"),
+    ).toThrow(/còn một header khác/);
+  });
+
+  test("a header-named strip with substantial non-nav text is rejected", async () => {
+    const promo =
+      "Giảm giá 50% toàn bộ sản phẩm Giáng sinh, chỉ trong tuần này, áp dụng cho mọi seller mới đăng ký tài khoản trước ngày 25/12. ".repeat(
+        2,
+      );
+    const page = normalizeLandingHtml(
+      `<html><body><header><a href="/">Logo</a><p>${promo}</p><nav><a href="#a">A</a></nav></header><section>${"x ".repeat(2000)}</section></body></html>`,
+      "x",
+    ).html;
+    const found = findFormatCandidates(page);
+    expect(() =>
+      applyFormatEdits(page, found, [{ op: "replace_header", target: "h1" }], "vi"),
+    ).toThrow(/quá nhiều nội dung/);
   });
 
   test("when the chosen 'header' actually holds page content", async () => {

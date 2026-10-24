@@ -76,8 +76,12 @@ export interface FormatCandidates {
 
 const CONSULT_TEXT =
   /tư vấn|báo giá|liên hệ|đăng ký|nhận ưu đãi|consult|contact|get started|get a quote|quote|咨询|联系/i;
+/** Class/id words of a site header bar. Announcement / promo strips ("topbar", "announcement",
+ *  "promo") are deliberately absent: they are page content, not navigation. */
 const HEADERISH =
-  /(?:^|[\s_-])(?:site-?header|header|navbar|nav-?bar|topnav|top-?bar|menu-?bar)(?:$|[\s_-])/i;
+  /(?:^|[\s_-])(?:site-?header|header|navbar|nav-?bar|topnav|menu-?bar)(?:$|[\s_-])/i;
+/** A replaced header may hold at most this much text outside nav/links/buttons (logo name, tagline). */
+const MAX_HEADER_PROSE = 160;
 const SCHEMELESS_THG = /^(?:www\.)?thgfulfill\.com(?:[/?#]|$)/i;
 
 /** Where the page's own header can be: from <body> to the first <main>, <section> or <h1>. */
@@ -89,6 +93,22 @@ function topRegionEnd(tags: HtmlTag[], html: string): number {
   return firstContent ? firstContent.start : Math.floor(html.length * 0.4);
 }
 
+/** Text of a header region that is NOT navigation: links, buttons and <nav> removed. Anything
+ *  substantial left over (a promo message, a headline) means the region is page content. */
+export function headerProse(markup: string): string {
+  return visibleText(
+    markup
+      .replace(/<nav\b[\s\S]*?<\/nav\s*>/gi, " ")
+      .replace(/<a\b[\s\S]*?<\/a\s*>/gi, " ")
+      .replace(/<button\b[\s\S]*?<\/button\s*>/gi, " "),
+  );
+}
+
+/**
+ * The page's own SITE header only: a <header>, an element with role="banner", a top-level <nav>,
+ * or a header-named div that holds the primary navigation (a <nav>, or at least three links).
+ * Announcement / promo strips never qualify.
+ */
 function headerCandidates(html: string, tags: HtmlTag[]): HeaderCandidate[] {
   const limit = topRegionEnd(tags, html);
   const out: HeaderCandidate[] = [];
@@ -96,12 +116,19 @@ function headerCandidates(html: string, tags: HtmlTag[]): HeaderCandidate[] {
   tags.forEach((tag, i) => {
     if (tag.kind !== "start" || tag.start >= limit || tag.start < coveredUntil) return;
     const attrs = parseAttrs(html, tag);
-    const label = `${attrValue(attrs, "class") ?? ""} ${attrValue(attrs, "id") ?? ""}`;
-    const isHeader =
-      tag.name === "header" || tag.name === "nav" || (tag.name === "div" && HEADERISH.test(label));
-    if (!isHeader) return;
     const close = matchingEnd(tags, i);
     if (close < 0) return;
+    const inner = tags.slice(i + 1, close);
+    const label = `${attrValue(attrs, "class") ?? ""} ${attrValue(attrs, "id") ?? ""}`;
+    const holdsNav =
+      inner.some((t) => t.kind === "start" && t.name === "nav") ||
+      inner.filter((t) => t.kind === "start" && t.name === "a").length >= 3;
+    const isHeader =
+      tag.name === "header" ||
+      tag.name === "nav" ||
+      attrValue(attrs, "role")?.toLowerCase() === "banner" ||
+      (tag.name === "div" && HEADERISH.test(label) && holdsNav);
+    if (!isHeader) return;
     const range = { start: tag.start, end: tags[close].end };
     coveredUntil = range.end;
     out.push({
@@ -294,7 +321,12 @@ function planEdits(
   const header = headerEdits[0] ? byId(candidates.header, headerEdits[0].target, "header") : null;
   if (header) {
     const pageText = visibleText(html).length;
-    if (header.text.length > 600 || header.text.length > pageText * 0.15) {
+    const prose = headerProse(html.slice(header.start, header.end));
+    if (
+      header.text.length > 600 ||
+      header.text.length > pageText * 0.15 ||
+      prose.length > MAX_HEADER_PROSE
+    ) {
       throw new FormatRejected(
         `Vùng header AI chọn (${header.id}) chứa quá nhiều nội dung — có thể không phải thanh điều hướng.`,
       );
@@ -370,6 +402,11 @@ export function validateFormatted(before: string, after: string, planned: Planne
   }
   if (tagSequence(expected) !== tagSequence(actual)) {
     throw new FormatRejected("Cấu trúc HTML bị thay đổi ngoài header — không áp dụng bản AI.");
+  }
+  // Exactly one site header afterwards: ours. Any site header left at the top would stack a
+  // second navigation bar under the standard one.
+  if (planned.header && headerCandidates(actual, scanTags(actual)).length > 0) {
+    throw new FormatRejected("Trang vẫn còn một header khác — không áp dụng bản AI.");
   }
 }
 
