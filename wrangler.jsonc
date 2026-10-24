@@ -40,7 +40,10 @@
 		"LANDING_HOST": "lp.thgfulfill.com",
 		"LANDING_ORIGIN": "https://lp.thgfulfill.com",
 		// Claude model for the landing AI steps; the key is the ANTHROPIC_API_KEY secret.
-		"LANDING_AI_MODEL": "claude-opus-5-5"
+		"LANDING_AI_MODEL": "claude-opus-5-5",
+		// PUBLIC Turnstile widget key (same one the landing ships as VITE_TURNSTILE_SITE_KEY).
+		// thg-lead.js renders the widget with it; the widget must allow lp.thgfulfill.com.
+		"TURNSTILE_SITE_KEY": "0x4AAAAAADN5ICQgo3Iw_ktP"
 	},
 	"d1_databases": [
 		{
