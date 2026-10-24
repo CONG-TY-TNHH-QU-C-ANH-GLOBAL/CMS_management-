@@ -343,6 +343,12 @@ describe("upload → process → publish → rollback", () => {
     );
     expect(bad.status).toBe(400);
     expect(bad.body.error).toContain("..");
+    // A corrupt deflate body is a readable 400 too, not a 500.
+    const corrupt = makeZip([{ name: "index.html", data: "<p>hello hello</p>".repeat(40) }]);
+    corrupt.fill(0xff, 40, 64);
+    const garbled = await upload("editor", corrupt);
+    expect(garbled.status).toBe(400);
+    expect(garbled.body.error).toContain("không giải nén được");
     expect(sideEffects()).toEqual(before);
   });
 

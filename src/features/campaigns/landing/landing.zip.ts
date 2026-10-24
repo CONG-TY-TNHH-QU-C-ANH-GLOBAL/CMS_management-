@@ -121,7 +121,14 @@ async function inflateRaw(data: Uint8Array, expected: number): Promise<Uint8Arra
   const out = new Uint8Array(expected);
   let written = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    let chunk: Awaited<ReturnType<typeof reader.read>>;
+    try {
+      chunk = await reader.read();
+    } catch {
+      // The platform inflater throws a bare TypeError on a corrupt stream.
+      throw new ZipError("Tệp trong ZIP bị hỏng (không giải nén được) — hãy nén lại và tải lên.");
+    }
+    const { done, value } = chunk;
     if (done) break;
     if (written + value.byteLength > expected) {
       await reader.cancel();

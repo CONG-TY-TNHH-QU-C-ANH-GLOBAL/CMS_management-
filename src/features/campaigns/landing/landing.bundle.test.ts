@@ -208,13 +208,8 @@ describe("readLandingBundle on malformed archives", () => {
   test("a corrupt deflate stream rejects instead of yielding a partial bundle", async () => {
     const zip = makeZip([{ name: "index.html", data: "<p>hello hello hello</p>".repeat(40) }]);
     zip.fill(0xff, 30 + 10, 30 + 10 + 24); // garble the start of the deflate body
-    const outcome = await readLandingBundle(zip).then(
-      () => "resolved",
-      (e: unknown) => (e instanceof Error ? e.name : "non-error"),
-    );
-    // KNOWN BUG (reported): the platform inflater's TypeError escapes as-is instead of a
-    // BundleError, so the upload route answers 500 rather than a readable message.
-    expect(outcome).not.toBe("resolved");
+    // A readable BundleError (the upload route answers 400 with it), never a raw TypeError.
+    await rejects(zip, /không giải nén được/);
   });
 
   test("hostile entry names are rejected before anything is read", async () => {
