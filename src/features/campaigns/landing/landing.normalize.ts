@@ -24,7 +24,8 @@ export function detectLang(html: string): LandingLang {
   return code === "en" || code === "zh" ? code : "vi";
 }
 
-const EXISTING_LEAD_SCRIPT = /<script\b[^>]*\bdata-thg-lead\b[^>]*>\s*<\/script>\s*/gi;
+/** The tag a previous run injected, with the whitespace injection put before it. */
+const EXISTING_LEAD_SCRIPT = /\s*<script\b[^>]*\bdata-thg-lead\b[^>]*>\s*<\/script>/gi;
 
 export function leadScriptTag(slug: string, lang: LandingLang): string {
   return `<script src="${LEAD_SCRIPT_PATH}" data-thg-lead data-slug="${slug}" data-lang="${lang}"></script>`;

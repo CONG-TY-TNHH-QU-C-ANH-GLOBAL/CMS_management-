@@ -33,12 +33,7 @@ export function landingDeps(): service.LandingDeps {
     prompts: { format: formatPrompt, audit: auditPrompt },
     auditLog,
     bumpCmsRev,
-    notifyLandingReview: (payload) =>
-      dispatchEvent({
-        event_type: "landing_review",
-        payload,
-        idempotency_key: `landing_review:${payload.version_id}`,
-      }),
+    dispatch: dispatchEvent,
     landingOrigin: landingOriginOf(env),
     adminOrigin: env.BASE_URL.replace(/\/+$/, ""),
     newVersionId,

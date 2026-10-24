@@ -34,7 +34,12 @@ export interface LandingDeps {
   prompts: { format: string; audit: string };
   auditLog: AuditLogFn;
   bumpCmsRev(): Promise<void>;
-  notifyLandingReview(payload: LandingReviewNotice): Promise<unknown>;
+  /** Telegram event bus (dispatchEvent). */
+  dispatch(input: {
+    event_type: "landing_review";
+    payload: LandingReviewPayload;
+    idempotency_key: string;
+  }): Promise<unknown>;
   /** https://lp.thgfulfill.com */
   landingOrigin: string;
   /** https://cms.thgfulfill.com */
@@ -43,8 +48,6 @@ export interface LandingDeps {
   /** YYYY-MM-DD in Asia/Ho_Chi_Minh. */
   today(): string;
 }
-
-export type LandingReviewNotice = LandingReviewPayload;
 
 export type LandingVersionStatus = "processing" | "ready" | "failed";
 
@@ -221,7 +224,7 @@ async function notifyIt(
 ) {
   const counts = countBySeverity(findings);
   try {
-    await deps.notifyLandingReview({
+    const payload: LandingReviewPayload = {
       campaign_title: campaign.title,
       campaign_slug: campaign.slug,
       version_id: version.id,
@@ -236,6 +239,12 @@ async function notifyIt(
         .map((f) => ({ severity: f.severity, message: f.message })),
       editor_url: `${deps.adminOrigin}/admin/content/campaigns/${campaign.slug}`,
       preview_url: previewUrl(deps, version),
+    };
+    // Keyed by version: re-running the checks never sends IT a second message.
+    await deps.dispatch({
+      event_type: "landing_review",
+      payload,
+      idempotency_key: `landing_review:${version.id}`,
     });
   } catch (error) {
     // The report is saved on the version either way; Telegram is best-effort.

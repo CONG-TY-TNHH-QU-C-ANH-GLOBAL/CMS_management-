@@ -165,6 +165,9 @@ export async function handleLandingRequest(
     return serveFile(request, deps, landingObjectKey(slug, second, path), path, "preview");
   }
   if (!first || !SLUG.test(first)) return notFound();
+  // Only a slug with a published landing exists on this host; anything else is a plain 404.
+  const versionId = await deps.resolveLive(first);
+  if (!versionId) return notFound();
   if (segments.length === 1) {
     // Relative asset URLs in index.html need the trailing slash.
     return respond(301, null, {
@@ -174,7 +177,5 @@ export async function handleLandingRequest(
   }
   const path = decodeFilePath(segments.slice(1));
   if (!path) return notFound();
-  const versionId = await deps.resolveLive(first);
-  if (!versionId) return notFound();
   return serveFile(request, deps, landingObjectKey(first, versionId, path), path, "live");
 }
