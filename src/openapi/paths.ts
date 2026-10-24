@@ -59,6 +59,10 @@ import {
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
 import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import { eventResponseSchema, eventsResponseSchema } from "@/features/events/events.schemas";
+import {
+  campaignResponseSchema,
+  campaignsResponseSchema,
+} from "@/features/campaigns/campaigns.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -232,6 +236,34 @@ export const eventRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(eventRouteConfig);
+
+export const campaignsRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/campaigns",
+  summary: "List live campaigns (ChÆ°Æ¡ng trÃ¬nh) for a locale",
+  description:
+    "Returns live campaigns ordered by position, then start_date descending. nav_featured and " +
+    "home_featured are effective flags: toggle on, live, and today (Asia/Ho_Chi_Minh) not after end_date.",
+  request: { query: LANG_QUERY },
+  responses: { 200: jsonResponse("Live campaign list", campaignsResponseSchema), 400: BAD_LANG },
+} as const;
+
+openApiRegistry.registerPath(campaignsRouteConfig);
+
+export const campaignRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/campaigns/{slug}",
+  summary: "Get one live campaign by slug and locale",
+  description: "Returns a campaign only while it is live; en/zh fall back to the VI copy.",
+  request: { params: SLUG_PARAM, query: LANG_QUERY },
+  responses: {
+    200: jsonResponse("Live campaign detail", campaignResponseSchema),
+    400: BAD_LANG,
+    404: errorResponse("Campaign not found or not live"),
+  },
+} as const;
+
+openApiRegistry.registerPath(campaignRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the

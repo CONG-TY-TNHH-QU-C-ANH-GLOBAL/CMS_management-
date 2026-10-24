@@ -248,6 +248,16 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
   ),
   "v1/(public)/events/index.ts": read("/api/v1/events", "events", `${LANDING} Event hub`),
   "v1/(public)/events/$slug.ts": read("/api/v1/events/{slug}", "events", `${LANDING} Event detail`),
+  "v1/(public)/campaigns/index.ts": read(
+    "/api/v1/campaigns",
+    "campaigns",
+    `${LANDING} navbar mega-menu, home feature and campaign hub`,
+  ),
+  "v1/(public)/campaigns/$slug.ts": read(
+    "/api/v1/campaigns/{slug}",
+    "campaigns",
+    `${LANDING} campaign detail`,
+  ),
   "v1/(public)/contact-locations/index.ts": read(
     "/api/v1/contact-locations",
     "content",

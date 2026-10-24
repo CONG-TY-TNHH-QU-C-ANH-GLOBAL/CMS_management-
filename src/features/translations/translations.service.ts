@@ -35,7 +35,8 @@ export type TranslateEntityType =
   | "policy"
   | "contact_location"
   | "shipping_route"
-  | "event";
+  | "event"
+  | "campaign";
 export type TargetLocale = "en" | "zh";
 
 /** Lock TTL — if an in-flight call exceeds this, the lock is considered
@@ -161,6 +162,25 @@ const ENTITY_CONFIG: Record<TranslateEntityType, EntityConfig> = {
       "seo_title",
       "seo_description",
     ],
+  },
+  campaign: {
+    translationsTable: "campaign_translations",
+    sourceFkColumn: "campaign_id",
+    sourceTable: "campaigns",
+    // Order must match CAMPAIGN_TRANSLATABLE (campaign.translation.service.ts).
+    // menu_items_json carries icon/href too; the public reader takes those from
+    // the VI row and only uses the translated title/subtitle.
+    fieldColumns: [
+      "title",
+      "summary",
+      "body_md",
+      "cta_label",
+      "nav_label",
+      "menu_items_json",
+      "seo_title",
+      "seo_description",
+    ],
+    placeholders: { menu_items_json: "[]" },
   },
 };
 

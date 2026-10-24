@@ -51,6 +51,10 @@ import {
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
 import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import { eventResponseSchema, eventsResponseSchema } from "@/features/events/events.schemas";
+import {
+  campaignResponseSchema,
+  campaignsResponseSchema,
+} from "@/features/campaigns/campaigns.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -90,6 +94,8 @@ import {
   leadershipRouteConfig,
   eventRouteConfig,
   eventsRouteConfig,
+  campaignRouteConfig,
+  campaignsRouteConfig,
   jobRouteConfig,
   jobsListRouteConfig,
   leadsRouteConfig,
@@ -211,6 +217,8 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(leadershipRouteConfig, 200, leadershipResponseSchema),
   response(eventsRouteConfig, 200, eventsResponseSchema),
   response(eventRouteConfig, 200, eventResponseSchema),
+  response(campaignsRouteConfig, 200, campaignsResponseSchema),
+  response(campaignRouteConfig, 200, campaignResponseSchema),
   response(translationsRouteConfig, 200, translationsResponseSchema),
   response(blogListRouteConfig, 200, blogListResponseSchema),
   response(blogPostRouteConfig, 200, blogPostResponseSchema),

@@ -37,6 +37,7 @@ const JSON_ENTITY_TYPES = new Set<string>([
   "careers_job",
   "blog_post",
   "event",
+  "campaign",
   "policy",
   "contact_location",
 ]);

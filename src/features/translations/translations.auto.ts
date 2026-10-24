@@ -35,6 +35,7 @@ const FK_BY_ENTITY: Record<TranslateEntityType, { table: string; fk: string }> =
   careers_job: { table: "careers_job_translations", fk: "careers_job_id" },
   blog_post: { table: "blog_post_translations", fk: "blog_post_id" },
   event: { table: "event_translations", fk: "event_id" },
+  campaign: { table: "campaign_translations", fk: "campaign_id" },
   policy: { table: "policy_translations", fk: "policy_id" },
   contact_location: { table: "contact_location_translations", fk: "contact_location_id" },
   shipping_route: { table: "shipping_route_translations", fk: "shipping_route_id" },

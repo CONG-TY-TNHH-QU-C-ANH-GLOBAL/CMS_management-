@@ -26,6 +26,7 @@ const ENTITY_TYPE = z.enum([
   "careers_job",
   "blog_post",
   "event",
+  "campaign",
   "policy",
   "contact_location",
   "shipping_route",
