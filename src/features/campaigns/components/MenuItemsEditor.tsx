@@ -27,13 +27,13 @@ export function MenuItemsEditor({ items, onChange, max = 24 }: Props) {
     onChange(items.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
   }
 
-  function move(index: number, delta: -1 | 1) {
-    const target = index + delta;
-    if (target < 0 || target >= items.length) return;
-    const next = [...items];
-    [next[index], next[target]] = [next[target], next[index]];
+  /** Swap an entry with its neighbour; the buttons are disabled at the ends. */
+  const move = (index: number, delta: -1 | 1) => {
+    const next = items.slice();
+    const [moved] = next.splice(index, 1);
+    next.splice(index + delta, 0, moved);
     onChange(next);
-  }
+  };
 
   return (
     <div>

@@ -70,22 +70,23 @@ CREATE TABLE campaign_translations (
   seo_title TEXT,
   seo_description TEXT,
 
-  status TEXT NOT NULL DEFAULT 'draft'
-    CHECK (status IN ('draft', 'reviewed', 'stale', 'failed')),
-  stale_reason TEXT CHECK (stale_reason IN (
-    'source_changed', 'prompt_changed', 'model_changed', 'manual_mark'
-  )),
-  source_locale TEXT NOT NULL DEFAULT 'vi',
+  -- Review lifecycle, same columns and CHECKs as every *_translations table
+  -- (applyTransition reads them by name, so the order here is free).
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'stale', 'failed')),
   source_hash TEXT NOT NULL,
-  source_snapshot TEXT,
-  ai_generated_at INTEGER,
-  ai_model TEXT,
-  prompt_version TEXT,
   reviewed_at INTEGER,
   reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  stale_reason TEXT CHECK (
+    stale_reason IN ('source_changed', 'prompt_changed', 'model_changed', 'manual_mark')
+  ),
+  ai_model TEXT,
+  ai_generated_at INTEGER,
+  prompt_version TEXT,
+  source_snapshot TEXT,
+  source_locale TEXT NOT NULL DEFAULT 'vi',
   in_flight_until INTEGER,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   UNIQUE (campaign_id, locale)
 );
 CREATE INDEX idx_campaign_trans_status ON campaign_translations(status);

@@ -3,7 +3,7 @@ import { ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Field, areaClass, inputClass } from "@/components/cms/article/fields";
+import { Field, inputClass } from "@/components/cms/article/fields";
 import { MarkdownEditor } from "@/components/cms/article/MarkdownEditor";
 import { MediaField } from "@/components/cms/article/MediaField";
 import { StickySaveBar } from "@/components/cms/StickySaveBar";
@@ -15,9 +15,20 @@ import {
   type CampaignRow,
   type CampaignStatus,
 } from "@/features/campaigns/campaigns.actions";
-import { effectiveFlag, parseMenuItems, vnToday } from "@/features/campaigns/campaigns.pure";
 
-import { MenuItemsEditor, type MenuItemDraft } from "./MenuItemsEditor";
+import {
+  CONTENT_FIELDS,
+  LINK_FIELDS,
+  NAV_FIELDS,
+  SEO_FIELDS,
+  draftFromRow,
+  draftProblem,
+  draftToPayload,
+  flagNote,
+  type CampaignDraft,
+} from "./campaign-draft";
+import { MenuItemsEditor } from "./MenuItemsEditor";
+import { TextFields } from "./TextFields";
 
 interface Props {
   campaign: CampaignRow;
@@ -27,63 +38,11 @@ interface Props {
   onDeleted: () => void;
 }
 
-interface Draft {
-  title: string;
-  summary: string;
-  body_md: string;
-  start_date: string;
-  end_date: string;
-  status: CampaignStatus;
-  position: number;
-  landing_path: string;
-  cta_label: string;
-  nav_featured: boolean;
-  nav_label: string;
-  nav_badge: string;
-  home_featured: boolean;
-  menu_items: MenuItemDraft[];
-  seo_title: string;
-  seo_description: string;
-  cover_media_id: number | null;
-  og_image_id: number | null;
-}
-
-function toDraft(c: CampaignRow): Draft {
-  return {
-    title: c.title,
-    summary: c.summary ?? "",
-    body_md: c.body_md ?? "",
-    start_date: c.start_date ?? "",
-    end_date: c.end_date ?? "",
-    status: c.status,
-    position: c.position,
-    landing_path: c.landing_path ?? "",
-    cta_label: c.cta_label ?? "",
-    nav_featured: c.nav_featured === 1,
-    nav_label: c.nav_label ?? "",
-    nav_badge: c.nav_badge ?? "",
-    home_featured: c.home_featured === 1,
-    menu_items: parseMenuItems(c.menu_items_json).map((item) => ({
-      ...item,
-      subtitle: item.subtitle ?? "",
-    })),
-    seo_title: c.seo_title ?? "",
-    seo_description: c.seo_description ?? "",
-    cover_media_id: c.cover_media_id,
-    og_image_id: c.og_image_id,
-  };
-}
-
-const orNull = (value: string): string | null => (value.trim() === "" ? null : value.trim());
-
-/** Why an operator toggle is on but the website does not show it. */
-function flagNote(on: boolean, draft: Draft): string | null {
-  if (!on) return null;
-  if (effectiveFlag(1, draft.status, orNull(draft.end_date), vnToday())) return null;
-  return draft.status === "live"
-    ? "Đã qua ngày kết thúc — website không còn hiển thị."
-    : "Chương trình chưa xuất bản — website chưa hiển thị.";
-}
+const STATUS_OPTIONS: { value: CampaignStatus; label: string }[] = [
+  { value: "draft", label: "Nháp — chưa hiển thị" },
+  { value: "live", label: "Xuất bản — hiển thị trên website" },
+  { value: "archived", label: "Lưu trữ — đã kết thúc, ẩn khỏi website" },
+];
 
 function ToggleRow(props: {
   label: string;
@@ -108,129 +67,87 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
   const update = useServerFn(updateCampaignFn);
   const remove = useServerFn(deleteCampaignFn);
 
-  const initial = useMemo(() => toDraft(campaign), [campaign]);
-  const [draft, setDraft] = useState<Draft>(initial);
-  const [coverPreview, setCoverPreview] = useState(coverUrl);
-  const [ogPreview, setOgPreview] = useState(ogImageUrl);
+  const initial = useMemo(() => draftFromRow(campaign), [campaign]);
+  const [draft, setDraft] = useState<CampaignDraft>(initial);
+  const [previews, setPreviews] = useState({ cover: coverUrl, og: ogImageUrl });
   const [saving, setSaving] = useState(false);
 
+  const reset = () => {
+    setDraft(initial);
+    setPreviews({ cover: coverUrl, og: ogImageUrl });
+  };
   useEffect(() => {
     setDraft(initial);
-    setCoverPreview(coverUrl);
-    setOgPreview(ogImageUrl);
+    setPreviews({ cover: coverUrl, og: ogImageUrl });
   }, [initial, coverUrl, ogImageUrl]);
 
-  const dirtyCount = (Object.keys(initial) as (keyof Draft)[]).filter(
+  const dirtyCount = (Object.keys(initial) as (keyof CampaignDraft)[]).filter(
     (key) => JSON.stringify(draft[key]) !== JSON.stringify(initial[key]),
   ).length;
 
-  function set<K extends keyof Draft>(key: K, value: Draft[K]) {
+  const set = <K extends keyof CampaignDraft>(key: K, value: CampaignDraft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+  async function run(action: () => Promise<unknown>, done: string, after: () => void) {
+    try {
+      await action();
+      toast.success(done);
+      after();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Thao tác thất bại");
+    }
   }
 
   async function onSave() {
-    if (!draft.title.trim()) {
-      toast.error("Tiêu đề bắt buộc.");
-      return;
-    }
-    if (draft.start_date && draft.end_date && draft.end_date < draft.start_date) {
-      toast.error("Ngày kết thúc phải sau ngày bắt đầu.");
-      return;
-    }
+    const problem = draftProblem(draft);
+    if (problem) return void toast.error(problem);
     setSaving(true);
-    try {
-      await update({
-        data: {
-          id: campaign.id,
-          title: draft.title.trim(),
-          summary: orNull(draft.summary),
-          body_md: orNull(draft.body_md),
-          cover_media_id: draft.cover_media_id,
-          og_image_id: draft.og_image_id,
-          start_date: orNull(draft.start_date),
-          end_date: orNull(draft.end_date),
-          status: draft.status,
-          position: draft.position,
-          landing_path: orNull(draft.landing_path),
-          cta_label: orNull(draft.cta_label),
-          nav_featured: draft.nav_featured,
-          nav_label: orNull(draft.nav_label),
-          nav_badge: orNull(draft.nav_badge),
-          home_featured: draft.home_featured,
-          menu_items: draft.menu_items.map((item) => ({
-            icon: item.icon.trim(),
-            title: item.title.trim(),
-            subtitle: orNull(item.subtitle),
-            href: item.href.trim(),
-          })),
-          seo_title: orNull(draft.seo_title),
-          seo_description: orNull(draft.seo_description),
-        },
-      });
-      toast.success("Đã lưu Chương trình");
-      onSaved();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Lưu thất bại");
-    } finally {
-      setSaving(false);
-    }
+    await run(
+      () => update({ data: draftToPayload(campaign.id, draft) }),
+      "Đã lưu Chương trình",
+      onSaved,
+    );
+    setSaving(false);
   }
 
   async function onDelete() {
     if (!confirm("Xóa Chương trình này cùng các bản dịch? Không thể hoàn tác.")) return;
-    try {
-      await remove({ data: { id: campaign.id } });
-      toast.success("Đã xóa Chương trình");
-      onDeleted();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Xóa thất bại");
-    }
+    await run(() => remove({ data: { id: campaign.id } }), "Đã xóa Chương trình", onDeleted);
   }
 
-  const publicPath = draft.landing_path.trim() || `/campaigns/${campaign.slug}`;
-  const publicUrl = publicPath.startsWith("https://")
-    ? publicPath
-    : `https://thgfulfill.com/vi${publicPath}`;
+  const detailPath = `/campaigns/${campaign.slug}`;
+  const target = draft.landing_path.trim() || detailPath;
+  const liveUrl = target.startsWith("https://") ? target : `https://thgfulfill.com/vi${target}`;
+  const fieldProps = { draft, set };
+
+  const image = (key: "cover" | "og") => ({
+    mediaId: key === "cover" ? draft.cover_media_id : draft.og_image_id,
+    previewUrl: previews[key],
+    onChange: (id: number | null, preview: string | null) => {
+      set(key === "cover" ? "cover_media_id" : "og_image_id", id);
+      setPreviews((prev) => ({ ...prev, [key]: preview }));
+    },
+  });
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader
           title="Nội dung"
-          hint={`Trang chi tiết: thgfulfill.com/vi/campaigns/${campaign.slug}`}
+          hint={`Trang chi tiết: thgfulfill.com/vi${detailPath}`}
           action={
             <a
-              href={publicUrl}
+              href={liveUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              <ExternalLink className="h-3 w-3" /> Xem trên trang thật
+              <ExternalLink className="h-3 w-3" /> Mở trang đích
             </a>
           }
         />
         <div className="space-y-4 p-5">
-          <Field label="Tiêu đề" required count={{ length: draft.title.length, max: 200 }}>
-            <input
-              value={draft.title}
-              onChange={(e) => set("title", e.target.value)}
-              maxLength={200}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="Tóm tắt"
-            count={{ length: draft.summary.length, max: 500 }}
-            hint="Hiện trên thẻ Chương trình ở trang chủ và trang danh sách."
-          >
-            <textarea
-              value={draft.summary}
-              onChange={(e) => set("summary", e.target.value)}
-              maxLength={500}
-              rows={3}
-              className={areaClass}
-            />
-          </Field>
+          <TextFields specs={CONTENT_FIELDS} {...fieldProps} />
           <MarkdownEditor
             label="Nội dung chi tiết"
             value={draft.body_md}
@@ -244,46 +161,25 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
       <Card>
         <CardHeader title="Thời gian & liên kết" />
         <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <Field label="Ngày bắt đầu">
-            <input
-              type="date"
-              value={draft.start_date}
-              onChange={(e) => set("start_date", e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="Ngày kết thúc"
-            hint="Sau ngày này (giờ Việt Nam) Chương trình tự rời thanh điều hướng và trang chủ."
-          >
-            <input
-              type="date"
-              value={draft.end_date}
-              onChange={(e) => set("end_date", e.target.value)}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="Trang đích"
-            hint="Đường dẫn nội bộ không kèm ngôn ngữ (/christmas) hoặc https://… Bỏ trống thì dùng trang chi tiết."
-          >
-            <input
-              value={draft.landing_path}
-              onChange={(e) => set("landing_path", e.target.value)}
-              maxLength={500}
-              placeholder={`/campaigns/${campaign.slug}`}
-              className={`${inputClass} font-mono`}
-            />
-          </Field>
-          <Field label="Chữ trên nút CTA" count={{ length: draft.cta_label.length, max: 80 }}>
-            <input
-              value={draft.cta_label}
-              onChange={(e) => set("cta_label", e.target.value)}
-              maxLength={80}
-              placeholder="Khám phá bộ sưu tập"
-              className={inputClass}
-            />
-          </Field>
+          {(["start_date", "end_date"] as const).map((key) => (
+            <Field
+              key={key}
+              label={key === "start_date" ? "Ngày bắt đầu" : "Ngày kết thúc"}
+              hint={
+                key === "end_date"
+                  ? "Sau ngày này (giờ Việt Nam) Chương trình tự rời thanh điều hướng và trang chủ."
+                  : undefined
+              }
+            >
+              <input
+                type="date"
+                value={draft[key]}
+                onChange={(e) => set(key, e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+          ))}
+          <TextFields specs={LINK_FIELDS} {...fieldProps} />
           <Field label="Thứ tự" hint="Số nhỏ hiện trước.">
             <input
               type="number"
@@ -299,9 +195,11 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
               onChange={(e) => set("status", e.target.value as CampaignStatus)}
               className={inputClass}
             >
-              <option value="draft">Nháp — chưa hiển thị</option>
-              <option value="live">Xuất bản — hiển thị trên website</option>
-              <option value="archived">Lưu trữ — đã kết thúc, ẩn khỏi website</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </Field>
         </div>
@@ -318,32 +216,15 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
             note={flagNote(draft.nav_featured, draft)}
           />
           {draft.nav_featured && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Tên trên menu" count={{ length: draft.nav_label.length, max: 40 }}>
-                <input
-                  value={draft.nav_label}
-                  onChange={(e) => set("nav_label", e.target.value)}
-                  maxLength={40}
-                  placeholder="Christmas"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Nhãn nhỏ (badge)" hint="Ví dụ NEW, HOT. Bỏ trống để ẩn.">
-                <input
-                  value={draft.nav_badge}
-                  onChange={(e) => set("nav_badge", e.target.value)}
-                  maxLength={16}
-                  placeholder="NEW"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-          )}
-          {draft.nav_featured && (
-            <MenuItemsEditor
-              items={draft.menu_items}
-              onChange={(items) => set("menu_items", items)}
-            />
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextFields specs={NAV_FIELDS} {...fieldProps} />
+              </div>
+              <MenuItemsEditor
+                items={draft.menu_items}
+                onChange={(items) => set("menu_items", items)}
+              />
+            </>
           )}
           <ToggleRow
             label="Hiện ở trang chủ"
@@ -358,52 +239,14 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
       <Card>
         <CardHeader title="Hình ảnh & SEO" />
         <div className="space-y-5 p-5">
-          <MediaField
-            label="Ảnh bìa"
-            mediaId={draft.cover_media_id}
-            previewUrl={coverPreview}
-            onChange={(id, preview) => {
-              set("cover_media_id", id);
-              setCoverPreview(preview);
-            }}
-            pickerTitle="Chọn ảnh bìa Chương trình"
-          />
-          <Field
-            label="SEO title"
-            count={{ length: draft.seo_title.length, max: 200, ideal: 60 }}
-            hint="Bỏ trống thì dùng tiêu đề."
-          >
-            <input
-              value={draft.seo_title}
-              onChange={(e) => set("seo_title", e.target.value)}
-              maxLength={200}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="SEO description"
-            count={{ length: draft.seo_description.length, max: 300, ideal: 160 }}
-            hint="Bỏ trống thì dùng tóm tắt."
-          >
-            <textarea
-              value={draft.seo_description}
-              onChange={(e) => set("seo_description", e.target.value)}
-              maxLength={300}
-              rows={2}
-              className={areaClass}
-            />
-          </Field>
+          <MediaField label="Ảnh bìa" pickerTitle="Chọn ảnh bìa Chương trình" {...image("cover")} />
+          <TextFields specs={SEO_FIELDS} {...fieldProps} />
           <MediaField
             label="Ảnh chia sẻ mạng xã hội (OG image)"
-            mediaId={draft.og_image_id}
-            previewUrl={ogPreview}
-            onChange={(id, preview) => {
-              set("og_image_id", id);
-              setOgPreview(preview);
-            }}
-            pickerTitle="Chọn ảnh chia sẻ mạng xã hội"
+            pickerTitle="Chọn ảnh chia sẻ"
             emptyLabel="Dùng ảnh bìa"
             hint="Kích thước tốt nhất 1200×630. Bỏ trống thì dùng ảnh bìa."
+            {...image("og")}
           />
         </div>
       </Card>
@@ -422,11 +265,7 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
         count={dirtyCount}
         saving={saving}
         onSave={onSave}
-        onDiscard={() => {
-          setDraft(initial);
-          setCoverPreview(coverUrl);
-          setOgPreview(ogImageUrl);
-        }}
+        onDiscard={reset}
         hint={
           draft.status === "live"
             ? "Chương trình đang xuất bản — bấm Lưu là website cập nhật."
