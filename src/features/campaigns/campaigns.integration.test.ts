@@ -6,12 +6,15 @@
 // Same isolation approach as blog-event.integrity.test.ts: production modules
 // are transpiled and run in a VM context whose only stubs are the Worker
 // boundaries (D1 client → bun:sqlite adapter, cloudflare:workers env, session
-// auth, router factories). The VM's `Date` is pinned so "today in
-// Asia/Ho_Chi_Minh" is controlled without touching production code.
+// auth, router factories, Telegram) and the network (`fetch`, which only a
+// test-installed fake translation model answers). The VM's `Date` is pinned so
+// "today in Asia/Ho_Chi_Minh" is controlled without touching production code.
+// The flow tests at the end walk whole operator journeys and the shared
+// CMS ↔ landing golden file (see the "golden" section for how to refresh it).
 
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,6 +80,10 @@ const db = {
 };
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
+const refuseNetwork = (url: string): Promise<Response> => {
+  throw new Error(`Network call from a campaign code path: ${url}`);
+};
+let networkStub: (url: string, init?: RequestInit) => Promise<Response> = refuseNetwork;
 let kvPuts: Array<[string, string]> = [];
 let sessionRoles: string[] = [];
 let sessionAllows: (role: string) => boolean = () => true;
@@ -87,7 +94,6 @@ const boundaries: Record<string, unknown> = {
   "cloudflare:workers": {
     env: { CMS_REV: { put: async (key: string, value: string) => void kvPuts.push([key, value]) } },
   },
-  "@/features/careers/landing-rebuild": { markLandingRebuildNeeded: async () => {} },
   "@/features/telegram": { dispatchEvent: async () => {} },
   "@/features/media": { getMedia: async () => null },
   "@/features/auth": {
@@ -151,10 +157,13 @@ function load(absolute: string): unknown {
       Response,
       Headers,
       Date: PinnedDate,
+      setTimeout,
+      clearTimeout,
+      AbortController,
       __importMeta: { env: { PROD: false } },
-      fetch: () => {
-        throw new Error("Network call from a campaign code path");
-      },
+      // The only network boundary a campaign path may reach is the translation
+      // model (OpenAI chat completions); tests install a fake per case.
+      fetch: (input: unknown, init?: RequestInit) => networkStub(String(input), init),
     },
     { filename: absolute },
   );
@@ -209,6 +218,7 @@ beforeAll(() => {
 beforeEach(() => {
   sql = Database.deserialize(snapshot);
   kvPuts = [];
+  networkStub = refuseNetwork;
   sessionRoles = [];
   sessionAllows = () => true;
   setVnTime("2026-10-24T10:00:00");
@@ -699,5 +709,428 @@ describe("save validation for landing_path and menu hrefs", () => {
     });
     expect(() => validateUpdate({ end_date: "25/12/2026" })).toThrow();
     expect(validateUpdate({ end_date: "2026-12-25" }).end_date).toBe("2026-12-25");
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Business flows. Each test walks one operator/visitor journey through the
+// production server functions (validator → handler, as createServerFn runs
+// them) and observes the result only through the public routes, SQLite rows
+// and the KV boundary. Expected values are written out from contract.md, not
+// computed by the code under test.
+// ════════════════════════════════════════════════════════════════════════════
+
+const engine = load(
+  resolve(sourceRoot, "features/translations/translation-jobs.engine.ts"),
+) as typeof import("../translations/translation-jobs.engine");
+
+/** Run a server function the way TanStack Start does: validator, then body. */
+const viaFn = <T>(fn: string, input: unknown, body: (data: never) => Promise<T>) =>
+  body(actions[fn].validator(input) as never);
+const createFn = (input: Record<string, unknown>) =>
+  viaFn("createCampaignFn", input, server.createCampaign);
+const updateFn = (input: Record<string, unknown>) =>
+  viaFn("updateCampaignFn", input, server.updateCampaign);
+
+const slugs = async (lang = "vi") =>
+  (await getList(lang)).body.campaigns.map((c: { slug: string }) => c.slug);
+const listed = async (slug: string, lang = "vi") =>
+  (await getList(lang)).body.campaigns.find((c: { slug: string }) => c.slug === slug);
+const campaignAudit = () =>
+  sql
+    .query("SELECT action FROM audit_log WHERE entity = 'campaigns' ORDER BY id")
+    .all()
+    .map((row) => (row as { action: string }).action);
+/** KV writes per key: "rev" is the public edge-cache revision, the dirty flag
+ *  is what makes the cron trigger a landing rebuild (prerendered HTML). */
+const kvKeys = () => kvPuts.map(([key]) => key);
+const REBUILD_KEY = "landing_rebuild_dirty";
+
+function xmasRowId(): number {
+  return (sql.query("SELECT id FROM campaigns WHERE slug='christmas-2026'").get() as { id: number })
+    .id;
+}
+
+describe("flow: campaign lifecycle from the admin to the public API", () => {
+  test("draft → live → toggles → expiry at VN midnight → archived → deleted", async () => {
+    // 1. Create as a draft: stored, audited, but invisible to the public API.
+    const { campaign } = await createFn({
+      slug: "tet-2027",
+      title: "Tết 2027",
+      status: "draft",
+      position: 1,
+      start_date: "2027-01-20",
+      end_date: "2027-02-20",
+      landing_path: "/tet",
+      nav_featured: true,
+      home_featured: true,
+    });
+    const id = campaign.id;
+    expect(await slugs()).toEqual(["christmas-2026"]);
+    expect((await getDetail("tet-2027")).status).toBe(404);
+
+    // 2. Go live: listed after the seed (position 1 > 0), both flags effective.
+    await updateFn({ id, status: "live" });
+    expect(await slugs()).toEqual(["christmas-2026", "tet-2027"]);
+    expect(await listed("tet-2027")).toMatchObject({ nav_featured: true, home_featured: true });
+    expect((await getDetail("tet-2027")).status).toBe(200);
+
+    // 3. Operator turns the navbar toggle off; the home toggle stays on.
+    await updateFn({ id, nav_featured: false });
+    expect(await listed("tet-2027")).toMatchObject({ nav_featured: false, home_featured: true });
+    await updateFn({ id, nav_featured: true });
+
+    // 4. end_date 2027-02-20 still counts at 23:59 VN; at 00:00 VN on the 21st
+    //    both flags drop with no edit, and the campaign stays listed.
+    setVnTime("2027-02-20T23:59:59");
+    expect(await listed("tet-2027")).toMatchObject({ nav_featured: true, home_featured: true });
+    setVnTime("2027-02-21T00:00:00");
+    expect(await listed("tet-2027")).toMatchObject({ nav_featured: false, home_featured: false });
+    expect((await getDetail("tet-2027")).status).toBe(200);
+
+    // 5. Archived: gone from the list and the detail is a 404.
+    await updateFn({ id, status: "archived" });
+    expect(await slugs()).toEqual(["christmas-2026"]);
+    expect(await getDetail<ErrorBody>("tet-2027")).toEqual({
+      status: 404,
+      body: { error: "Not found" },
+    });
+
+    // 6. Delete (admin only) removes the row.
+    await server.deleteCampaign(id);
+    expect(sql.query("SELECT COUNT(*) n FROM campaigns WHERE slug = 'tet-2027'").get()).toEqual({
+      n: 0,
+    });
+
+    // Every save was role-checked, audited and made both the edge cache and
+    // the prerendered landing stale: 1 create + 4 updates + 1 delete.
+    expect(sessionRoles).toEqual(["editor", "editor", "editor", "editor", "editor", "admin"]);
+    expect(campaignAudit()).toEqual(["create", "update", "update", "update", "update", "delete"]);
+    expect(kvKeys().filter((key) => key === "rev")).toHaveLength(6);
+    expect(kvKeys().filter((key) => key === REBUILD_KEY)).toHaveLength(6);
+  });
+
+  test("changing position reorders the public list; ties fall back to the newest start_date", async () => {
+    const a = (await createFn({ slug: "a-sale", title: "A", status: "live", position: 2 }))
+      .campaign;
+    const b = (
+      await createFn({
+        slug: "b-sale",
+        title: "B",
+        status: "live",
+        position: 2,
+        start_date: "2026-11-01",
+      })
+    ).campaign;
+    // Seed is position 0; a/b tie at 2 and b has the later start_date
+    // (a has none, which sorts last under DESC).
+    expect(await slugs()).toEqual(["christmas-2026", "b-sale", "a-sale"]);
+    await updateFn({ id: a.id, position: 0 });
+    await updateFn({ id: b.id, position: 1 });
+    await updateFn({ id: xmasRowId(), position: 5 });
+    expect(await slugs()).toEqual(["a-sale", "b-sale", "christmas-2026"]);
+    expect(await slugs("en")).toEqual(["a-sale", "b-sale", "christmas-2026"]);
+    expect((await listed("christmas-2026"))?.position).toBe(5);
+  });
+
+  test("the slug is fixed after creation: an edit cannot rename it, so links and translations stay attached", async () => {
+    // Actual rule: the update validator has no slug field (zod strips it) and
+    // the service's writable column list excludes it. Renaming means creating
+    // a new campaign; the old /campaigns/:slug URL and its translations stay.
+    const parsed = actions.updateCampaignFn.validator({ id: xmasRowId(), slug: "noel-2026" });
+    expect(parsed).not.toHaveProperty("slug");
+    await server.updateCampaign({ id: xmasRowId(), slug: "noel-2026" } as never);
+    expect(sql.query("SELECT slug FROM campaigns").all()).toEqual([{ slug: "christmas-2026" }]);
+    expect((await getDetail("noel-2026", "en")).status).toBe(404);
+    const detail = await getDetail("christmas-2026", "en");
+    expect(detail.body.available_locales).toEqual(["vi", "en"]);
+    expect(detail.body.campaign.cta_label).toBe("Explore Collection");
+  });
+
+  test("a viewer cannot save and an editor cannot delete; nothing is written either way", async () => {
+    sessionAllows = (role) => role === "viewer";
+    await expect(createFn({ slug: "x-1", title: "X" })).rejects.toMatchObject({ statusCode: 403 });
+    sessionAllows = (role) => role !== "admin";
+    await expect(server.deleteCampaign(xmasRowId())).rejects.toMatchObject({ statusCode: 403 });
+    expect(await slugs()).toEqual(["christmas-2026"]);
+    expect(campaignAudit()).toEqual([]);
+    expect(kvPuts).toEqual([]);
+  });
+});
+
+// ── Translation lifecycle with the real job engine ───────────────────────────
+// The model is the only fake: it answers chat/completions the way the prompt
+// asks ({ "<locale>": { ...same keys } }), tagging every line with the locale
+// and deliberately returning a wrong icon/href in the menu, which the public
+// reader must ignore.
+
+let aiCalls: string[] = [];
+function installFakeModel(failLocales: string[] = []) {
+  aiCalls = [];
+  const tag = (value: string, locale: string) =>
+    value
+      .split("\n")
+      .map((line) => (line.trim() ? `${line} [${locale}]` : line))
+      .join("\n");
+  networkStub = async (url, init) => {
+    if (!url.endsWith("/chat/completions")) return refuseNetwork(url);
+    const request = JSON.parse(String(init?.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const prompt = request.messages.find((m) => m.role === "user")!.content;
+    const locale = /row to (en|zh):/.exec(prompt)![1];
+    aiCalls.push(locale);
+    const reply = (content: string) =>
+      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+    if (failLocales.includes(locale)) return reply("Sorry, I cannot translate this.");
+    const { vi } = JSON.parse(prompt.slice(prompt.indexOf("{"))) as {
+      vi: Record<string, string>;
+    };
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(vi)) {
+      out[key] =
+        key === "menu_items_json"
+          ? JSON.stringify(
+              (JSON.parse(value) as Array<Record<string, string | null>>).map((item) => ({
+                ...item,
+                icon: "?",
+                href: "/model-made-this-up",
+                title: `${item.title} [${locale}]`,
+                subtitle: item.subtitle ? `${item.subtitle} [${locale}]` : item.subtitle,
+              })),
+            )
+          : tag(value, locale);
+    }
+    return reply(JSON.stringify({ [locale]: out }));
+  };
+}
+
+describe("flow: translation lifecycle (VI save → AI drafts → review → served → stale)", () => {
+  const TET_MENU = [
+    { icon: "🧧", title: "Lì xì", subtitle: "Quà đầu năm", href: "/tet#li-xi" },
+    { icon: "🎆", title: "Pháo hoa", subtitle: null, href: "/catalog/fireworks" },
+    {
+      icon: "🏮",
+      title: "Đèn lồng",
+      subtitle: "Trang trí",
+      href: "https://hub.thgfulfill.com/lantern",
+    },
+  ];
+  const trRow = (locale: string) =>
+    sql
+      .query(
+        "SELECT t.id, t.status FROM campaign_translations t JOIN campaigns c ON c.id = t.campaign_id WHERE c.slug = 'tet-2027' AND t.locale = ?",
+      )
+      .get(locale) as { id: number; status: string } | null;
+
+  test("drafts are never served; an approved EN is served with VI icons/hrefs; a failed ZH falls back to VI", async () => {
+    installFakeModel(["zh"]);
+    const { campaign } = await createFn({
+      slug: "tet-2027",
+      title: "Tết 2027",
+      summary: "Lì xì đầu năm",
+      body_md: "## Ưu đãi Tết\n\n- Giảm phí fulfill\n- Giao nhanh",
+      cta_label: "Xem ưu đãi",
+      nav_label: "Tết",
+      nav_badge: "HOT",
+      status: "live",
+      landing_path: "/tet",
+      nav_featured: true,
+      menu_items: TET_MENU,
+      seo_title: "Tết 2027 | TH Group",
+      seo_description: "Ưu đãi mùa Tết",
+    });
+
+    // The VI save queued one job for both missing locales.
+    expect(
+      sql.query("SELECT entity_type, entity_ref, target_locales FROM translation_jobs").all(),
+    ).toEqual([
+      { entity_type: "campaign", entity_ref: String(campaign.id), target_locales: '["en","zh"]' },
+    ]);
+
+    // The cron pass translates: EN lands as a draft, ZH as failed (bad JSON).
+    await engine.runOnePass({ OPENAI_API_KEY: "test-key" });
+    expect(aiCalls.sort()).toEqual(["en", "zh", "zh"]); // zh: one JSON-recovery retry
+    expect(trRow("en")?.status).toBe("draft");
+    expect(trRow("zh")?.status).toBe("failed");
+
+    // A draft is not served: EN still reads VI and only VI is available.
+    let en = await getDetail("tet-2027", "en");
+    expect(en.body.campaign.title).toBe("Tết 2027");
+    expect(en.body.available_locales).toEqual(["vi"]);
+
+    // An editor approves EN.
+    kvPuts = [];
+    sessionRoles = [];
+    await server.approveCampaignTranslation(trRow("en")!.id);
+    expect(sessionRoles).toEqual(["editor"]);
+    expect(kvKeys()).toEqual(["rev", REBUILD_KEY]);
+
+    en = await getDetail("tet-2027", "en");
+    expect(en.body.available_locales).toEqual(["vi", "en"]);
+    expect(en.body.campaign).toMatchObject({
+      title: "Tết 2027 [en]",
+      summary: "Lì xì đầu năm [en]",
+      body_md: "## Ưu đãi Tết [en]\n\n- Giảm phí fulfill [en]\n- Giao nhanh [en]",
+      cta_label: "Xem ưu đãi [en]",
+      nav_label: "Tết [en]",
+      seo_title: "Tết 2027 | TH Group [en]",
+      seo_description: "Ưu đãi mùa Tết [en]",
+      // Not translated: straight from the VI row.
+      nav_badge: "HOT",
+      landing_path: "/tet",
+      nav_featured: true,
+    });
+    expect(en.body.campaign.menu_items).toEqual([
+      { icon: "🧧", title: "Lì xì [en]", subtitle: "Quà đầu năm [en]", href: "/tet#li-xi" },
+      { icon: "🎆", title: "Pháo hoa [en]", subtitle: null, href: "/catalog/fireworks" },
+      {
+        icon: "🏮",
+        title: "Đèn lồng [en]",
+        subtitle: "Trang trí [en]",
+        href: "https://hub.thgfulfill.com/lantern",
+      },
+    ]);
+    // The list carries the same overlay as the detail.
+    expect(await listed("tet-2027", "en")).toMatchObject({
+      title: "Tết 2027 [en]",
+      cta_label: "Xem ưu đãi [en]",
+    });
+
+    // ZH failed → VI copy.
+    const zh = await getDetail("tet-2027", "zh");
+    expect(zh.body.campaign.title).toBe("Tết 2027");
+    expect(zh.body.campaign.menu_items.map((m: { title: string }) => m.title)).toEqual([
+      "Lì xì",
+      "Pháo hoa",
+      "Đèn lồng",
+    ]);
+  });
+
+  test("a non-translated edit keeps EN reviewed and served; a VI copy edit makes EN stale and serves VI", async () => {
+    installFakeModel();
+    const { campaign } = await createFn({
+      slug: "tet-2027",
+      title: "Tết 2027",
+      cta_label: "Xem ưu đãi",
+      status: "live",
+      menu_items: TET_MENU,
+    });
+    await engine.runOnePass({ OPENAI_API_KEY: "test-key" });
+    await server.approveCampaignTranslation(trRow("en")!.id);
+
+    // Non-translated fields only: position, badge, dates, toggles, landing.
+    await updateFn({
+      id: campaign.id,
+      position: 4,
+      nav_badge: "SALE",
+      end_date: "2027-02-28",
+      home_featured: true,
+      landing_path: "/tet-sale",
+    });
+    expect(trRow("en")?.status).toBe("reviewed");
+    expect(await listed("tet-2027", "en")).toMatchObject({
+      title: "Tết 2027 [en]",
+      nav_badge: "SALE",
+      position: 4,
+      landing_path: "/tet-sale",
+      home_featured: true,
+    });
+
+    // Changing a menu item's VI title is a copy edit too.
+    await updateFn({
+      id: campaign.id,
+      menu_items: [{ ...TET_MENU[0], title: "Lì xì may mắn" }, ...TET_MENU.slice(1)],
+    });
+    expect(trRow("en")?.status).toBe("stale");
+    expect(trRow("zh")?.status).toBe("stale");
+    const en = await getDetail("tet-2027", "en");
+    expect(en.body.available_locales).toEqual(["vi"]);
+    expect(en.body.campaign.title).toBe("Tết 2027");
+    expect(en.body.campaign.menu_items[0].title).toBe("Lì xì may mắn");
+  });
+
+  test("a reviewer's menu edit is unpublished until re-approved; extra items are dropped, missing ones keep VI", async () => {
+    installFakeModel();
+    await createFn({ slug: "tet-2027", title: "Tết 2027", status: "live", menu_items: TET_MENU });
+    await engine.runOnePass({ OPENAI_API_KEY: "test-key" });
+    const enId = trRow("en")!.id;
+    await server.approveCampaignTranslation(enId);
+
+    const fields = sql
+      .query(
+        "SELECT title, summary, body_md, cta_label, nav_label, seo_title, seo_description FROM campaign_translations WHERE id = ?",
+      )
+      .get(enId) as Record<string, string | null>;
+    const menu = (titles: string[]) =>
+      JSON.stringify(titles.map((title) => ({ icon: "", title, subtitle: null, href: "/x" })));
+    const edit = (titles: string[]) =>
+      server.editCampaignTranslation({
+        id: enId,
+        ...fields,
+        title: "Tet 2027",
+        menu_items_json: menu(titles),
+      } as never);
+
+    // Four translated items for a three-item VI menu.
+    await edit(["Lucky money", "Fireworks", "Lanterns", "Extra"]);
+    expect(trRow("en")?.status).toBe("draft");
+    expect((await getDetail("tet-2027", "en")).body.campaign.title).toBe("Tết 2027");
+
+    await server.approveCampaignTranslation(enId);
+    let items = (await getDetail("tet-2027", "en")).body.campaign.menu_items;
+    expect(items.map((m: { title: string; href: string }) => [m.title, m.href])).toEqual([
+      ["Lucky money", "/tet#li-xi"],
+      ["Fireworks", "/catalog/fireworks"],
+      ["Lanterns", "https://hub.thgfulfill.com/lantern"],
+    ]);
+
+    // One translated item: the other two stay Vietnamese, with VI subtitles.
+    await edit(["Lucky money"]);
+    await server.approveCampaignTranslation(enId);
+    items = (await getDetail("tet-2027", "en")).body.campaign.menu_items;
+    expect(
+      items.map((m: { title: string; subtitle: string | null }) => [m.title, m.subtitle]),
+    ).toEqual([
+      ["Lucky money", "Quà đầu năm"],
+      ["Pháo hoa", null],
+      ["Đèn lồng", "Trang trí"],
+    ]);
+  });
+});
+
+// ── Cross-repo golden: the seed as the landing receives it ───────────────────
+// __golden__/christmas-2026.golden.json is the CMS ↔ landing oracle. The same
+// file lives in THG_landingpage at src/lib/__golden__/ and the landing's
+// src/lib/campaigns.golden.test.tsx parses and renders it. If this test fails,
+// the CMS response changed shape or content:
+//   1. Decide whether the change is intended (contract.md is the authority).
+//   2. Refresh:  UPDATE_GOLDEN=1 bun test src/features/campaigns/campaigns.integration.test.ts
+//   3. Copy the file byte-for-byte to THG_landingpage src/lib/__golden__/ and
+//      run its `bun run test`; a failure there is real CMS ↔ landing drift.
+// The clock is pinned (2026-10-24 10:00 VN) and updated_at is normalised, so
+// the file only changes when the response does.
+
+describe("golden: christmas-2026 list and detail, vi and en", () => {
+  const GOLDEN = resolve(directory, "__golden__/christmas-2026.golden.json");
+  const UPDATED_AT = 1793000000;
+
+  test("the real route output equals the shared golden file", async () => {
+    setVnTime("2026-10-24T10:00:00");
+    sql.query("UPDATE campaigns SET updated_at = ?").run(UPDATED_AT);
+    const actual = {
+      list: { vi: (await getList("vi")).body, en: (await getList("en")).body },
+      detail: {
+        vi: (await getDetail("christmas-2026", "vi")).body,
+        en: (await getDetail("christmas-2026", "en")).body,
+      },
+    };
+    if (process.env.UPDATE_GOLDEN === "1") {
+      const comment =
+        "Generated by CMS_management- src/features/campaigns/campaigns.integration.test.ts with UPDATE_GOLDEN=1. An identical copy lives in THG_landingpage src/lib/__golden__/. Do not edit by hand.";
+      writeFileSync(GOLDEN, `${JSON.stringify({ $comment: comment, ...actual }, null, 2)}\n`);
+    }
+    const golden = JSON.parse(readFileSync(GOLDEN, "utf8")) as Record<string, unknown>;
+    expect({ list: golden.list, detail: golden.detail }).toEqual(actual);
   });
 });
