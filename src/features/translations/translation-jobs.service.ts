@@ -186,7 +186,7 @@ export async function hasActiveJob(entityType: string, entityRef: string): Promi
 }
 
 /** Source saves enqueue missing blog/event locales; Cron does the model work. */
-export async function enqueueMissingTranslationLocales(actorId: number, entityType: "blog_post" | "event", entityId: number) {
+export async function enqueueMissingTranslationLocales(actorId: number, entityType: "blog_post" | "event" | "campaign", entityId: number) {
   const cfg = getEntityTableInfo(entityType);
   const existing = await getDb().prepare(`SELECT locale FROM ${cfg.translationsTable} WHERE ${cfg.sourceFkColumn}=?`)
     .bind(entityId).all<{ locale: string }>();

@@ -41,6 +41,7 @@ import { Route as AdminContentEventsIndexRouteImport } from './routes/admin/cont
 import { Route as AdminContentContactIndexRouteImport } from './routes/admin/content/contact/index'
 import { Route as AdminContentCommunityIndexRouteImport } from './routes/admin/content/community/index'
 import { Route as AdminContentCareersIndexRouteImport } from './routes/admin/content/careers/index'
+import { Route as AdminContentCampaignsIndexRouteImport } from './routes/admin/content/campaigns/index'
 import { Route as AdminContentBlogsIndexRouteImport } from './routes/admin/content/blogs/index'
 import { Route as AdminAiSourcesIndexRouteImport } from './routes/admin/ai/sources/index'
 import { Route as AdminAiReviewsIndexRouteImport } from './routes/admin/ai/reviews/index'
@@ -56,6 +57,7 @@ import { Route as AdminContentPoliciesSlugRouteImport } from './routes/admin/con
 import { Route as AdminContentEventsSlugRouteImport } from './routes/admin/content/events/$slug'
 import { Route as AdminContentCareersApplicantsRouteImport } from './routes/admin/content/careers/applicants'
 import { Route as AdminContentCareersJobIdRouteImport } from './routes/admin/content/careers/$jobId'
+import { Route as AdminContentCampaignsSlugRouteImport } from './routes/admin/content/campaigns/$slug'
 import { Route as AdminContentBlogsSlugRouteImport } from './routes/admin/content/blogs/$slug'
 import { Route as ApiV1publicTranslationsIndexRouteImport } from './routes/api/v1/(public)/translations/index'
 import { Route as ApiV1publicTestimonialsIndexRouteImport } from './routes/api/v1/(public)/testimonials/index'
@@ -78,6 +80,7 @@ import { Route as ApiV1publicHomepageIndexRouteImport } from './routes/api/v1/(p
 import { Route as ApiV1publicFaqsIndexRouteImport } from './routes/api/v1/(public)/faqs/index'
 import { Route as ApiV1publicEventsIndexRouteImport } from './routes/api/v1/(public)/events/index'
 import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/api/v1/(public)/contact-locations/index'
+import { Route as ApiV1publicCampaignsIndexRouteImport } from './routes/api/v1/(public)/campaigns/index'
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
 import { Route as ApiV1publicApplicantCvIndexRouteImport } from './routes/api/v1/(public)/applicant-cv/index'
@@ -88,6 +91,7 @@ import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(pu
 import { Route as ApiV1publicMediaSplatRouteImport } from './routes/api/v1/(public)/media/$'
 import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public)/jobs/$slug'
 import { Route as ApiV1publicEventsSlugRouteImport } from './routes/api/v1/(public)/events/$slug'
+import { Route as ApiV1publicCampaignsSlugRouteImport } from './routes/api/v1/(public)/campaigns/$slug'
 import { Route as ApiV1publicBlogCategoriesRouteImport } from './routes/api/v1/(public)/blog/categories'
 import { Route as ApiV1publicBlogSlugRouteImport } from './routes/api/v1/(public)/blog/$slug'
 import { Route as ApiV1publicBlogPreviewsTokenRouteImport } from './routes/api/v1/(public)/blog-previews/$token'
@@ -288,6 +292,12 @@ const AdminContentCareersIndexRoute =
     path: '/',
     getParentRoute: () => AdminContentCareersRouteRoute,
   } as any)
+const AdminContentCampaignsIndexRoute =
+  AdminContentCampaignsIndexRouteImport.update({
+    id: '/admin/content/campaigns/',
+    path: '/admin/content/campaigns/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminContentBlogsIndexRoute = AdminContentBlogsIndexRouteImport.update({
   id: '/admin/content/blogs/',
   path: '/admin/content/blogs/',
@@ -368,6 +378,12 @@ const AdminContentCareersJobIdRoute =
     id: '/$jobId',
     path: '/$jobId',
     getParentRoute: () => AdminContentCareersRouteRoute,
+  } as any)
+const AdminContentCampaignsSlugRoute =
+  AdminContentCampaignsSlugRouteImport.update({
+    id: '/admin/content/campaigns/$slug',
+    path: '/admin/content/campaigns/$slug',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentBlogsSlugRoute = AdminContentBlogsSlugRouteImport.update({
   id: '/admin/content/blogs/$slug',
@@ -493,6 +509,12 @@ const ApiV1publicContactLocationsIndexRoute =
     path: '/api/v1/contact-locations/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicCampaignsIndexRoute =
+  ApiV1publicCampaignsIndexRouteImport.update({
+    id: '/api/v1/(public)/campaigns/',
+    path: '/api/v1/campaigns/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicBlogIndexRoute = ApiV1publicBlogIndexRouteImport.update({
   id: '/api/v1/(public)/blog/',
   path: '/api/v1/blog/',
@@ -547,6 +569,12 @@ const ApiV1publicEventsSlugRoute = ApiV1publicEventsSlugRouteImport.update({
   path: '/api/v1/events/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicCampaignsSlugRoute =
+  ApiV1publicCampaignsSlugRouteImport.update({
+    id: '/api/v1/(public)/campaigns/$slug',
+    path: '/api/v1/campaigns/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicBlogCategoriesRoute =
   ApiV1publicBlogCategoriesRouteImport.update({
     id: '/api/v1/(public)/blog/categories',
@@ -668,6 +696,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/services': typeof AdminContentServicesRouteRouteWithChildren
   '/admin/sales/pricing': typeof AdminSalesPricingRouteRouteWithChildren
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/campaigns/$slug': typeof AdminContentCampaignsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
   '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
@@ -683,6 +712,7 @@ export interface FileRoutesByFullPath {
   '/admin/ai/reviews/': typeof AdminAiReviewsIndexRoute
   '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
+  '/admin/content/campaigns/': typeof AdminContentCampaignsIndexRoute
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
   '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
@@ -714,6 +744,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/campaigns/$slug': typeof ApiV1publicCampaignsSlugRoute
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
@@ -724,6 +755,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/campaigns/': typeof ApiV1publicCampaignsIndexRoute
   '/api/v1/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs/': typeof ApiV1publicFaqsIndexRoute
@@ -765,6 +797,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin': typeof AdminIndexRoute
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/campaigns/$slug': typeof AdminContentCampaignsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
   '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
@@ -780,6 +813,7 @@ export interface FileRoutesByTo {
   '/admin/ai/reviews': typeof AdminAiReviewsIndexRoute
   '/admin/ai/sources': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs': typeof AdminContentBlogsIndexRoute
+  '/admin/content/campaigns': typeof AdminContentCampaignsIndexRoute
   '/admin/content/careers': typeof AdminContentCareersIndexRoute
   '/admin/content/community': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact': typeof AdminContentContactIndexRoute
@@ -811,6 +845,7 @@ export interface FileRoutesByTo {
   '/api/v1/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/campaigns/$slug': typeof ApiV1publicCampaignsSlugRoute
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
@@ -821,6 +856,7 @@ export interface FileRoutesByTo {
   '/api/v1/applicant-cv': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/campaigns': typeof ApiV1publicCampaignsIndexRoute
   '/api/v1/contact-locations': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/events': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs': typeof ApiV1publicFaqsIndexRoute
@@ -866,6 +902,7 @@ export interface FileRoutesById {
   '/admin/content/services': typeof AdminContentServicesRouteRouteWithChildren
   '/admin/sales/pricing': typeof AdminSalesPricingRouteRouteWithChildren
   '/admin/content/blogs/$slug': typeof AdminContentBlogsSlugRoute
+  '/admin/content/campaigns/$slug': typeof AdminContentCampaignsSlugRoute
   '/admin/content/careers/$jobId': typeof AdminContentCareersJobIdRoute
   '/admin/content/careers/applicants': typeof AdminContentCareersApplicantsRoute
   '/admin/content/events/$slug': typeof AdminContentEventsSlugRoute
@@ -881,6 +918,7 @@ export interface FileRoutesById {
   '/admin/ai/reviews/': typeof AdminAiReviewsIndexRoute
   '/admin/ai/sources/': typeof AdminAiSourcesIndexRoute
   '/admin/content/blogs/': typeof AdminContentBlogsIndexRoute
+  '/admin/content/campaigns/': typeof AdminContentCampaignsIndexRoute
   '/admin/content/careers/': typeof AdminContentCareersIndexRoute
   '/admin/content/community/': typeof AdminContentCommunityIndexRoute
   '/admin/content/contact/': typeof AdminContentContactIndexRoute
@@ -912,6 +950,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/blog-previews/$token': typeof ApiV1publicBlogPreviewsTokenRoute
   '/api/v1/(public)/blog/$slug': typeof ApiV1publicBlogSlugRoute
   '/api/v1/(public)/blog/categories': typeof ApiV1publicBlogCategoriesRoute
+  '/api/v1/(public)/campaigns/$slug': typeof ApiV1publicCampaignsSlugRoute
   '/api/v1/(public)/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/(public)/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/(public)/media/$': typeof ApiV1publicMediaSplatRoute
@@ -922,6 +961,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
+  '/api/v1/(public)/campaigns/': typeof ApiV1publicCampaignsIndexRoute
   '/api/v1/(public)/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/(public)/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/(public)/faqs/': typeof ApiV1publicFaqsIndexRoute
@@ -968,6 +1008,7 @@ export interface FileRouteTypes {
     | '/admin/content/services'
     | '/admin/sales/pricing'
     | '/admin/content/blogs/$slug'
+    | '/admin/content/campaigns/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
     | '/admin/content/events/$slug'
@@ -983,6 +1024,7 @@ export interface FileRouteTypes {
     | '/admin/ai/reviews/'
     | '/admin/ai/sources/'
     | '/admin/content/blogs/'
+    | '/admin/content/campaigns/'
     | '/admin/content/careers/'
     | '/admin/content/community/'
     | '/admin/content/contact/'
@@ -1014,6 +1056,7 @@ export interface FileRouteTypes {
     | '/api/v1/blog-previews/$token'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
+    | '/api/v1/campaigns/$slug'
     | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
@@ -1024,6 +1067,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicant-cv/'
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
+    | '/api/v1/campaigns/'
     | '/api/v1/contact-locations/'
     | '/api/v1/events/'
     | '/api/v1/faqs/'
@@ -1065,6 +1109,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin'
     | '/admin/content/blogs/$slug'
+    | '/admin/content/campaigns/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
     | '/admin/content/events/$slug'
@@ -1080,6 +1125,7 @@ export interface FileRouteTypes {
     | '/admin/ai/reviews'
     | '/admin/ai/sources'
     | '/admin/content/blogs'
+    | '/admin/content/campaigns'
     | '/admin/content/careers'
     | '/admin/content/community'
     | '/admin/content/contact'
@@ -1111,6 +1157,7 @@ export interface FileRouteTypes {
     | '/api/v1/blog-previews/$token'
     | '/api/v1/blog/$slug'
     | '/api/v1/blog/categories'
+    | '/api/v1/campaigns/$slug'
     | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
@@ -1121,6 +1168,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicant-cv'
     | '/api/v1/applicants'
     | '/api/v1/blog'
+    | '/api/v1/campaigns'
     | '/api/v1/contact-locations'
     | '/api/v1/events'
     | '/api/v1/faqs'
@@ -1165,6 +1213,7 @@ export interface FileRouteTypes {
     | '/admin/content/services'
     | '/admin/sales/pricing'
     | '/admin/content/blogs/$slug'
+    | '/admin/content/campaigns/$slug'
     | '/admin/content/careers/$jobId'
     | '/admin/content/careers/applicants'
     | '/admin/content/events/$slug'
@@ -1180,6 +1229,7 @@ export interface FileRouteTypes {
     | '/admin/ai/reviews/'
     | '/admin/ai/sources/'
     | '/admin/content/blogs/'
+    | '/admin/content/campaigns/'
     | '/admin/content/careers/'
     | '/admin/content/community/'
     | '/admin/content/contact/'
@@ -1211,6 +1261,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/blog-previews/$token'
     | '/api/v1/(public)/blog/$slug'
     | '/api/v1/(public)/blog/categories'
+    | '/api/v1/(public)/campaigns/$slug'
     | '/api/v1/(public)/events/$slug'
     | '/api/v1/(public)/jobs/$slug'
     | '/api/v1/(public)/media/$'
@@ -1221,6 +1272,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/applicant-cv/'
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
+    | '/api/v1/(public)/campaigns/'
     | '/api/v1/(public)/contact-locations/'
     | '/api/v1/(public)/events/'
     | '/api/v1/(public)/faqs/'
@@ -1266,6 +1318,7 @@ export interface RootRouteChildren {
   AdminContentServicesRouteRoute: typeof AdminContentServicesRouteRouteWithChildren
   AdminSalesPricingRouteRoute: typeof AdminSalesPricingRouteRouteWithChildren
   AdminContentBlogsSlugRoute: typeof AdminContentBlogsSlugRoute
+  AdminContentCampaignsSlugRoute: typeof AdminContentCampaignsSlugRoute
   AdminContentEventsSlugRoute: typeof AdminContentEventsSlugRoute
   AdminContentPoliciesSlugRoute: typeof AdminContentPoliciesSlugRoute
   AdminContentShippingRoutesSlugRoute: typeof AdminContentShippingRoutesSlugRoute
@@ -1277,6 +1330,7 @@ export interface RootRouteChildren {
   AdminAiReviewsIndexRoute: typeof AdminAiReviewsIndexRoute
   AdminAiSourcesIndexRoute: typeof AdminAiSourcesIndexRoute
   AdminContentBlogsIndexRoute: typeof AdminContentBlogsIndexRoute
+  AdminContentCampaignsIndexRoute: typeof AdminContentCampaignsIndexRoute
   AdminContentCommunityIndexRoute: typeof AdminContentCommunityIndexRoute
   AdminContentContactIndexRoute: typeof AdminContentContactIndexRoute
   AdminContentEventsIndexRoute: typeof AdminContentEventsIndexRoute
@@ -1305,6 +1359,7 @@ export interface RootRouteChildren {
   ApiV1publicBlogPreviewsTokenRoute: typeof ApiV1publicBlogPreviewsTokenRoute
   ApiV1publicBlogSlugRoute: typeof ApiV1publicBlogSlugRoute
   ApiV1publicBlogCategoriesRoute: typeof ApiV1publicBlogCategoriesRoute
+  ApiV1publicCampaignsSlugRoute: typeof ApiV1publicCampaignsSlugRoute
   ApiV1publicEventsSlugRoute: typeof ApiV1publicEventsSlugRoute
   ApiV1publicJobsSlugRoute: typeof ApiV1publicJobsSlugRoute
   ApiV1publicMediaSplatRoute: typeof ApiV1publicMediaSplatRoute
@@ -1315,6 +1370,7 @@ export interface RootRouteChildren {
   ApiV1publicApplicantCvIndexRoute: typeof ApiV1publicApplicantCvIndexRoute
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
+  ApiV1publicCampaignsIndexRoute: typeof ApiV1publicCampaignsIndexRoute
   ApiV1publicContactLocationsIndexRoute: typeof ApiV1publicContactLocationsIndexRoute
   ApiV1publicEventsIndexRoute: typeof ApiV1publicEventsIndexRoute
   ApiV1publicFaqsIndexRoute: typeof ApiV1publicFaqsIndexRoute
@@ -1575,6 +1631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContentCareersIndexRouteImport
       parentRoute: typeof AdminContentCareersRouteRoute
     }
+    '/admin/content/campaigns/': {
+      id: '/admin/content/campaigns/'
+      path: '/admin/content/campaigns'
+      fullPath: '/admin/content/campaigns/'
+      preLoaderRoute: typeof AdminContentCampaignsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/content/blogs/': {
       id: '/admin/content/blogs/'
       path: '/admin/content/blogs'
@@ -1679,6 +1742,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/content/careers/$jobId'
       preLoaderRoute: typeof AdminContentCareersJobIdRouteImport
       parentRoute: typeof AdminContentCareersRouteRoute
+    }
+    '/admin/content/campaigns/$slug': {
+      id: '/admin/content/campaigns/$slug'
+      path: '/admin/content/campaigns/$slug'
+      fullPath: '/admin/content/campaigns/$slug'
+      preLoaderRoute: typeof AdminContentCampaignsSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/content/blogs/$slug': {
       id: '/admin/content/blogs/$slug'
@@ -1834,6 +1904,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicContactLocationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/campaigns/': {
+      id: '/api/v1/(public)/campaigns/'
+      path: '/api/v1/campaigns'
+      fullPath: '/api/v1/campaigns/'
+      preLoaderRoute: typeof ApiV1publicCampaignsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/blog/': {
       id: '/api/v1/(public)/blog/'
       path: '/api/v1/blog'
@@ -1902,6 +1979,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/events/$slug'
       fullPath: '/api/v1/events/$slug'
       preLoaderRoute: typeof ApiV1publicEventsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/campaigns/$slug': {
+      id: '/api/v1/(public)/campaigns/$slug'
+      path: '/api/v1/campaigns/$slug'
+      fullPath: '/api/v1/campaigns/$slug'
+      preLoaderRoute: typeof ApiV1publicCampaignsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/blog/categories': {
@@ -2131,6 +2215,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentServicesRouteRoute: AdminContentServicesRouteRouteWithChildren,
   AdminSalesPricingRouteRoute: AdminSalesPricingRouteRouteWithChildren,
   AdminContentBlogsSlugRoute: AdminContentBlogsSlugRoute,
+  AdminContentCampaignsSlugRoute: AdminContentCampaignsSlugRoute,
   AdminContentEventsSlugRoute: AdminContentEventsSlugRoute,
   AdminContentPoliciesSlugRoute: AdminContentPoliciesSlugRoute,
   AdminContentShippingRoutesSlugRoute: AdminContentShippingRoutesSlugRoute,
@@ -2142,6 +2227,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAiReviewsIndexRoute: AdminAiReviewsIndexRoute,
   AdminAiSourcesIndexRoute: AdminAiSourcesIndexRoute,
   AdminContentBlogsIndexRoute: AdminContentBlogsIndexRoute,
+  AdminContentCampaignsIndexRoute: AdminContentCampaignsIndexRoute,
   AdminContentCommunityIndexRoute: AdminContentCommunityIndexRoute,
   AdminContentContactIndexRoute: AdminContentContactIndexRoute,
   AdminContentEventsIndexRoute: AdminContentEventsIndexRoute,
@@ -2170,6 +2256,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicBlogPreviewsTokenRoute: ApiV1publicBlogPreviewsTokenRoute,
   ApiV1publicBlogSlugRoute: ApiV1publicBlogSlugRoute,
   ApiV1publicBlogCategoriesRoute: ApiV1publicBlogCategoriesRoute,
+  ApiV1publicCampaignsSlugRoute: ApiV1publicCampaignsSlugRoute,
   ApiV1publicEventsSlugRoute: ApiV1publicEventsSlugRoute,
   ApiV1publicJobsSlugRoute: ApiV1publicJobsSlugRoute,
   ApiV1publicMediaSplatRoute: ApiV1publicMediaSplatRoute,
@@ -2181,6 +2268,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicApplicantCvIndexRoute: ApiV1publicApplicantCvIndexRoute,
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
+  ApiV1publicCampaignsIndexRoute: ApiV1publicCampaignsIndexRoute,
   ApiV1publicContactLocationsIndexRoute: ApiV1publicContactLocationsIndexRoute,
   ApiV1publicEventsIndexRoute: ApiV1publicEventsIndexRoute,
   ApiV1publicFaqsIndexRoute: ApiV1publicFaqsIndexRoute,
