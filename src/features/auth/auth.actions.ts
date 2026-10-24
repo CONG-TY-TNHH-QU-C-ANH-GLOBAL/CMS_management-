@@ -22,7 +22,7 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
     parseSessionCookie,
     buildClearCookie,
   } = await import("@/features/auth");
-  const sid = parseSessionCookie(getCookieHeader());
+  const sid = parseSessionCookie(getCookieHeader(), isProduction());
   if (sid) await destroySession(sid);
   setResponseHeader("set-cookie", buildClearCookie(isProduction()));
   return { ok: true as const };

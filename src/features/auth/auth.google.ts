@@ -15,8 +15,8 @@ export interface GoogleUserInfo {
   picture?: string;
 }
 
-export const OAUTH_STATE_COOKIE = "thg_oauth_state";
-export const OAUTH_REDIRECT_COOKIE = "thg_oauth_redirect";
+// Base names; the wire names carry the `__Host-` prefix in production (auth.cookies.ts).
+export { OAUTH_REDIRECT_COOKIE, OAUTH_STATE_COOKIE } from "./auth.cookies";
 
 /** Raised when a required Google OAuth binding is absent, so callers fail loud with an
  *  actionable server-side message instead of building a broken Google request (an empty

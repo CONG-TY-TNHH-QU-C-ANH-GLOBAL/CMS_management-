@@ -2,6 +2,8 @@ import "./core/utils/error-capture";
 
 import { consumeLastCapturedError } from "./core/utils/error-capture";
 import { renderErrorPage } from "./core/utils/error-page";
+import { landingHostOf } from "./features/campaigns/landing/landing.config";
+import { dispatchByHost } from "./features/campaigns/landing/landing.host";
 
 // Durable Object class must be exported from the Worker entry so wrangler can
 // bundle and bind it (see wrangler.jsonc durable_objects + migrations).
@@ -70,16 +72,48 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+async function handleCms(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+  try {
+    const handler = await getServerEntry();
+    const response = await handler.fetch(request, env, ctx);
+    return await normalizeCatastrophicSsrResponse(response);
+  } catch (error) {
+    console.error(error);
+    return brandedErrorResponse();
+  }
+}
+
+// Uploaded campaign landings run arbitrary scripts, so they live on their own origin
+// (lp.thgfulfill.com). Requests for that host are answered by the landing handler ONLY —
+// TanStack Start (admin, /api, auth, server functions) is never invoked for them.
+async function handleLanding(request: Request, env: unknown): Promise<Response> {
+  try {
+    const [{ handleLandingRequest }, { landingHostDeps }] = await Promise.all([
+      import("./features/campaigns/landing/landing.host"),
+      import("./features/campaigns/landing/landing.host.server"),
+    ]);
+    return await handleLandingRequest(
+      request,
+      landingHostDeps(env as Parameters<typeof landingHostDeps>[0]),
+    );
+  } catch (error) {
+    console.error("[landing-host]", error);
+    return new Response("Service unavailable", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "X-Content-Type-Options": "nosniff" },
+    });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    try {
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
-      console.error(error);
-      return brandedErrorResponse();
-    }
+    const landingHost = landingHostOf((env ?? {}) as { LANDING_HOST?: string });
+    return dispatchByHost(
+      request,
+      landingHost,
+      (req) => handleLanding(req, env),
+      (req) => handleCms(req, env, ctx),
+    );
   },
 
   // Cron Trigger (every minute — see wrangler.jsonc `triggers.crons`). Resume

@@ -9,6 +9,7 @@ import {
   generateStateToken,
   isProduction,
 } from "@/features/auth";
+import { buildCookie } from "@/features/auth/auth.cookies";
 
 const STATE_TTL_SECONDS = 600;
 
@@ -18,18 +19,6 @@ const STATE_TTL_SECONDS = 600;
 // 10 requests per 60s per IP is generous for a human user clicking
 // "Login with Google" while still blocking automated abuse.
 const OAUTH_START_RATE_LIMIT = { max: 10, windowSeconds: 60 };
-
-function buildShortLivedCookie(name: string, value: string, prod: boolean): string {
-  const parts = [
-    `${name}=${value}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    `Max-Age=${STATE_TTL_SECONDS}`,
-  ];
-  if (prod) parts.push("Secure");
-  return parts.join("; ");
-}
 
 export const Route = createFileRoute("/api/auth/google/start")({
   server: {
@@ -71,10 +60,14 @@ export const Route = createFileRoute("/api/auth/google/start")({
 
         const prod = isProduction();
         const headers = new Headers();
-        headers.append("set-cookie", buildShortLivedCookie(OAUTH_STATE_COOKIE, state, prod));
+        const redirectValue = encodeURIComponent(redirect);
         headers.append(
           "set-cookie",
-          buildShortLivedCookie(OAUTH_REDIRECT_COOKIE, encodeURIComponent(redirect), prod),
+          buildCookie(OAUTH_STATE_COOKIE, state, STATE_TTL_SECONDS, prod),
+        );
+        headers.append(
+          "set-cookie",
+          buildCookie(OAUTH_REDIRECT_COOKIE, redirectValue, STATE_TTL_SECONDS, prod),
         );
         headers.set("location", authUrl);
 
