@@ -128,14 +128,18 @@ export function formatLandingReview(p: LandingReviewPayload): string {
     `🎨 Định dạng: ${p.format_mode === "ai" ? "AI đã chỉnh" : "chỉ chuẩn hóa bằng code"}`,
   ];
   if (p.format_note) lines.push(`<i>${esc(truncate(p.format_note, 300))}</i>`);
-  if (p.audit_mode === "rules" && p.audit_note) lines.push(`<i>${esc(truncate(p.audit_note, 300))}</i>`);
+  if (p.audit_mode === "rules" && p.audit_note)
+    lines.push(`<i>${esc(truncate(p.audit_note, 300))}</i>`);
   if (p.top.length > 0) {
     lines.push("");
     for (const f of p.top) {
       lines.push(`${SEVERITY_ICON[f.severity] ?? "•"} ${esc(truncate(f.message, 300))}`);
     }
   }
-  lines.push("", `🔍 <a href="${esc(p.preview_url)}">Xem trước</a> · ✏️ <a href="${esc(p.editor_url)}">Mở trong CMS</a>`);
+  lines.push(
+    "",
+    `🔍 <a href="${esc(p.preview_url)}">Xem trước</a> · ✏️ <a href="${esc(p.editor_url)}">Mở trong CMS</a>`,
+  );
   return clampBody(lines.join("\n"));
 }
 

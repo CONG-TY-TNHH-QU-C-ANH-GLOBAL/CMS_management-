@@ -100,9 +100,13 @@ describe("runDeterministicChecks on the Christmas sample", () => {
   test("with the assets present, only the content findings remain", () => {
     const complete = runDeterministicChecks({ html, paths: new Set(referencedAssets(SAMPLE)) });
     expect(complete.filter((f) => f.category === "asset")).toEqual([]);
-    expect(complete.map((f) => f.category).sort()).toEqual(
-      ["brand", "countdown", "form", "price", "price"].sort(),
-    );
+    expect(complete.map((f): string => f.category).sort()).toEqual([
+      "brand",
+      "countdown",
+      "form",
+      "price",
+      "price",
+    ]);
   });
 });
 

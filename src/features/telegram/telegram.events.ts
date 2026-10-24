@@ -49,7 +49,8 @@ export const EVENT_TYPES = [
     type: "landing_review",
     label: "Báo cáo landing Chương trình",
     kind: "infra",
-    description: "Marketing tải landing page lên — kết quả chuẩn hóa và các lỗi nội dung cần IT xem.",
+    description:
+      "Marketing tải landing page lên — kết quả chuẩn hóa và các lỗi nội dung cần IT xem.",
   },
   // Reserved — emitter wired in a later PR.
   {

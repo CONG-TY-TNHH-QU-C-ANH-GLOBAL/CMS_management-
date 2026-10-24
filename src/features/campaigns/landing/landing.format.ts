@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import type { PromptMessage } from "@/features/translations/translations.prompt";
 
+import { oldBrandMatches } from "./landing.checks";
 import {
   applySplices,
   attrValue,
@@ -83,7 +84,6 @@ const CONSULT_TEXT =
   /tư vấn|báo giá|liên hệ|đăng ký|nhận ưu đãi|consult|contact|get started|get a quote|quote|咨询|联系/i;
 const HEADERISH =
   /(?:^|[\s_-])(?:site-?header|header|navbar|nav-?bar|topnav|top-?bar|menu-?bar)(?:$|[\s_-])/i;
-const OLD_BRAND = /THG[\s ]+Fulfill(?![\w-])/gi;
 const SCHEMELESS_THG = /^(?:www\.)?thgfulfill\.com(?:[/?#]|$)/i;
 
 /** Where the page's own header can be: from <body> to the first <main>, <section> or <h1>. */
@@ -137,22 +137,15 @@ function consultCandidates(html: string, tags: HtmlTag[]): ConsultCandidate[] {
 }
 
 function brandCandidates(html: string): BrandCandidate[] {
-  const out: BrandCandidate[] = [];
-  OLD_BRAND.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = OLD_BRAND.exec(html))) {
-    if (/[/.@\w]/.test(html[m.index - 1] ?? "")) continue;
-    out.push({
-      id: `b${out.length + 1}`,
-      start: m.index,
-      end: m.index + m[0].length,
-      original: m[0],
-      context: html
-        .slice(Math.max(0, m.index - 60), m.index + m[0].length + 60)
-        .replace(/\s+/g, " "),
-    });
-  }
-  return out.slice(0, 200);
+  return oldBrandMatches(html)
+    .slice(0, 200)
+    .map((m, i) => ({
+      id: `b${i + 1}`,
+      start: m.start,
+      end: m.end,
+      original: m.text,
+      context: html.slice(Math.max(0, m.start - 60), m.end + 60).replace(/\s+/g, " "),
+    }));
 }
 
 function linkCandidates(html: string, tags: HtmlTag[]): LinkCandidate[] {

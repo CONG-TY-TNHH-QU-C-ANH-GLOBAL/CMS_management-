@@ -278,21 +278,23 @@ function checkLinks(html: string, tags: HtmlTag[]): LandingFinding[] {
 
 // ── Brand, mailto, placeholder, alt, countdown ──────────────────────────────
 
-const OLD_BRAND = /THG[\s ]+Fulfill(?![\w-])/gi;
-
-/** Contexts of the old company name that are not part of a URL or e-mail address. */
-export function oldBrandContexts(html: string): string[] {
-  const out: string[] = [];
-  OLD_BRAND.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = OLD_BRAND.exec(html))) {
-    const before = html[m.index - 1] ?? "";
-    if (/[/.@\w]/.test(before)) continue;
-    out.push(
-      html.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).replace(/\s+/g, " "),
-    );
+/** The old company name, outside URLs and e-mail addresses ("facebook.com/THGFulfill",
+ *  "info@thgfulfill.com" are identifiers, not the brand). Shared with the format step.
+ *  JS \s also matches the no-break space, so copy-pasted "THG&nbsp;Fulfill" is caught. */
+export function oldBrandMatches(html: string): { start: number; end: number; text: string }[] {
+  const out: { start: number; end: number; text: string }[] = [];
+  for (const m of html.matchAll(/THG\s+Fulfill(?![\w-])/gi)) {
+    if (/[/.@\w]/.test(html[m.index - 1] ?? "")) continue;
+    out.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
   }
   return out;
+}
+
+/** Contexts of the old company name, for evidence. */
+export function oldBrandContexts(html: string): string[] {
+  return oldBrandMatches(html).map((m) =>
+    html.slice(Math.max(0, m.start - 30), m.end + 30).replace(/\s+/g, " "),
+  );
 }
 
 function checkBrand(html: string): LandingFinding[] {
