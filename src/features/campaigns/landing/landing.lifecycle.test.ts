@@ -3,7 +3,7 @@
 // auth service (session cookie → sessions table → role), the real CSRF Origin check, the real
 // audit_log writes, the real Telegram dispatcher + outbox (its UNIQUE idempotency index is the
 // "one message per version" guarantee) and real SQLite with the full migration chain.
-// Only Worker boundaries are stubbed (see __fixtures__/worker-harness.ts).
+// Only Worker boundaries are stubbed (see __fixtures__/worker-harness.test.ts).
 //
 // Oracle: the owner's rules — viewers read, editors do everything, anonymous 401, a foreign
 // Origin 403 on every mutation with no side effect; critical findings need "Vẫn xuất bản";
@@ -23,7 +23,7 @@ import {
   migrationFiles,
   serverFnStub,
   srcPath,
-} from "./__fixtures__/worker-harness";
+} from "./__fixtures__/worker-harness.test";
 import { createLandingAi } from "./landing.ai";
 import { normalizeLandingHtml } from "./landing.normalize";
 

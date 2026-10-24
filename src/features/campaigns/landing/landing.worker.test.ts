@@ -20,7 +20,7 @@ import {
   memoryR2,
   migratedSnapshot,
   srcPath,
-} from "./__fixtures__/worker-harness";
+} from "./__fixtures__/worker-harness.test";
 
 const LP = "https://lp.thgfulfill.com";
 const CMS = "https://cms.thgfulfill.com";
