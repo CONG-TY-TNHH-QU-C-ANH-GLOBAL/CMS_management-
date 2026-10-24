@@ -145,6 +145,7 @@ export const previewUrl = (
 const decoder = new TextDecoder("utf-8");
 const encoder = new TextEncoder();
 const PUT_BATCH = 8;
+const EMPTY = new Uint8Array(0);
 
 // ── Upload ──────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,7 @@ export async function uploadLanding(
   const source = decoder.decode(bundle.files.get("index.html"));
   const normalized = normalizeLandingHtml(source, campaign.slug);
 
+  const paths = [...bundle.files.keys()];
   const writes: [string, Uint8Array, string | null][] = [
     [`landings/${campaign.slug}/${versionId}/source/index.html`, encoder.encode(source), null],
   ];
@@ -171,9 +173,13 @@ export async function uploadLanding(
   let row: LandingVersionRow | null;
   try {
     for (let i = 0; i < writes.length; i += PUT_BATCH) {
-      await Promise.all(
-        writes.slice(i, i + PUT_BATCH).map(([key, body]) => deps.bucket.put(key, body)),
-      );
+      const batch = writes.slice(i, i + PUT_BATCH);
+      await Promise.all(batch.map(([key, body]) => deps.bucket.put(key, body)));
+      // Free each written file right away: only one batch of extracted bytes stays referenced.
+      for (const write of batch) {
+        if (write[2]) bundle.files.delete(write[2]);
+        write[1] = EMPTY;
+      }
     }
 
     const report: LandingReport = { format: null, audit: null, warnings: bundle.warnings };
@@ -190,9 +196,9 @@ export async function uploadLanding(
         campaign.id,
         campaign.slug,
         input.fileName.slice(0, 200),
-        bundle.files.size,
+        paths.length,
         bundle.totalBytes,
-        JSON.stringify([...bundle.files.keys()]),
+        JSON.stringify(paths),
         JSON.stringify(report),
         actorId,
       )

@@ -11,8 +11,10 @@ export const LANDING_LIMITS = {
   zipBytes: 25 * 1024 * 1024,
   files: 300,
   fileBytes: 10 * 1024 * 1024,
-  /** Sum of uncompressed sizes. Bounds memory even when every file is under the per-file cap. */
-  totalBytes: 100 * 1024 * 1024,
+  /** Sum of uncompressed sizes. Bounds memory even when every file is under the per-file cap.
+   *  Worker isolates have 128 MB: the upload request (≤25 MB), its ArrayBuffer copy (≤25 MB)
+   *  and the extracted files must fit together with headroom, hence 50 MB rather than more. */
+  totalBytes: 50 * 1024 * 1024,
   pathLength: 200,
 } as const;
 
@@ -180,7 +182,7 @@ function screenEntries(entries: ZipEntry[], warnings: string[]): Accepted[] {
     throw new BundleError(`ZIP có ${accepted.length} tệp, vượt giới hạn ${LANDING_LIMITS.files}.`);
   }
   if (declaredTotal > LANDING_LIMITS.totalBytes) {
-    throw new BundleError("Tổng dung lượng sau giải nén vượt quá 100 MB.");
+    throw new BundleError("Tổng dung lượng sau giải nén vượt quá 50 MB.");
   }
   return accepted;
 }

@@ -248,13 +248,15 @@ describe("readLandingBundle on malformed archives", () => {
   });
 
   test("the declared total is capped before any entry is inflated", async () => {
-    const entries = Array.from({ length: 11 }, (_, i) => ({
+    // 6 × (10 MB − 1) is over the 50 MB cap while each file is under its own 10 MB cap.
+    const entries = Array.from({ length: 6 }, (_, i) => ({
       name: `v/${i}.mp4`,
       data: "x",
       method: 0 as const,
       declaredSize: LANDING_LIMITS.fileBytes - 1,
     }));
-    await rejects(makeZip([INDEX, ...entries]), /100 MB/);
+    await rejects(makeZip([INDEX, ...entries]), /50 MB/);
+    expect(LANDING_LIMITS.totalBytes).toBe(50 * 1024 * 1024);
   });
 
   test("a high-ratio entry is accepted only up to its honest declared size", async () => {
