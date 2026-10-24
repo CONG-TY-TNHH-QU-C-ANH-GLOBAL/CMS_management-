@@ -373,9 +373,8 @@ describe("lp host: response headers", () => {
           value: get.headers.get(name),
         });
       }
-      // 404s carry their "Not found" body on HEAD too (notFound() ignores the method); the
-      // HTTP layer drops a HEAD body, so only served files are held to "no body" here.
-      if (get.status === 200) expect(await head.text()).toBe("");
+      // HEAD carries no body on any status, 404s included.
+      expect({ path, body: await head.text() }).toEqual({ path, body: "" });
     }
     const head = await fetchWorker(`${LP}/${SLUG}/assets/hero.jpg`, { method: "HEAD" });
     expect(head.headers.get("content-length")).toBe("4");

@@ -142,6 +142,15 @@ export async function handleLandingRequest(
   request: Request,
   deps: LandingHostDeps,
 ): Promise<Response> {
+  const response = await route(request, deps);
+  // HEAD never carries a body, 404s included.
+  if (request.method === "HEAD" && response.body) {
+    return new Response(null, { status: response.status, headers: response.headers });
+  }
+  return response;
+}
+
+async function route(request: Request, deps: LandingHostDeps): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") return notFound();
   const url = new URL(request.url);
   const segments = url.pathname.split("/").slice(1);
