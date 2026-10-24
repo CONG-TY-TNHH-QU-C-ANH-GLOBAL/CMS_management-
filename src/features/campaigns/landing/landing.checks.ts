@@ -141,13 +141,26 @@ function checkAssets(input: CheckInput, tags: HtmlTag[], scripts: ScriptBlock[])
   // and directory prefixes ("assets/products/") that templates concatenate with a name.
   const all = [...paths];
   const missingDirs: string[] = [];
+  // Directory prefixes a template concatenates with a bare name: `'<img src="assets/x/' + p.img`.
+  const prefixes = [
+    ...new Set(
+      scripts.flatMap((s) =>
+        [...s.body.matchAll(/([\w.-]+(?:\/[\w.-]+)*\/)["']\s*\+/g)].map((m) => m[1]),
+      ),
+    ),
+  ];
   for (const literal of scripts.flatMap((s) => stringLiterals(s.body))) {
     if (/\s/.test(literal) || NON_FILE_URL.test(literal) || literal.startsWith("/")) continue;
     if (ASSET_EXT.test(literal)) {
       const local = resolveLocal(literal);
       if (!local) continue;
       const found = paths.has(local) || all.some((p) => p.endsWith(`/${local}`));
-      if (!found) missing.push(local);
+      if (found) continue;
+      // A bare name is one file, not two: report it under the template's prefix when there is
+      // exactly one (so it merges with the same file referenced from markup), else as written.
+      const bare = !local.includes("/");
+      if (bare && missing.some((m) => m.endsWith(`/${local}`))) continue;
+      missing.push(bare && prefixes.length === 1 ? `${prefixes[0]}${local}` : local);
     } else if (/^[\w.-]+(?:\/[\w.-]+)*\/$/.test(literal) && literal.includes("/")) {
       const dir = resolveLocal(literal);
       if (dir && !all.some((p) => p.startsWith(`${dir}/`))) missingDirs.push(`${dir}/`);

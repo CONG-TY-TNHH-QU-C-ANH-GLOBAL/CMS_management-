@@ -73,7 +73,22 @@ describe("runDeterministicChecks on the Christmas sample", () => {
     expect(asset.severity).toBe("critical");
     expect(asset.evidence).toContain("assets/hero-christmas-market-navy.jpg");
     expect(asset.evidence).toContain("assets/products/advent-pet.jpg");
-    expect(asset.message).toMatch(/Thiếu \d+ tệp/);
+    // 25 real files (1 hero + 24 product images, markup and script templates merged) — a bare
+    // script name like "stone.jpg" is the template's assets/products/stone.jpg, not a 2nd file.
+    expect(asset.message).toContain("Thiếu 25 tệp");
+    expect(asset.evidence).not.toMatch(/(^|, )[\w-]+\.jpg/);
+  });
+
+  test("a bare script name still counts when it is the only reference (recall kept)", () => {
+    const page = `<html><body><script>var P=[{img:"only-in-js.png"}];el.innerHTML='<img src="img/'+P[0].img+'">';</script></body></html>`;
+    const [asset] = runDeterministicChecks({ html: page, paths: new Set(["index.html"]) });
+    expect(asset.message).toContain("Thiếu 1 tệp");
+    expect(asset.evidence).toBe("img/only-in-js.png");
+    const found = runDeterministicChecks({
+      html: page,
+      paths: new Set(["index.html", "img/only-in-js.png"]),
+    });
+    expect(found.filter((f) => f.category === "asset")).toEqual([]);
   });
 
   test("flags both copied price rows by product name", () => {

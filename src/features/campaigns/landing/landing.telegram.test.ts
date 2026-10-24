@@ -22,7 +22,7 @@ test("landing_review is an infra event with an escaped, linked report", () => {
       format_note: "Bỏ qua bước AI định dạng: chưa cấu hình ANTHROPIC_API_KEY.",
       audit_mode: "rules",
       audit_note: "Bỏ qua bước AI kiểm tra nội dung.",
-      top: [{ severity: "critical", message: "Thiếu 31 tệp <img>" }],
+      top: [{ severity: "critical", message: "Thiếu 25 tệp <img>" }],
       editor_url: "https://cms.thgfulfill.com/admin/content/campaigns/christmas-2026",
       preview_url: "https://lp.thgfulfill.com/_preview/0123456789abcdef0123456789abcdef/",
     },
@@ -30,7 +30,7 @@ test("landing_review is an infra event with an escaped, linked report", () => {
   expect(body).toContain("Christmas &lt;2026&gt; &amp; co");
   expect(body).toContain("🛑 1 nghiêm trọng · ⚠️ 4 quan trọng · ℹ️ 2 nhỏ");
   expect(body).toContain("<code>01234567</code> · Marketing");
-  expect(body).toContain("🛑 Thiếu 31 tệp &lt;img&gt;");
+  expect(body).toContain("🛑 Thiếu 25 tệp &lt;img&gt;");
   expect(body).toContain("ANTHROPIC_API_KEY");
   expect(body).toContain(
     '<a href="https://cms.thgfulfill.com/admin/content/campaigns/christmas-2026">',
