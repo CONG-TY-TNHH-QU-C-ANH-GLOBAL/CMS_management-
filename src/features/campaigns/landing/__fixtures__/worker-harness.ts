@@ -15,6 +15,7 @@
 //   careers/landing-rebuild            no-op
 // `fetch` inside production modules throws, so no code path can reach the network.
 
+import { runInThisContext } from "node:vm";
 import { Database } from "bun:sqlite";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -163,7 +164,13 @@ export function createLoader(
       if (id.startsWith(".")) return load(toFile(resolve(dirname(absolute), id)));
       return dependencyRequire(id);
     };
-    const run = new Function("module", "exports", "require", "__importMeta", "fetch", code);
+    // Same CommonJS wrapper as Node's loader; vm keeps the module in this realm.
+    const run = runInThisContext(
+      `(function (module, exports, require, __importMeta, fetch) {
+${code}
+})`,
+      { filename: absolute },
+    ) as (...args: unknown[]) => void;
     run(module, module.exports, scopedRequire, importMeta, noNetwork);
     return module.exports;
   }
