@@ -138,6 +138,7 @@ describe("lp host: nothing but landing files", () => {
     "/%2e%2e/admin",
     "/api",
     "/api/v1/leads",
+    "/api/v1/campaigns",
     "/API/v1/leads",
     "/api/v1/landing-uploads",
     "/api/v1/media/upload",
@@ -189,6 +190,8 @@ describe("lp host: nothing but landing files", () => {
       headers: { host: "LP.thgfulfill.com:443" },
     });
     expect(await landingViaHeader.text()).toBe("<html>LIVE</html>");
+    // Host names are case-insensitive in the URL too.
+    expect((await fetchWorker("https://LP.THGFULFILL.COM/admin")).status).toBe(404);
     // On lp claiming Host: cms → admin stays unreachable.
     for (const path of ["/admin", "/api/v1/leads", "/_serverFn/x"]) {
       const res = await fetchWorker(`${LP}${path}`, { headers: { host: "cms.thgfulfill.com" } });
@@ -218,6 +221,7 @@ describe("lp host: versions", () => {
     expect(await (await fetchWorker(`${LP}/${SLUG}/`)).text()).toBe("<html>LIVE</html>");
     // A draft id under the live slug is just a (missing) file path inside the live version.
     expect((await fetchWorker(`${LP}/${SLUG}/${DRAFT}/index.html`)).status).toBe(404);
+    expect((await fetchWorker(`${LP}/${SLUG}/assets/missing.png`)).status).toBe(404);
     sql.query(`UPDATE campaigns SET landing_version_id = NULL`).run();
     expect((await fetchWorker(`${LP}/${SLUG}/`)).status).toBe(404);
   });
@@ -236,6 +240,7 @@ describe("lp host: versions", () => {
       `${DRAFT.slice(0, 31)}g`,
       "%32".repeat(32), // percent-encoded digits are not decoded into an id
       SLUG,
+      "not-a-version-id",
     ]) {
       const res = await fetchWorker(`${LP}/_preview/${id}/`);
       expect({ id, status: res.status }).toEqual({ id, status: 404 });
