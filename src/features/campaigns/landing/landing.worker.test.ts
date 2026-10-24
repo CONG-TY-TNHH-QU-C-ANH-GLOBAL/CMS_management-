@@ -192,6 +192,14 @@ describe("lp host: nothing but landing files", () => {
     expect(await landingViaHeader.text()).toBe("<html>LIVE</html>");
     // Host names are case-insensitive in the URL too.
     expect((await fetchWorker("https://LP.THGFULFILL.COM/admin")).status).toBe(404);
+    // The fully qualified form with a trailing dot is the same host (URL and Host header).
+    expect((await fetchWorker("https://lp.thgfulfill.com./admin")).status).toBe(404);
+    expect(
+      (await fetchWorker(`${CMS}/admin`, { headers: { host: "LP.thgfulfill.com.:443" } })).status,
+    ).toBe(404);
+    expect(await (await fetchWorker(`https://lp.thgfulfill.com./${SLUG}/`)).text()).toBe(
+      "<html>LIVE</html>",
+    );
     // On lp claiming Host: cms → admin stays unreachable.
     for (const path of ["/admin", "/api/v1/leads", "/_serverFn/x"]) {
       const res = await fetchWorker(`${LP}${path}`, { headers: { host: "cms.thgfulfill.com" } });

@@ -46,22 +46,25 @@ export function landingObjectKey(slug: string, versionId: string, path: string):
   return `landings/${slug}/${versionId}/site/${path}`;
 }
 
-function hostnameOf(value: string | null): string {
+/** Canonical host for comparison: lowercase, no port, no single trailing dot (the fully
+ *  qualified "lp.thgfulfill.com." is the same host and must take the same path). */
+export function normalizeHost(value: string | null | undefined): string {
   if (!value) return "";
-  return value.replace(/:\d+$/, "").toLowerCase();
+  return value.trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
 }
 
 /** True when the request targets the landing host — by URL or by Host header, so either one
  *  being the landing host puts the request on the restrictive path. */
 export function isLandingHost(request: Request, landingHost: string): boolean {
-  const wanted = landingHost.toLowerCase();
+  const wanted = normalizeHost(landingHost);
+  if (!wanted) return false;
   let urlHost = "";
   try {
-    urlHost = new URL(request.url).hostname.toLowerCase();
+    urlHost = normalizeHost(new URL(request.url).hostname);
   } catch {
     /* unparseable URL → fall through to the header */
   }
-  return urlHost === wanted || hostnameOf(request.headers.get("host")) === wanted;
+  return urlHost === wanted || normalizeHost(request.headers.get("host")) === wanted;
 }
 
 /** Route by host: the landing host never reaches the CMS handler. */
