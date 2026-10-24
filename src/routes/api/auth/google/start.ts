@@ -60,10 +60,14 @@ export const Route = createFileRoute("/api/auth/google/start")({
 
         const prod = isProduction();
         const headers = new Headers();
-        headers.append("set-cookie", buildCookie(OAUTH_STATE_COOKIE, state, STATE_TTL_SECONDS, prod));
+        const redirectValue = encodeURIComponent(redirect);
         headers.append(
           "set-cookie",
-          buildCookie(OAUTH_REDIRECT_COOKIE, encodeURIComponent(redirect), STATE_TTL_SECONDS, prod),
+          buildCookie(OAUTH_STATE_COOKIE, state, STATE_TTL_SECONDS, prod),
+        );
+        headers.append(
+          "set-cookie",
+          buildCookie(OAUTH_REDIRECT_COOKIE, redirectValue, STATE_TTL_SECONDS, prod),
         );
         headers.set("location", authUrl);
 
