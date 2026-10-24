@@ -127,3 +127,186 @@ describe("readLandingBundle", () => {
     await rejects(new TextEncoder().encode("<html>not a zip</html>"), /không phải \.zip/);
   });
 });
+
+// ── Malformed and hostile archives ──────────────────────────────────────────
+// Every case must end in a BundleError with a user-facing message (or, where the platform's
+// inflater is the one failing, at least a rejection), never in a partial bundle or a hang.
+
+/** Patch the end-of-central-directory record: [offset in EOCD, byte width, value]. */
+function patchEocd(zip: Uint8Array, fields: [number, 2 | 4, number][]): Uint8Array {
+  const out = new Uint8Array(zip);
+  const view = new DataView(out.buffer);
+  const eocd = out.byteLength - 22;
+  for (const [at, width, value] of fields) {
+    if (width === 2) view.setUint16(eocd + at, value, true);
+    else view.setUint32(eocd + at, value, true);
+  }
+  return out;
+}
+
+describe("readLandingBundle on malformed archives", () => {
+  const good = () => makeZip([INDEX, { name: "assets/a.css", data: "a{}" }]);
+
+  test("a CRC mismatch is rejected, stored or deflated", async () => {
+    await rejects(makeZip([INDEX, { name: "a.css", data: "a{}", method: 0, crc: 1 }]), /checksum/);
+    await rejects(makeZip([INDEX, { name: "a.css", data: "a{}", crc: 0xdeadbeef }]), /checksum/);
+  });
+
+  test("empty, tiny and truncated inputs", async () => {
+    await rejects(new Uint8Array(0), /rỗng hoặc bị hỏng/);
+    await rejects(new Uint8Array(21), /rỗng hoặc bị hỏng/);
+    // A valid EOCD with zero entries: a well-formed but empty archive.
+    await rejects(makeZip([]), /index\.html/);
+    const zip = good();
+    // Cut inside the central directory: the EOCD is gone.
+    await rejects(zip.subarray(0, zip.byteLength - 30), /không phải \.zip/);
+    // Cut the file data but keep a (now lying) directory record at the end.
+    const cut = new Uint8Array([...zip.subarray(0, 20), ...zip.subarray(zip.byteLength - 22)]);
+    await rejects(cut, /bị hỏng/);
+  });
+
+  test("a corrupt central directory is rejected", async () => {
+    const zip = good();
+    await rejects(patchEocd(zip, [[16, 4, zip.byteLength]]), /Mục lục ZIP bị hỏng/);
+    await rejects(
+      patchEocd(zip, [
+        [10, 2, 5],
+        [8, 2, 5],
+      ]),
+      /Mục lục ZIP bị hỏng/,
+    );
+    await rejects(patchEocd(zip, [[16, 4, 1]]), /Mục lục ZIP bị hỏng/);
+    await rejects(patchEocd(zip, [[4, 2, 1]]), /multi-disk/);
+  });
+
+  test("ZIP64 markers and unsupported compression methods fail cleanly", async () => {
+    await rejects(
+      patchEocd(good(), [
+        [10, 2, 0xffff],
+        [8, 2, 0xffff],
+      ]),
+      /ZIP64/,
+    );
+    await rejects(patchEocd(good(), [[16, 4, 0xffffffff]]), /ZIP64/);
+    for (const method of [1, 6, 9, 12, 14, 93, 99]) {
+      await rejects(
+        makeZip([INDEX, { name: "a.css", data: "a{}", declaredMethod: method }]),
+        new RegExp(`method ${method}`),
+      );
+    }
+  });
+
+  test("a local header pointing past the end of the file is rejected", async () => {
+    const zip = good();
+    const view = new DataView(zip.buffer);
+    const cd = view.getUint32(zip.byteLength - 22 + 16, true);
+    // Second central entry's local-header offset (46-byte header + 10-byte "index.html" name).
+    view.setUint32(cd + 46 + 10 + 42, zip.byteLength - 10, true);
+    await rejects(zip, /bị hỏng/);
+  });
+
+  test("a corrupt deflate stream rejects instead of yielding a partial bundle", async () => {
+    const zip = makeZip([{ name: "index.html", data: "<p>hello hello hello</p>".repeat(40) }]);
+    zip.fill(0xff, 30 + 10, 30 + 10 + 24); // garble the start of the deflate body
+    const outcome = await readLandingBundle(zip).then(
+      () => "resolved",
+      (e: unknown) => (e instanceof Error ? e.name : "non-error"),
+    );
+    // KNOWN BUG (reported): the platform inflater's TypeError escapes as-is instead of a
+    // BundleError, so the upload route answers 500 rather than a readable message.
+    expect(outcome).not.toBe("resolved");
+  });
+
+  test("hostile entry names are rejected before anything is read", async () => {
+    await rejects(makeZip([INDEX, { name: "a\u0000.js", data: "x" }]), /ký tự điều khiển/);
+    await rejects(
+      makeZip([INDEX, { name: "assets/\u001b[31m.css", data: "x" }]),
+      /ký tự điều khiển/,
+    );
+    await rejects(makeZip([INDEX, { name: "\\\\server\\share\\x.js", data: "x" }]), /tuyệt đối/);
+    await rejects(makeZip([INDEX, { name: "c:/x.js", data: "x" }]), /tuyệt đối/);
+    await rejects(makeZip([INDEX, { name: "./a.js", data: "x" }]), /\.\./);
+    await rejects(makeZip([INDEX, { name: "assets//a.js", data: "x" }]), /không hợp lệ/);
+    await rejects(makeZip([INDEX, { name: `${"a/".repeat(100)}x.js`, data: "x" }]), /quá dài/);
+  });
+
+  test("duplicates are caught exactly and case-insensitively after the top folder is stripped", async () => {
+    await rejects(
+      makeZip([INDEX, { name: "a.css", data: "1" }, { name: "a.css", data: "2" }]),
+      /trùng tên: "a.css"/,
+    );
+    await rejects(
+      makeZip([
+        { name: "site/index.html", data: "x" },
+        { name: "site/Index.HTML", data: "y" },
+      ]),
+      /trùng tên/,
+    );
+  });
+
+  test("symlinks are rejected even inside junk folders or flagged as a directory", async () => {
+    await rejects(
+      makeZip([INDEX, { name: "__MACOSX/evil.png", data: "/etc/passwd", symlink: true }]),
+      /liên kết/,
+    );
+    await rejects(makeZip([INDEX, { name: "assets/", data: "", symlink: true }]), /liên kết/);
+  });
+
+  test("the declared total is capped before any entry is inflated", async () => {
+    const entries = Array.from({ length: 11 }, (_, i) => ({
+      name: `v/${i}.mp4`,
+      data: "x",
+      method: 0 as const,
+      declaredSize: LANDING_LIMITS.fileBytes - 1,
+    }));
+    await rejects(makeZip([INDEX, ...entries]), /100 MB/);
+  });
+
+  test("a high-ratio entry is accepted only up to its honest declared size", async () => {
+    // 2 MB of zeros deflates to a few KB: legal when declared truthfully ...
+    const zeros = new Uint8Array(2 * 1024 * 1024);
+    const ok = await readLandingBundle(makeZip([INDEX, { name: "v/a.json", data: zeros }]));
+    expect(ok.files.get("v/a.json")?.byteLength).toBe(zeros.byteLength);
+    // ... cut off as soon as it inflates past a smaller declared size ...
+    await rejects(
+      makeZip([INDEX, { name: "v/a.json", data: zeros, declaredSize: 1024 }]),
+      /zip bomb/,
+    );
+    // ... and inflating to LESS than declared is corruption too.
+    await rejects(
+      makeZip([INDEX, { name: "v/a.json", data: "short", declaredSize: 4096 }]),
+      /thiếu dữ liệu/,
+    );
+  });
+
+  test("Unicode names survive as UTF-8; directory entries and junk are not files", async () => {
+    const bundle = await readLandingBundle(
+      makeZip([
+        INDEX,
+        { name: "assets/", data: "" },
+        { name: "assets/Ảnh Giáng sinh.png", data: "p" },
+        { name: "assets/圣诞.webp", data: "w" },
+        { name: "assets/Thumbs.db", data: "junk" },
+        { name: "__MACOSX/assets/._x.png", data: "junk" },
+      ]),
+    );
+    expect([...bundle.files.keys()].sort()).toEqual(
+      ["assets/Ảnh Giáng sinh.png", "assets/圣诞.webp", "index.html"].sort(),
+    );
+  });
+
+  test("tens of thousands of skipped entries finish quickly and keep no extra files", async () => {
+    const many = Array.from({ length: 20_000 }, (_, i) => ({
+      name: `notes/${i}.txt`,
+      data: "",
+      method: 0 as const,
+    }));
+    const started = performance.now();
+    const bundle = await readLandingBundle(makeZip([INDEX, ...many]));
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect([...bundle.files.keys()]).toEqual(["index.html"]);
+    // KNOWN GAP (reported): one warning per skipped entry, unbounded; 20k entries put
+    // about 1.1 MB into report_json.
+    expect(bundle.warnings).toHaveLength(20_000);
+  });
+});

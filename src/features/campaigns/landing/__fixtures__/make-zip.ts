@@ -10,6 +10,13 @@ export interface ZipInput {
   data?: Uint8Array | string;
   /** 8 = deflate (default), 0 = stored. */
   method?: 0 | 8;
+  /** Method number written to the headers when it differs from how the body was encoded
+   *  (e.g. 12 = bzip2, 14 = LZMA, 99 = AES) — the body stays stored/deflated. */
+  declaredMethod?: number;
+  /** Override the CRC-32 written to the headers. */
+  crc?: number;
+  /** Raw name bytes (e.g. invalid UTF-8); wins over `name`. */
+  nameBytes?: Uint8Array;
   symlink?: boolean;
   encrypted?: boolean;
   /** Override the uncompressed size written to the headers. */
@@ -23,14 +30,14 @@ export function makeZip(entries: ZipInput[]): Uint8Array {
   const centrals: Uint8Array[] = [];
   let offset = 0;
   for (const entry of entries) {
-    const name = encoder.encode(entry.name);
+    const name = entry.nameBytes ?? encoder.encode(entry.name);
     const raw =
       typeof entry.data === "string"
         ? encoder.encode(entry.data)
         : (entry.data ?? new Uint8Array());
     const method = entry.method ?? 8;
     const body = method === 8 ? new Uint8Array(deflateRawSync(raw)) : raw;
-    const crc = crc32(raw);
+    const crc = entry.crc ?? crc32(raw);
     const size = entry.declaredSize ?? raw.byteLength;
     const flags = (entry.encrypted ? 0x1 : 0) | 0x800;
 
@@ -39,7 +46,7 @@ export function makeZip(entries: ZipInput[]): Uint8Array {
     lv.setUint32(0, 0x04034b50, true);
     lv.setUint16(4, 20, true);
     lv.setUint16(6, flags, true);
-    lv.setUint16(8, method, true);
+    lv.setUint16(8, entry.declaredMethod ?? method, true);
     lv.setUint32(14, crc, true);
     lv.setUint32(18, body.byteLength, true);
     lv.setUint32(22, size, true);
@@ -53,7 +60,7 @@ export function makeZip(entries: ZipInput[]): Uint8Array {
     cv.setUint16(4, (3 << 8) | 20, true); // made by Unix
     cv.setUint16(6, 20, true);
     cv.setUint16(8, flags, true);
-    cv.setUint16(10, method, true);
+    cv.setUint16(10, entry.declaredMethod ?? method, true);
     cv.setUint32(16, crc, true);
     cv.setUint32(20, body.byteLength, true);
     cv.setUint32(24, size, true);
