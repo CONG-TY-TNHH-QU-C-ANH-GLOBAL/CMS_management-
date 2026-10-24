@@ -160,7 +160,6 @@ export function createLoader(
       if (id.startsWith(".")) return load(toFile(resolve(dirname(absolute), id)));
       return dependencyRequire(id);
     };
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- test loader for transpiled source
     const run = new Function("module", "exports", "require", "__importMeta", "fetch", code);
     run(module, module.exports, scopedRequire, importMeta, noNetwork);
     return module.exports;
