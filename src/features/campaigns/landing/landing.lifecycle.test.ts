@@ -127,9 +127,14 @@ beforeEach(() => {
 });
 
 // ── Acting as someone ────────────────────────────────────────────────────────
-function requestAs(who: Who, init: { origin?: string | null; body?: BodyInit; url?: string } = {}) {
+function requestAs(
+  who: Who,
+  init: { origin?: string | null; body?: BodyInit; url?: string; cookieName?: string } = {},
+) {
   const headers = new Headers();
-  if (who !== "anonymous") headers.set("cookie", `other=1; thg_sid=sid-${who}`);
+  // Production (this harness runs PROD) reads only the __Host- session cookie.
+  const name = init.cookieName ?? "__Host-thg_sid";
+  if (who !== "anonymous") headers.set("cookie", `other=1; ${name}=sid-${who}`);
   const origin = init.origin === undefined ? CMS : init.origin;
   if (origin !== null) headers.set("origin", origin);
   return new Request(init.url ?? `${CMS}/_serverFn/landing`, {
@@ -152,7 +157,7 @@ async function call(who: Who, fn: string, data: unknown, origin?: string | null)
 async function upload(
   who: Who,
   zip: Uint8Array,
-  opts: { origin?: string | null; campaign?: number } = {},
+  opts: { origin?: string | null; campaign?: number; cookieName?: string } = {},
 ) {
   const form = new FormData();
   form.set("campaign_id", String(opts.campaign ?? campaignId));
@@ -161,6 +166,7 @@ async function upload(
     origin: opts.origin,
     body: form,
     url: `${CMS}/api/v1/landing-uploads`,
+    cookieName: opts.cookieName,
   });
   try {
     const res = await uploadRoute.Route.options.server.handlers.POST({ request: current });
@@ -232,6 +238,13 @@ describe("roles and origin on every landing entry point", () => {
     ] as const) {
       expect(await call("anonymous", fn, data)).toMatchObject({ ok: false, status: 401 });
     }
+    expect(sideEffects()).toEqual(before);
+  });
+
+  test("an unprefixed thg_sid (tossable from lp.thgfulfill.com) is not a session in production", async () => {
+    const before = sideEffects();
+    const res = await upload("editor", sampleZip(), { cookieName: "thg_sid" });
+    expect(res.status).toBe(401);
     expect(sideEffects()).toEqual(before);
   });
 
