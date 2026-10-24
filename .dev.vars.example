@@ -45,3 +45,8 @@ TURNSTILE_SECRET_KEY=
 # Generate:  bun -e "console.log(crypto.randomUUID().replaceAll(\"-\",\"\"))"
 # Production: bunx wrangler secret put MARKETING_AGENT_TOKEN
 MARKETING_AGENT_TOKEN=
+
+# Claude (Anthropic API) key for the campaign landing AI steps (format edit list + audit).
+# Leave BLANK to skip them: uploads still get deterministic normalization and checks.
+# Production: bunx wrangler secret put ANTHROPIC_API_KEY
+ANTHROPIC_API_KEY=

@@ -62,6 +62,11 @@ declare global {
       LANDING_HOST?: string;
       LANDING_ORIGIN?: string;
       TURNSTILE_SITE_KEY?: string;
+      // Claude (Anthropic API) for the landing AI format + audit steps. Secret; undefined skips
+      // the AI steps (deterministic normalization and checks still run). LANDING_AI_MODEL
+      // overrides the model (default claude-opus-5-5).
+      ANTHROPIC_API_KEY?: string;
+      LANDING_AI_MODEL?: string;
     }
   }
 }

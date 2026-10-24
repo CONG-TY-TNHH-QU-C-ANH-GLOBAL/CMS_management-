@@ -38,7 +38,9 @@
 		// routes it to landing.host.ts before TanStack Start). Never point it at cms. or the
 		// apex: the uploaded HTML runs arbitrary scripts.
 		"LANDING_HOST": "lp.thgfulfill.com",
-		"LANDING_ORIGIN": "https://lp.thgfulfill.com"
+		"LANDING_ORIGIN": "https://lp.thgfulfill.com",
+		// Claude model for the landing AI steps; the key is the ANTHROPIC_API_KEY secret.
+		"LANDING_AI_MODEL": "claude-opus-5-5"
 	},
 	"d1_databases": [
 		{
