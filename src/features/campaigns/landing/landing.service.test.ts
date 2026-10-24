@@ -12,6 +12,7 @@ import { makeZip, type ZipInput } from "./__fixtures__/make-zip";
 import type { JsonAiCall } from "./landing.format";
 import { handleLandingRequest } from "./landing.host";
 import { landingHostDeps } from "./landing.host.server";
+import { leadScriptTag } from "./landing.normalize";
 import {
   listLandingVersions,
   processLanding,
@@ -212,6 +213,11 @@ describe("process", () => {
     expect([ready.critical_count, ready.major_count]).toEqual([1, 4]); // critical: assets · major: brand, mailto, 2× price
     const report = JSON.parse(ready.report_json);
     expect(report.format.mode).toBe("deterministic");
+    // Uploaded bytes vs served bytes: the only deterministic change is the script tag.
+    // +1 for the line break injectLeadScript puts before the tag.
+    const tagBytes = leadScriptTag("christmas-2026", "vi").length + 1;
+    expect(report.format.diff.bytesBefore).toBe(Buffer.byteLength(SAMPLE));
+    expect(report.format.diff.bytesAfter - report.format.diff.bytesBefore).toBe(tagBytes);
     expect(report.audit.mode).toBe("rules");
 
     expect(dispatched).toHaveLength(1);

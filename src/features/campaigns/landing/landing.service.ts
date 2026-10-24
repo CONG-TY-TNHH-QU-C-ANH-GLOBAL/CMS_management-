@@ -85,9 +85,27 @@ interface CampaignRef {
 const fail = (statusCode: number, message: string) =>
   Object.assign(new Error(message), { statusCode });
 
-const VERSION_COLUMNS = `id, campaign_id, slug, status, original_name, file_count, total_bytes,
-  files_json, report_json, findings_json, critical_count, major_count, minor_count, uploaded_by,
-  created_at, processed_at, last_published_at, last_published_by`;
+const VERSION_COLUMN_LIST = [
+  "id",
+  "campaign_id",
+  "slug",
+  "status",
+  "original_name",
+  "file_count",
+  "total_bytes",
+  "files_json",
+  "report_json",
+  "findings_json",
+  "critical_count",
+  "major_count",
+  "minor_count",
+  "uploaded_by",
+  "created_at",
+  "processed_at",
+  "last_published_at",
+  "last_published_by",
+] as const;
+const VERSION_COLUMNS = VERSION_COLUMN_LIST.join(", ");
 
 async function getCampaignRef(db: D1Database, campaignId: number): Promise<CampaignRef> {
   const row = await db
@@ -309,8 +327,14 @@ export async function processLanding(
       });
     }
     const counts = countBySeverity(findings);
+    // The editor's diff summary compares the file AS UPLOADED with what is served, in bytes.
+    const diff = {
+      ...formatted.report.diff,
+      bytesBefore: encoder.encode(source).byteLength,
+      bytesAfter: encoder.encode(formatted.html).byteLength,
+    };
     const report: LandingReport = {
-      format: formatted.report,
+      format: { ...formatted.report, diff },
       audit: { mode: audit.mode, note: audit.note },
       warnings: previous.warnings ?? [],
     };
@@ -467,10 +491,7 @@ export async function listLandingVersions(
   const campaign = await getCampaignRef(deps.db, campaignId);
   const result = await deps.db
     .prepare(
-      `SELECT v.id, v.campaign_id, v.slug, v.status, v.original_name, v.file_count, v.total_bytes,
-              v.files_json, v.report_json, v.findings_json, v.critical_count, v.major_count,
-              v.minor_count, v.uploaded_by, v.created_at, v.processed_at, v.last_published_at,
-              v.last_published_by, u.name AS uploader_name, u.email AS uploader_email
+      `SELECT ${VERSION_COLUMN_LIST.map((c) => `v.${c}`).join(", ")}, u.name AS uploader_name, u.email AS uploader_email
          FROM campaign_landing_versions v
          LEFT JOIN users u ON u.id = v.uploaded_by
         WHERE v.campaign_id = ?
