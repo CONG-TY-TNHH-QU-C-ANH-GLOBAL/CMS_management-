@@ -139,9 +139,14 @@ interface Accepted {
   path: string;
 }
 
+/** Skipped-file warnings kept per upload; the rest is summarised in one line so report_json
+ *  stays small whatever the archive holds. */
+export const MAX_SKIP_WARNINGS = 50;
+
 function screenEntries(entries: ZipEntry[], warnings: string[]): Accepted[] {
   const accepted: Accepted[] = [];
   let declaredTotal = 0;
+  let skipped = 0;
   for (const entry of entries) {
     if (entry.isSymlink) throw new BundleError(`ZIP chứa liên kết tượng trưng: "${entry.name}"`);
     if (entry.isDirectory) continue;
@@ -154,7 +159,10 @@ function screenEntries(entries: ZipEntry[], warnings: string[]): Accepted[] {
       throw new BundleError(`ZIP chứa tệp chạy phía máy chủ, không được phép: "${path}"`);
     }
     if (!ALLOWED_EXTENSIONS.has(ext)) {
-      warnings.push(`Bỏ qua tệp không thuộc danh sách cho phép: ${path}`);
+      skipped++;
+      if (skipped <= MAX_SKIP_WARNINGS) {
+        warnings.push(`Bỏ qua tệp không thuộc danh sách cho phép: ${path}`);
+      }
       continue;
     }
     if (entry.size > LANDING_LIMITS.fileBytes) {
@@ -162,6 +170,11 @@ function screenEntries(entries: ZipEntry[], warnings: string[]): Accepted[] {
     }
     declaredTotal += entry.size;
     accepted.push({ entry, path });
+  }
+  if (skipped > MAX_SKIP_WARNINGS) {
+    warnings.push(
+      `… và ${skipped - MAX_SKIP_WARNINGS} tệp khác bị bỏ qua (tổng ${skipped} tệp không thuộc danh sách cho phép).`,
+    );
   }
   if (accepted.length > LANDING_LIMITS.files) {
     throw new BundleError(`ZIP có ${accepted.length} tệp, vượt giới hạn ${LANDING_LIMITS.files}.`);

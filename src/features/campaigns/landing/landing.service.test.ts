@@ -61,6 +61,9 @@ const bucket = {
     const data = store.get(key);
     return data ? objectOf(key, data) : null;
   },
+  delete: async (keys: string | string[]) => {
+    for (const key of Array.isArray(keys) ? keys : [keys]) store.delete(key);
+  },
   head: async (key: string) => {
     const data = store.get(key);
     return data ? { size: data.byteLength, httpEtag: `"${data.byteLength}"` } : null;
@@ -406,5 +409,48 @@ describe("processing runs once per version", () => {
       .run(v.id);
     expect((await processLanding(deps(null), v.id)).status).toBe("ready");
     expect(dispatched).toHaveLength(1);
+  });
+});
+
+describe("a failed upload leaves no R2 objects behind", () => {
+  test("when the D1 insert fails after the files were written", async () => {
+    const failingDb = {
+      prepare(query: string) {
+        if (query.includes("INSERT INTO campaign_landing_versions")) {
+          throw new Error("D1_ERROR: simulated outage");
+        }
+        return db.prepare(query);
+      },
+    } as unknown as D1Database;
+    await expect(
+      uploadLanding({ ...deps(), db: failingDb }, ACTOR, {
+        campaignId,
+        fileName: "c.zip",
+        zip: sampleZip([{ name: "christmas/assets/a.png", data: "png" }]),
+      }),
+    ).rejects.toThrow(/simulated outage/);
+    expect([...store.keys()]).toEqual([]);
+    expect(audits).toEqual([]);
+  });
+
+  test("when an R2 write fails part-way", async () => {
+    let puts = 0;
+    const flaky = {
+      ...bucket,
+      put: async (key: string, value: Uint8Array) => {
+        if (++puts === 3) throw new Error("R2 unavailable");
+        return bucket.put(key, value);
+      },
+    } as unknown as R2Bucket;
+    const zip = sampleZip(
+      Array.from({ length: 5 }, (_, i) => ({ name: `christmas/assets/${i}.png`, data: "p" })),
+    );
+    await expect(
+      uploadLanding({ ...deps(), bucket: flaky }, ACTOR, { campaignId, fileName: "c.zip", zip }),
+    ).rejects.toThrow(/R2 unavailable/);
+    expect([...store.keys()]).toEqual([]);
+    expect(sql.query(`SELECT COUNT(*) AS n FROM campaign_landing_versions`).get()).toEqual({
+      n: 0,
+    });
   });
 });

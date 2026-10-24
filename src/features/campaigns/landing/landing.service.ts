@@ -29,7 +29,7 @@ type AuditLogFn = typeof import("@/core/db/mutations").auditLog;
 
 export interface LandingDeps {
   db: D1Database;
-  bucket: Pick<R2Bucket, "put" | "get">;
+  bucket: Pick<R2Bucket, "put" | "get" | "delete">;
   ai: JsonAiCall | null;
   prompts: { format: string; audit: string };
   auditLog: AuditLogFn;
@@ -166,34 +166,46 @@ export async function uploadLanding(
     const body = path === "index.html" ? encoder.encode(normalized.html) : data;
     writes.push([landingObjectKey(campaign.slug, versionId, path), body, path]);
   }
-  for (let i = 0; i < writes.length; i += PUT_BATCH) {
-    await Promise.all(
-      writes.slice(i, i + PUT_BATCH).map(([key, body]) => deps.bucket.put(key, body)),
-    );
-  }
+  // RULE: files first, then the row; if anything fails before the row exists, every key this
+  // upload wrote is deleted again, so a failed upload never leaves unreferenced R2 objects.
+  let row: LandingVersionRow | null;
+  try {
+    for (let i = 0; i < writes.length; i += PUT_BATCH) {
+      await Promise.all(
+        writes.slice(i, i + PUT_BATCH).map(([key, body]) => deps.bucket.put(key, body)),
+      );
+    }
 
-  const report: LandingReport = { format: null, audit: null, warnings: bundle.warnings };
-  const row = await deps.db
-    .prepare(
-      `INSERT INTO campaign_landing_versions
-         (id, campaign_id, slug, status, original_name, file_count, total_bytes, files_json,
-          report_json, uploaded_by)
-       VALUES (?, ?, ?, 'processing', ?, ?, ?, ?, ?, ?)
-       RETURNING ${VERSION_COLUMNS}`,
-    )
-    .bind(
-      versionId,
-      campaign.id,
-      campaign.slug,
-      input.fileName.slice(0, 200),
-      bundle.files.size,
-      bundle.totalBytes,
-      JSON.stringify([...bundle.files.keys()]),
-      JSON.stringify(report),
-      actorId,
-    )
-    .first<LandingVersionRow>();
-  if (!row) throw new Error("Không lưu được phiên bản landing.");
+    const report: LandingReport = { format: null, audit: null, warnings: bundle.warnings };
+    row = await deps.db
+      .prepare(
+        `INSERT INTO campaign_landing_versions
+           (id, campaign_id, slug, status, original_name, file_count, total_bytes, files_json,
+            report_json, uploaded_by)
+         VALUES (?, ?, ?, 'processing', ?, ?, ?, ?, ?, ?)
+         RETURNING ${VERSION_COLUMNS}`,
+      )
+      .bind(
+        versionId,
+        campaign.id,
+        campaign.slug,
+        input.fileName.slice(0, 200),
+        bundle.files.size,
+        bundle.totalBytes,
+        JSON.stringify([...bundle.files.keys()]),
+        JSON.stringify(report),
+        actorId,
+      )
+      .first<LandingVersionRow>();
+    if (!row) throw new Error("Không lưu được phiên bản landing.");
+  } catch (error) {
+    try {
+      await deps.bucket.delete(writes.map(([key]) => key));
+    } catch (cleanupError) {
+      console.error(`[landing] cleanup after failed upload ${versionId} failed`, cleanupError);
+    }
+    throw error;
+  }
   await deps.auditLog(actorId, "create", "campaign_landing_versions", versionId, null, {
     campaign_id: campaign.id,
     slug: campaign.slug,

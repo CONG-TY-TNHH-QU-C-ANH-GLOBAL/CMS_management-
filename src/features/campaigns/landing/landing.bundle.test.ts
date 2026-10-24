@@ -300,8 +300,10 @@ describe("readLandingBundle on malformed archives", () => {
     const bundle = await readLandingBundle(makeZip([INDEX, ...many]));
     expect(performance.now() - started).toBeLessThan(5_000);
     expect([...bundle.files.keys()]).toEqual(["index.html"]);
-    // KNOWN GAP (reported): one warning per skipped entry, unbounded; 20k entries put
-    // about 1.1 MB into report_json.
-    expect(bundle.warnings).toHaveLength(20_000);
+    // Warnings are capped: the first 50 skipped files plus one summary line with the total.
+    expect(bundle.warnings).toHaveLength(51);
+    expect(bundle.warnings[0]).toBe("Bỏ qua tệp không thuộc danh sách cho phép: notes/0.txt");
+    expect(bundle.warnings[50]).toContain("19950 tệp khác bị bỏ qua (tổng 20000 tệp");
+    expect(JSON.stringify(bundle.warnings).length).toBeLessThan(5_000);
   });
 });

@@ -85,6 +85,9 @@ export function memoryR2() {
       const data = store.get(key);
       return data ? objectOf(key, data) : null;
     },
+    async delete(keys: string | string[]) {
+      for (const key of Array.isArray(keys) ? keys : [keys]) store.delete(key);
+    },
     async head(key: string) {
       gets.push(key);
       const data = store.get(key);
