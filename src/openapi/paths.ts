@@ -240,7 +240,7 @@ openApiRegistry.registerPath(eventRouteConfig);
 export const campaignsRouteConfig = {
   method: "get" as const,
   path: "/api/v1/campaigns",
-  summary: "List live campaigns (ChÆ°Æ¡ng trÃ¬nh) for a locale",
+  summary: "List live campaigns (Chương trình) for a locale",
   description:
     "Returns live campaigns ordered by position, then start_date descending. nav_featured and " +
     "home_featured are effective flags: toggle on, live, and today (Asia/Ho_Chi_Minh) not after end_date.",
