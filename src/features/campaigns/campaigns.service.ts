@@ -128,9 +128,9 @@ export async function resolveCampaignMedia(
   rows: Pick<PublicCampaignRow, "cover_media_id" | "og_image_id">[],
   origin: string,
 ): Promise<Map<number, string>> {
-  const ids = [
-    ...new Set(rows.flatMap((row) => [row.cover_media_id, row.og_image_id])),
-  ].filter((id): id is number => id !== null);
+  const ids = [...new Set(rows.flatMap((row) => [row.cover_media_id, row.og_image_id]))].filter(
+    (id): id is number => id !== null,
+  );
   const out = new Map<number, string>();
   if (ids.length === 0) return out;
   const result = await getDb()

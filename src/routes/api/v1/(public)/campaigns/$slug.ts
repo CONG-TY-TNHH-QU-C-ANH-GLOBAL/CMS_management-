@@ -19,7 +19,8 @@ export const Route = createFileRoute("/api/v1/(public)/campaigns/$slug")({
       GET: async ({ request, params }) => {
         const url = new URL(request.url);
         const lang = url.searchParams.get("lang") ?? "vi";
-        if (!locales.has(lang)) return corsJson(request, { error: "Invalid lang" }, { status: 400 });
+        if (!locales.has(lang))
+          return corsJson(request, { error: "Invalid lang" }, { status: 400 });
 
         const row = await getLiveCampaignForPublic(params.slug, lang as CampaignLocale);
         if (!row) return corsJson(request, { error: "Not found" }, { status: 404 });

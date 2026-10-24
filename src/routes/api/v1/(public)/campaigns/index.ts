@@ -18,7 +18,8 @@ export const Route = createFileRoute("/api/v1/(public)/campaigns/")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const lang = url.searchParams.get("lang") ?? "vi";
-        if (!locales.has(lang)) return corsJson(request, { error: "Invalid lang" }, { status: 400 });
+        if (!locales.has(lang))
+          return corsJson(request, { error: "Invalid lang" }, { status: 400 });
 
         // Live only, ordered by position then start_date DESC; en/zh read a
         // reviewed translation and fall back to VI.

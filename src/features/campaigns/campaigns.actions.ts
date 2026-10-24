@@ -23,7 +23,10 @@ const HREF = z
   .string()
   .trim()
   .max(500)
-  .refine(isValidCampaignHref, "Link phải là đường dẫn nội bộ bắt đầu bằng / (không kèm /vi, /en) hoặc https://…");
+  .refine(
+    isValidCampaignHref,
+    "Link phải là đường dẫn nội bộ bắt đầu bằng / (không kèm /vi, /en) hoặc https://…",
+  );
 
 /** Optional text that stores NULL rather than "" when cleared. */
 const text = (max: number) =>
@@ -76,27 +79,25 @@ function toColumns<T extends { menu_items?: unknown[] }>(data: T) {
 const campaignCreate = campaignFields.extend({ slug: SLUG });
 const campaignUpdate = campaignFields.partial().extend({ id: ID });
 
-const server = () => import("./campaigns.server");
-
 export const listCampaignsFn = createServerFn({ method: "GET" }).handler(async () =>
-  (await server()).listCampaigns(),
+  (await import("./campaigns.server")).listCampaigns(),
 );
 
 export const getCampaignDetailFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => z.object({ slug: SLUG }).parse(data))
-  .handler(async ({ data }) => (await server()).getCampaignDetail(data.slug));
+  .handler(async ({ data }) => (await import("./campaigns.server")).getCampaignDetail(data.slug));
 
 export const createCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => toColumns(campaignCreate.parse(data)))
-  .handler(async ({ data }) => (await server()).createCampaign(data));
+  .handler(async ({ data }) => (await import("./campaigns.server")).createCampaign(data));
 
 export const updateCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => toColumns(campaignUpdate.parse(data)))
-  .handler(async ({ data }) => (await server()).updateCampaign(data));
+  .handler(async ({ data }) => (await import("./campaigns.server")).updateCampaign(data));
 
 export const deleteCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ id: ID }).parse(data))
-  .handler(async ({ data }) => (await server()).deleteCampaign(data.id));
+  .handler(async ({ data }) => (await import("./campaigns.server")).deleteCampaign(data.id));
 
 // ── Translation review RPCs ────────────────────────────────────────────────
 
@@ -105,11 +106,15 @@ const prose = z.string().max(60_000).nullable();
 
 export const listCampaignTranslationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ campaign_id: ID }).parse(data))
-  .handler(async ({ data }) => (await server()).listCampaignTranslations(data.campaign_id));
+  .handler(async ({ data }) =>
+    (await import("./campaigns.server")).listCampaignTranslations(data.campaign_id),
+  );
 
 export const approveCampaignTranslationFn = createServerFn({ method: "POST" })
   .inputValidator(byId)
-  .handler(async ({ data }) => (await server()).approveCampaignTranslation(data.id));
+  .handler(async ({ data }) =>
+    (await import("./campaigns.server")).approveCampaignTranslation(data.id),
+  );
 
 export const editCampaignTranslationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
@@ -127,8 +132,10 @@ export const editCampaignTranslationFn = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }) => (await server()).editCampaignTranslation(data));
+  .handler(async ({ data }) => (await import("./campaigns.server")).editCampaignTranslation(data));
 
 export const deleteCampaignTranslationFn = createServerFn({ method: "POST" })
   .inputValidator(byId)
-  .handler(async ({ data }) => (await server()).deleteCampaignTranslation(data.id));
+  .handler(async ({ data }) =>
+    (await import("./campaigns.server")).deleteCampaignTranslation(data.id),
+  );

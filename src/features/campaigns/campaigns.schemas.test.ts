@@ -21,7 +21,8 @@ const row: PublicCampaignRow = {
   nav_label: "Christmas",
   nav_badge: "NEW",
   home_featured: 1,
-  menu_items_json: '[{"icon":"🎁","title":"Christmas Collection","subtitle":null,"href":"/catalog/christmas"}]',
+  menu_items_json:
+    '[{"icon":"🎁","title":"Christmas Collection","subtitle":null,"href":"/catalog/christmas"}]',
   tr_menu_items_json: null,
   seo_title: null,
   seo_description: null,
@@ -39,7 +40,10 @@ test("the list DTO satisfies the contract schema exactly (strict keys)", () => {
 
 test("the detail DTO satisfies the contract schema exactly", () => {
   const { list, detail } = toPublicCampaign(row, new Map(), "2026-10-24");
-  const body = { campaign: { ...list, ...detail }, available_locales: ["vi" as const, "en" as const] };
+  const body = {
+    campaign: { ...list, ...detail },
+    available_locales: ["vi" as const, "en" as const],
+  };
   expect(campaignResponseSchema.parse(body)).toEqual(body);
   expect(Object.keys(body.campaign).sort()).toEqual(
     Object.keys(campaignResponseSchema.shape.campaign.shape).sort(),
