@@ -15,7 +15,7 @@ import { dispatchEvent } from "@/features/telegram";
 import { vnToday } from "../campaigns.pure";
 import auditPrompt from "./audit.prompt.md?raw";
 import formatPrompt from "./format.prompt.md?raw";
-import { openAiJsonCall } from "./landing.ai";
+import { createLandingAi } from "./landing.ai";
 import { landingOriginOf } from "./landing.config";
 import * as service from "./landing.service";
 
@@ -25,11 +25,12 @@ function newVersionId(): string {
 }
 
 export function landingDeps(): service.LandingDeps {
-  const apiKey = env.OPENAI_API_KEY?.trim();
+  // Never log this value.
+  const apiKey = env.ANTHROPIC_API_KEY?.trim();
   return {
     db: env.DB,
     bucket: env.MEDIA,
-    ai: apiKey ? openAiJsonCall(apiKey, env.OPENAI_BASE_URL || undefined) : null,
+    ai: apiKey ? createLandingAi({ apiKey, model: env.LANDING_AI_MODEL }) : null,
     prompts: { format: formatPrompt, audit: auditPrompt },
     auditLog,
     bumpCmsRev,

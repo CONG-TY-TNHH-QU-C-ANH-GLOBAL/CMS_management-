@@ -13,8 +13,7 @@
 
 import { z } from "zod";
 
-import type { PromptMessage } from "@/features/translations/translations.prompt";
-
+import type { AiUsage, JsonAiCall, JsonAiRequest } from "./landing.ai";
 import { oldBrandMatches } from "./landing.checks";
 import {
   applySplices,
@@ -33,12 +32,7 @@ import { HEADER_END, HEADER_START, SITE_ORIGIN, renderStandardHeader } from "./l
 import type { LandingLang } from "./landing.normalize";
 import type { DiffSummary, FormatReport } from "./landing.types";
 
-export type { PromptMessage };
-
-/** The AI boundary: one JSON-mode chat call. `parsed` is null when the call or parsing failed. */
-export type JsonAiCall = (
-  messages: PromptMessage[],
-) => Promise<{ parsed: Record<string, unknown> | null; error: string | null }>;
+export type { JsonAiCall };
 
 // ── Candidates ──────────────────────────────────────────────────────────────
 
@@ -180,11 +174,38 @@ export function findFormatCandidates(html: string): FormatCandidates {
 
 // ── Prompt ──────────────────────────────────────────────────────────────────
 
-export function buildFormatMessages(
+const OPS = ["replace_header", "mark_consult", "fix_brand", "absolutize_link"] as const;
+const REPLACEMENTS = ["TH Group", "TH Group Fulfill", "none"] as const;
+
+/** Structured-output schema for the format step. Every field is required (structured outputs);
+ *  `replacement` is "none" for every op except fix_brand. */
+export const FORMAT_OUTPUT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["edits", "notes"],
+  properties: {
+    edits: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["op", "target", "replacement"],
+        properties: {
+          op: { type: "string", enum: [...OPS] },
+          target: { type: "string" },
+          replacement: { type: "string", enum: [...REPLACEMENTS] },
+        },
+      },
+    },
+    notes: { type: "string" },
+  },
+};
+
+export function buildFormatRequest(
   prompt: string,
   candidates: FormatCandidates,
   lang: LandingLang,
-): PromptMessage[] {
+): JsonAiRequest {
   const payload = {
     page_language: lang,
     header_candidates: candidates.header.map(({ id, tag, text, markup }) => ({
@@ -201,10 +222,15 @@ export function buildFormatMessages(
     })),
     link_candidates: candidates.links.map(({ id, href, text }) => ({ id, href, text })),
   };
-  return [
-    { role: "system", content: prompt },
-    { role: "user", content: JSON.stringify(payload) },
-  ];
+  return {
+    system: prompt,
+    user: JSON.stringify(payload),
+    schema: FORMAT_OUTPUT_SCHEMA,
+    // Picking ids from a short list: low effort is enough and keeps the upload fast.
+    effort: "low",
+    maxTokens: 8000,
+    timeoutMs: 60_000,
+  };
 }
 
 // ── Edit list ───────────────────────────────────────────────────────────────
@@ -398,28 +424,37 @@ export async function runFormatStep(input: {
       diff: emptyDiff(input.html),
     },
   });
-  if (!input.ai) return fallback("Bỏ qua bước AI định dạng: chưa cấu hình OPENAI_API_KEY.");
+  if (!input.ai) return fallback("Bỏ qua bước AI định dạng: chưa cấu hình ANTHROPIC_API_KEY.");
 
   const candidates = findFormatCandidates(input.html);
   let parsed: Record<string, unknown> | null;
   let error: string | null;
+  let usage: AiUsage | null = null;
   try {
-    ({ parsed, error } = await input.ai(buildFormatMessages(input.prompt, candidates, input.lang)));
+    ({ parsed, error, usage } = await input.ai(
+      buildFormatRequest(input.prompt, candidates, input.lang),
+    ));
   } catch (err) {
     parsed = null;
     error = err instanceof Error ? err.message : String(err);
   }
-  if (!parsed) return fallback(`Bỏ qua bước AI định dạng: ${error ?? "AI không trả về JSON."}`);
+  const withUsage = (result: { html: string; report: FormatReport }) => ({
+    ...result,
+    report: { ...result.report, ai_usage: usage },
+  });
+  if (!parsed) {
+    return withUsage(fallback(`Bước AI định dạng lỗi: ${error ?? "AI không trả về JSON."}`));
+  }
 
   const response = responseSchema.safeParse(parsed);
   if (!response.success) {
-    return fallback(
-      "AI trả về danh sách chỉnh sửa sai định dạng — chỉ áp dụng chuẩn hóa bằng code.",
+    return withUsage(
+      fallback("AI trả về danh sách chỉnh sửa sai định dạng — chỉ áp dụng chuẩn hóa bằng code."),
     );
   }
   try {
     const result = applyFormatEdits(input.html, candidates, response.data.edits, input.lang);
-    return {
+    return withUsage({
       html: result.html,
       report: {
         mode: "ai",
@@ -427,11 +462,11 @@ export async function runFormatStep(input: {
         applied: [...input.deterministicNotes, ...result.applied],
         diff: result.diff,
       },
-    };
+    });
   } catch (err) {
     const reason =
       err instanceof FormatRejected ? err.message : "Lỗi khi áp dụng chỉnh sửa của AI.";
     if (!(err instanceof FormatRejected)) console.error("[landing] format apply failed", err);
-    return fallback(`${reason} Đã dùng bản chuẩn hóa bằng code.`);
+    return withUsage(fallback(`${reason} Đã dùng bản chuẩn hóa bằng code.`));
   }
 }

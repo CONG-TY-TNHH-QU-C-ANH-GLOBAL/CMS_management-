@@ -50,6 +50,14 @@ export interface FormatReport {
   /** Human-readable list of what changed (deterministic notes + applied AI edits). */
   applied: string[];
   diff: DiffSummary;
+  /** Tokens the AI call used (null when it was not made). */
+  ai_usage?: AiUsageSummary | null;
+}
+
+export interface AiUsageSummary {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
 }
 
 export interface DiffSummary {
@@ -63,6 +71,6 @@ export interface DiffSummary {
 
 export interface LandingReport {
   format: FormatReport | null;
-  audit: { mode: "ai" | "rules"; note: string | null } | null;
+  audit: { mode: "ai" | "rules"; note: string | null; ai_usage?: AiUsageSummary | null } | null;
   warnings: string[];
 }

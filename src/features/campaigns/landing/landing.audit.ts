@@ -5,12 +5,13 @@
 
 import { z } from "zod";
 
-import type { JsonAiCall, PromptMessage } from "./landing.format";
+import type { AiUsage, JsonAiCall, JsonAiRequest } from "./landing.ai";
 import { scanTags, visibleText } from "./landing.html";
 import type { LandingFinding } from "./landing.types";
 
-const TEXT_BUDGET = 30_000;
-const SCRIPT_BUDGET = 25_000;
+// Generous bounds (Claude has a 1M context); they only stop a pathological page.
+const TEXT_BUDGET = 150_000;
+const SCRIPT_BUDGET = 150_000;
 
 export interface AuditContext {
   campaignTitle: string;
@@ -44,12 +45,50 @@ function metaDigest(html: string): string {
   return out.join("\n");
 }
 
-export function buildAuditMessages(
+const SEVERITIES = ["critical", "major", "minor"] as const;
+const AUDIT_CATEGORIES = [
+  "price",
+  "origin",
+  "delivery",
+  "content",
+  "placeholder",
+  "link",
+  "brand",
+  "form",
+  "accessibility",
+  "countdown",
+  "asset",
+] as const;
+
+/** Structured-output schema for the audit step (all fields required, no extras). */
+export const AUDIT_OUTPUT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["findings"],
+  properties: {
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["severity", "category", "message", "evidence"],
+        properties: {
+          severity: { type: "string", enum: [...SEVERITIES] },
+          category: { type: "string", enum: [...AUDIT_CATEGORIES] },
+          message: { type: "string" },
+          evidence: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
+export function buildAuditRequest(
   prompt: string,
   html: string,
   context: AuditContext,
   ruleFindings: LandingFinding[],
-): PromptMessage[] {
+): JsonAiRequest {
   const payload = {
     campaign: context,
     already_reported_by_code: ruleFindings.map((f) => `${f.category}: ${f.message}`),
@@ -57,29 +96,20 @@ export function buildAuditMessages(
     visible_text: visibleText(html).slice(0, TEXT_BUDGET),
     scripts: scriptDigest(html),
   };
-  return [
-    { role: "system", content: prompt },
-    { role: "user", content: JSON.stringify(payload) },
-  ];
+  return {
+    system: prompt,
+    user: JSON.stringify(payload),
+    schema: AUDIT_OUTPUT_SCHEMA,
+    // Reading comprehension over the whole page is the point of this step.
+    effort: "high",
+    maxTokens: 16000,
+    timeoutMs: 120_000,
+  };
 }
 
 const aiFindingSchema = z.object({
-  severity: z.enum(["critical", "major", "minor"]),
-  category: z
-    .enum([
-      "price",
-      "origin",
-      "delivery",
-      "content",
-      "placeholder",
-      "link",
-      "brand",
-      "form",
-      "accessibility",
-      "countdown",
-      "asset",
-    ])
-    .catch("content"),
+  severity: z.enum(SEVERITIES),
+  category: z.enum(AUDIT_CATEGORIES).catch("content"),
   message: z.string().min(1).max(600),
   evidence: z.string().max(600).default(""),
 });
@@ -99,6 +129,7 @@ export interface AuditResult {
   findings: LandingFinding[];
   mode: "ai" | "rules";
   note: string | null;
+  ai_usage: AiUsage | null;
 }
 
 /** Never throws. Without AI (or on failure) returns no AI findings and says why in `note`. */
@@ -109,23 +140,33 @@ export async function runAuditStep(input: {
   context: AuditContext;
   ruleFindings: LandingFinding[];
 }): Promise<AuditResult> {
-  const skipped = (note: string): AuditResult => ({ findings: [], mode: "rules", note });
-  if (!input.ai) return skipped("Bỏ qua bước AI kiểm tra nội dung: chưa cấu hình OPENAI_API_KEY.");
+  const skipped = (note: string, ai_usage: AiUsage | null = null): AuditResult => ({
+    findings: [],
+    mode: "rules",
+    note,
+    ai_usage,
+  });
+  if (!input.ai) {
+    return skipped("Bỏ qua bước AI kiểm tra nội dung: chưa cấu hình ANTHROPIC_API_KEY.");
+  }
   try {
-    const { parsed, error } = await input.ai(
-      buildAuditMessages(input.prompt, input.html, input.context, input.ruleFindings),
+    const { parsed, error, usage } = await input.ai(
+      buildAuditRequest(input.prompt, input.html, input.context, input.ruleFindings),
     );
-    if (!parsed)
-      return skipped(`Bỏ qua bước AI kiểm tra nội dung: ${error ?? "AI không trả về JSON."}`);
+    if (!parsed) {
+      return skipped(`Bước AI kiểm tra nội dung lỗi: ${error ?? "AI không trả về JSON."}`, usage);
+    }
     const findings = parseAuditFindings(parsed);
-    if (!findings)
+    if (!findings) {
       return skipped(
         "AI kiểm tra nội dung trả về sai định dạng — chỉ có kết quả kiểm tra bằng code.",
+        usage,
       );
-    return { findings, mode: "ai", note: null };
+    }
+    return { findings, mode: "ai", note: null, ai_usage: usage };
   } catch (err) {
     return skipped(
-      `Bỏ qua bước AI kiểm tra nội dung: ${err instanceof Error ? err.message : String(err)}`,
+      `Bước AI kiểm tra nội dung lỗi: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }

@@ -146,9 +146,10 @@ const text = (key: string) => new TextDecoder().decode(store.get(key));
 /** Stub at the JsonAiCall seam, answering per prompt. */
 const stubAi =
   (format: unknown, audit: unknown): JsonAiCall =>
-  async (messages) => ({
-    parsed: (messages[0].content === "FORMAT PROMPT" ? format : audit) as Record<string, unknown>,
+  async (request) => ({
+    parsed: (request.system === "FORMAT PROMPT" ? format : audit) as Record<string, unknown>,
     error: null,
+    usage: { model: "claude-opus-5-5", input_tokens: 10, output_tokens: 5 },
   });
 
 describe("upload", () => {
@@ -244,7 +245,7 @@ describe("process", () => {
       zip: sampleZip(),
     });
     const ai = stubAi(
-      { edits: [{ op: "replace_header", target: "h2" }] },
+      { edits: [{ op: "replace_header", target: "h2", replacement: "none" }], notes: "" },
       {
         findings: [
           {

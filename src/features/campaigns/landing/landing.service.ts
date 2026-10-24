@@ -321,7 +321,9 @@ export async function processLanding(
       findings.push({
         severity: "minor",
         category: "ai",
-        message: "Một phần bước AI đã bị bỏ qua — kết quả chỉ gồm chuẩn hóa và kiểm tra bằng code.",
+        message: deps.ai
+          ? "Bước AI bị lỗi (AI steps failed) — đã dùng chuẩn hóa và kiểm tra bằng code."
+          : "Bước AI bị bỏ qua (AI steps skipped) — chỉ có chuẩn hóa và kiểm tra bằng code.",
         evidence: skipped,
         source: "rule",
       });
@@ -335,7 +337,7 @@ export async function processLanding(
     };
     const report: LandingReport = {
       format: { ...formatted.report, diff },
-      audit: { mode: audit.mode, note: audit.note },
+      audit: { mode: audit.mode, note: audit.note, ai_usage: audit.ai_usage },
       warnings: previous.warnings ?? [],
     };
     const updated = await deps.db
