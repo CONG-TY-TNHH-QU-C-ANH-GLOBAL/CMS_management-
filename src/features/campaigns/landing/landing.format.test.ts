@@ -399,3 +399,214 @@ describe("runAuditStep", () => {
     expect(overloaded.note).toMatch(/lỗi/);
   });
 });
+
+// ── Adversarial model ────────────────────────────────────────────────────────
+// The model is treated as hostile: whatever it answers, content (prices, product names,
+// claims) must come out byte-identical, and any edit outside the four allowed kinds must
+// fall back to the deterministic output with the reason recorded.
+
+/** Every price and product name in the page, with multiplicity: an oracle independent of the
+ *  format code (plain regexes over the raw file). */
+function contentFingerprint(html: string): string[] {
+  const prices =
+    html.match(/\$\s?\d{1,5}(?:[.,]\d{1,2})?(?:\s?–\s?\$\d{1,5}(?:[.,]\d{1,2})?)?/g) ?? [];
+  const names = [...html.matchAll(/\bname:"([^"]+)"/g)].map((m) => `name:${m[1]}`);
+  const origins = html.match(/Made in (?:VN|USA|China)/g) ?? [];
+  return [...prices, ...names, ...origins].sort();
+}
+
+describe("runFormatStep against an adversarial model", () => {
+  const expectDeterministic = async (pattern: RegExp) => {
+    const { html, report } = await format();
+    expect(report.mode).toBe("deterministic");
+    expect(report.note).toMatch(pattern);
+    expect(html).toBe(BASE.html);
+  };
+  const card = candidates.consult[0];
+
+  test("ids of another kind, or never offered, are rejected", async () => {
+    for (const bad of [
+      edit("mark_consult", candidates.brand[0].id),
+      edit("fix_brand", card.id, "TH Group"),
+      edit("absolutize_link", siteHeader.id),
+      edit("replace_header", card.id),
+      edit("mark_consult", "c0"),
+      edit("fix_brand", "b7", "TH Group"),
+      edit("mark_consult", "__proto__"),
+      edit("absolutize_link", ""),
+    ]) {
+      // A valid edit beside the bad one: the whole list is still refused.
+      const valid =
+        bad.op === "replace_header"
+          ? edit("mark_consult", card.id)
+          : edit("replace_header", siteHeader.id);
+      replyWith({ edits: [valid, bad], notes: "" });
+      await expectDeterministic(/không tồn tại/);
+    }
+  });
+
+  test("markup or prices cannot be smuggled through a replacement or extra fields", async () => {
+    for (const replacement of [
+      "<script>alert(1)</script>",
+      'TH Group"><script>alert(1)</script>',
+      "TH Group $0.99",
+      "TH Group ",
+    ]) {
+      replyWith({ edits: [edit("fix_brand", "b5", replacement)], notes: "" });
+      await expectDeterministic(/sai định dạng/);
+    }
+    // Unknown fields are ignored, never applied.
+    replyWith({
+      edits: [
+        {
+          ...edit("fix_brand", "b5", "TH Group"),
+          html: "<script>alert(1)</script>",
+          text: "$0.01",
+          start: 0,
+          end: 999999,
+        },
+      ],
+      notes: "",
+    });
+    const { html, report } = await format();
+    expect(report.mode).toBe("ai");
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("$0.01");
+    expect(html.length - BASE.html.length).toBe("TH Group".length - "THG Fulfill".length);
+  });
+
+  test("oversized answers are rejected", async () => {
+    const many = Array.from({ length: 801 }, () => edit("mark_consult", card.id));
+    replyWith({ edits: many, notes: "" });
+    await expectDeterministic(/sai định dạng/);
+    replyWith({ edits: [], notes: "x".repeat(2001) });
+    await expectDeterministic(/sai định dạng/);
+  });
+
+  test("a repeated edit is applied once", async () => {
+    replyWith({
+      edits: [edit("fix_brand", "b5", "TH Group"), edit("fix_brand", "b5", "TH Group Fulfill")],
+      notes: "",
+    });
+    const { html, report } = await format();
+    expect(report.diff.brandFixed).toBe(1);
+    expect(html).toContain("TH Group · Seller");
+    expect(html).not.toContain("TH Group Fulfill · Seller");
+  });
+
+  test("non-JSON 200 bodies and non-text content blocks fall back", async () => {
+    replies.push({ kind: "status", status: 200, body: "<html>proxy error</html>" });
+    await expectDeterministic(/Bước AI định dạng lỗi/);
+    replies.push({ kind: "message", text: "" });
+    await expectDeterministic(/JSON không hợp lệ/);
+    replies.push({ kind: "message", text: "[1,2,3]" });
+    await expectDeterministic(/JSON không hợp lệ/);
+  });
+
+  test("the most aggressive VALID edit list keeps every price, product name and origin", async () => {
+    replyWith({
+      edits: [
+        edit("replace_header", siteHeader.id),
+        ...candidates.brand.map((b) => edit("fix_brand", b.id, "TH Group Fulfill")),
+        ...candidates.consult.map((c) => edit("mark_consult", c.id)),
+        ...candidates.links.map((l) => edit("absolutize_link", l.id)),
+      ],
+      notes: "",
+    });
+    const { html, report } = await format();
+    expect(report.mode).toBe("ai");
+    // The replaced site header holds no prices or product names, so the fingerprint of the
+    // whole page is unchanged.
+    expect(contentFingerprint(siteHeader.markup)).toEqual([]);
+    expect(contentFingerprint(html)).toEqual(contentFingerprint(SAMPLE));
+    expect(contentFingerprint(SAMPLE).length).toBeGreaterThan(60);
+    // The product data script is byte-identical.
+    const data = (page: string) =>
+      page.slice(page.indexOf('{id:"advent-pet"'), page.indexOf('{id:"golf-towel"'));
+    expect(data(html)).toBe(data(SAMPLE));
+  });
+
+  test("links: only root-relative or scheme-less thgfulfill hrefs are candidates, and absolutizing keeps the host", async () => {
+    const page = normalizeLandingHtml(
+      `<html><body><section>` +
+        `<a href="javascript:alert(1)">Tư vấn</a>` +
+        `<a href="thgfulfill.com.evil.example/x">a</a>` +
+        `<a href="//evil.example/x">b</a>` +
+        `<a href="/vi/catalog">c</a>` +
+        `<a href="/\\evil.example">d</a>` +
+        `</section></body></html>`,
+      "x",
+    ).html;
+    const found = findFormatCandidates(page);
+    expect(found.links.map((l) => l.href)).toEqual(["/vi/catalog", "/\\evil.example"]);
+    const out = applyFormatEdits(
+      page,
+      found,
+      found.links.map((l) => ({ op: "absolutize_link" as const, target: l.id })),
+      "vi",
+    );
+    expect(out.html).toContain('href="https://thgfulfill.com/vi/catalog"');
+    expect(new URL("https://thgfulfill.com/\\evil.example").hostname).toBe("thgfulfill.com");
+    expect(out.html).toContain('href="javascript:alert(1)"'); // untouched, never rewritten
+  });
+});
+
+describe("runAuditStep against an adversarial model", () => {
+  const context = {
+    campaignTitle: "Christmas 2026 Collection",
+    startDate: "2026-10-24",
+    endDate: "2026-12-25",
+    today: "2026-10-24",
+  };
+  const audit = () =>
+    runAuditStep({ html: BASE.html, prompt: AUDIT_PROMPT, ai: ai(), context, ruleFindings: [] });
+  const valid = (i: number) => ({
+    severity: "minor",
+    category: "content",
+    message: `m${i}`,
+    evidence: "",
+  });
+
+  test("junk items are dropped one by one; the model cannot claim to be a rule", async () => {
+    replyWith({
+      findings: [
+        null,
+        "critical: everything is wrong",
+        42,
+        [],
+        { severity: "critical", category: "price", message: "", evidence: "" },
+        { severity: "critical", category: "price", message: "x".repeat(601), evidence: "" },
+        { severity: "critical", category: "price", message: "ok", evidence: "e".repeat(601) },
+        {
+          severity: "major",
+          category: "price",
+          message: "Giá copy",
+          evidence: "<b>$12.70</b>",
+          source: "rule",
+        },
+      ],
+    });
+    const result = await audit();
+    expect(result.mode).toBe("ai");
+    expect(result.findings).toEqual([
+      {
+        severity: "major",
+        category: "price",
+        message: "Giá copy",
+        evidence: "<b>$12.70</b>",
+        source: "ai",
+      },
+    ]);
+  });
+
+  test("more than 100 findings is junk as a whole; up to 100 are capped at 40", async () => {
+    replyWith({ findings: Array.from({ length: 101 }, (_, i) => valid(i)) });
+    const flood = await audit();
+    expect(flood).toMatchObject({ mode: "rules", findings: [] });
+    expect(flood.note).toContain("sai định dạng");
+    replyWith({ findings: Array.from({ length: 100 }, (_, i) => valid(i)) });
+    const capped = await audit();
+    expect(capped.findings).toHaveLength(40);
+    expect(capped.findings[39].message).toBe("m39");
+  });
+});
