@@ -55,6 +55,13 @@ declare global {
       MARKETING_HUB_CALLBACK_URL?: string;
       MARKETING_HUB_PUBLIC_ORIGIN?: string;
       MARKETING_HUB_PREVIEW_SECRET?: string;
+      // Uploaded campaign landing pages. LANDING_HOST is the separate origin that serves them
+      // (src/features/campaigns/landing/landing.host.ts); LANDING_ORIGIN overrides the public
+      // URL built from it (local dev). TURNSTILE_SITE_KEY is the PUBLIC Turnstile widget key
+      // thg-lead.js renders; without it the form sends the DEV_BYPASS token.
+      LANDING_HOST?: string;
+      LANDING_ORIGIN?: string;
+      TURNSTILE_SITE_KEY?: string;
     }
   }
 }
