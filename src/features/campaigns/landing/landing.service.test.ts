@@ -367,3 +367,44 @@ describe("publish, serve and rollback", () => {
     expect(listing.versions[1].findings.length).toBeGreaterThan(0);
   });
 });
+
+describe("processing runs once per version", () => {
+  test("a ready version cannot be re-processed: served page, findings and report stay put", async () => {
+    const v = await uploadLanding(deps(), ACTOR, {
+      campaignId,
+      fileName: "c.zip",
+      zip: sampleZip(),
+    });
+    const ready = await processLanding(deps(null), v.id);
+    const key = `landings/christmas-2026/${v.id}/site/index.html`;
+    const served = text(key);
+    const ai = stubAi(
+      { edits: [{ op: "replace_header", target: "h1", replacement: "none" }], notes: "" },
+      { findings: [] },
+    );
+    await expect(processLanding(deps(ai), v.id)).rejects.toThrow(/đã xử lý xong/);
+    expect(text(key)).toBe(served);
+    expect(dispatched).toHaveLength(1);
+    const row = sql
+      .query(`SELECT findings_json, processed_at FROM campaign_landing_versions WHERE id = ?`)
+      .get(v.id);
+    expect(row).toEqual({ findings_json: ready.findings_json, processed_at: ready.processed_at });
+  });
+
+  test("a version being processed (fresh claim) is not processed twice; an abandoned claim is", async () => {
+    const v = await uploadLanding(deps(), ACTOR, {
+      campaignId,
+      fileName: "c.zip",
+      zip: sampleZip(),
+    });
+    sql
+      .query(`UPDATE campaign_landing_versions SET processed_at = unixepoch() WHERE id = ?`)
+      .run(v.id);
+    await expect(processLanding(deps(null), v.id)).rejects.toThrow(/đang được xử lý/);
+    sql
+      .query(`UPDATE campaign_landing_versions SET processed_at = unixepoch() - 3600 WHERE id = ?`)
+      .run(v.id);
+    expect((await processLanding(deps(null), v.id)).status).toBe("ready");
+    expect(dispatched).toHaveLength(1);
+  });
+});

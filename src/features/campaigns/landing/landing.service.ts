@@ -270,12 +270,35 @@ async function notifyIt(
   }
 }
 
+/** A processing claim older than this is treated as abandoned (crashed or timed-out run). */
+const PROCESS_LEASE_SECONDS = 600;
+
 export async function processLanding(
   deps: LandingDeps,
   versionId: string,
 ): Promise<LandingVersionRow> {
   const version = await requireVersion(deps.db, versionId);
   if (version.status === "failed") throw fail(409, "Phiên bản này đã lỗi — hãy tải lên lại.");
+  // RULE: a version is processed exactly once. Only a version still 'processing' can be
+  // processed; a 'ready' one (which may be live, or have been) is final — re-processing it
+  // would silently rewrite the served index.html with no publish, audit or rev bump, and IT
+  // would never see the new report. To change a page, upload a new version.
+  if (version.status !== "processing") {
+    throw fail(409, "Phiên bản đã xử lý xong — muốn thay đổi hãy tải lên phiên bản mới.");
+  }
+  // Claim it atomically so two concurrent calls cannot both run. processed_at doubles as the
+  // claim time while processing; a claim older than the lease is considered abandoned.
+  const claim = await deps.db
+    .prepare(
+      `UPDATE campaign_landing_versions SET processed_at = unixepoch()
+        WHERE id = ? AND status = 'processing'
+          AND (processed_at IS NULL OR processed_at < unixepoch() - ?)`,
+    )
+    .bind(version.id, PROCESS_LEASE_SECONDS)
+    .run();
+  if ((claim.meta?.changes ?? 0) === 0) {
+    throw fail(409, "Phiên bản đang được xử lý — vui lòng chờ.");
+  }
   const campaign = await getCampaignRef(deps.db, version.campaign_id);
   const previous = JSON.parse(version.report_json || "{}") as Partial<LandingReport>;
 

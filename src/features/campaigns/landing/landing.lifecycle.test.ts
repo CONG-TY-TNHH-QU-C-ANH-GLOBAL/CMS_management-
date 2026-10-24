@@ -358,12 +358,16 @@ describe("upload → process → publish → rollback", () => {
       .all();
     expect(subs).toEqual([{ channel_id: 1 }]);
     const id = await readyVersion();
-    expect(await call("editor", "processLandingVersionFn", { version_id: id })).toMatchObject({
-      ok: true,
-    });
-    expect(await call("editor", "processLandingVersionFn", { version_id: id })).toMatchObject({
-      ok: true,
-    });
+    // A processed version is final: re-processing is refused and changes nothing.
+    const servedKey = `landings/christmas-2026/${id}/site/index.html`;
+    const served = r2.store.get(servedKey);
+    for (let i = 0; i < 2; i++) {
+      expect(await call("editor", "processLandingVersionFn", { version_id: id })).toMatchObject({
+        ok: false,
+        status: 409,
+      });
+    }
+    expect(r2.store.get(servedKey)).toEqual(served);
     const rows = outbox();
     expect(rows.map((r) => [r.event_type, r.channel_id, r.idempotency_key])).toEqual([
       ["landing_review", 1, `landing_review:${id}:1`],
