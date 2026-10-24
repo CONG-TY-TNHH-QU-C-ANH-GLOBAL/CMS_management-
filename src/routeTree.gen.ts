@@ -84,6 +84,7 @@ import { Route as ApiV1publicCampaignsIndexRouteImport } from './routes/api/v1/(
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
 import { Route as ApiV1publicApplicantCvIndexRouteImport } from './routes/api/v1/(public)/applicant-cv/index'
+import { Route as ApiV1adminLandingUploadsIndexRouteImport } from './routes/api/v1/(admin)/landing-uploads/index'
 import { Route as AdminContentCommunityReviewsIndexRouteImport } from './routes/admin/content/community/reviews/index'
 import { Route as ApiV1publicShippingRoutesSlugRouteImport } from './routes/api/v1/(public)/shipping-routes/$slug'
 import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(public)/pricing/$slug'
@@ -532,6 +533,12 @@ const ApiV1publicApplicantCvIndexRoute =
     path: '/api/v1/applicant-cv/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1adminLandingUploadsIndexRoute =
+  ApiV1adminLandingUploadsIndexRouteImport.update({
+    id: '/api/v1/(admin)/landing-uploads/',
+    path: '/api/v1/landing-uploads/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminContentCommunityReviewsIndexRoute =
   AdminContentCommunityReviewsIndexRouteImport.update({
     id: '/admin/content/community/reviews/',
@@ -752,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
   '/admin/content/community/reviews/': typeof AdminContentCommunityReviewsIndexRoute
+  '/api/v1/landing-uploads/': typeof ApiV1adminLandingUploadsIndexRoute
   '/api/v1/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
@@ -853,6 +861,7 @@ export interface FileRoutesByTo {
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
   '/admin/content/community/reviews': typeof AdminContentCommunityReviewsIndexRoute
+  '/api/v1/landing-uploads': typeof ApiV1adminLandingUploadsIndexRoute
   '/api/v1/applicant-cv': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
@@ -958,6 +967,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/(public)/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
   '/admin/content/community/reviews/': typeof AdminContentCommunityReviewsIndexRoute
+  '/api/v1/(admin)/landing-uploads/': typeof ApiV1adminLandingUploadsIndexRoute
   '/api/v1/(public)/applicant-cv/': typeof ApiV1publicApplicantCvIndexRoute
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
@@ -1064,6 +1074,7 @@ export interface FileRouteTypes {
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
     | '/admin/content/community/reviews/'
+    | '/api/v1/landing-uploads/'
     | '/api/v1/applicant-cv/'
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
@@ -1165,6 +1176,7 @@ export interface FileRouteTypes {
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
     | '/admin/content/community/reviews'
+    | '/api/v1/landing-uploads'
     | '/api/v1/applicant-cv'
     | '/api/v1/applicants'
     | '/api/v1/blog'
@@ -1269,6 +1281,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/pricing/$slug'
     | '/api/v1/(public)/shipping-routes/$slug'
     | '/admin/content/community/reviews/'
+    | '/api/v1/(admin)/landing-uploads/'
     | '/api/v1/(public)/applicant-cv/'
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
@@ -1367,6 +1380,7 @@ export interface RootRouteChildren {
   ApiV1publicPricingSlugRoute: typeof ApiV1publicPricingSlugRoute
   ApiV1publicShippingRoutesSlugRoute: typeof ApiV1publicShippingRoutesSlugRoute
   AdminContentCommunityReviewsIndexRoute: typeof AdminContentCommunityReviewsIndexRoute
+  ApiV1adminLandingUploadsIndexRoute: typeof ApiV1adminLandingUploadsIndexRoute
   ApiV1publicApplicantCvIndexRoute: typeof ApiV1publicApplicantCvIndexRoute
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
@@ -1932,6 +1946,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicApplicantCvIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(admin)/landing-uploads/': {
+      id: '/api/v1/(admin)/landing-uploads/'
+      path: '/api/v1/landing-uploads'
+      fullPath: '/api/v1/landing-uploads/'
+      preLoaderRoute: typeof ApiV1adminLandingUploadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/content/community/reviews/': {
       id: '/admin/content/community/reviews/'
       path: '/admin/content/community/reviews'
@@ -2265,6 +2286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicShippingRoutesSlugRoute: ApiV1publicShippingRoutesSlugRoute,
   AdminContentCommunityReviewsIndexRoute:
     AdminContentCommunityReviewsIndexRoute,
+  ApiV1adminLandingUploadsIndexRoute: ApiV1adminLandingUploadsIndexRoute,
   ApiV1publicApplicantCvIndexRoute: ApiV1publicApplicantCvIndexRoute,
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,

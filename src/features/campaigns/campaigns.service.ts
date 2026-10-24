@@ -234,13 +234,15 @@ export async function updateCampaign(
 }
 
 /** D1 does not enforce ON DELETE CASCADE (repo convention, 0035 header), so
- *  translations are removed explicitly. */
+ *  translations and uploaded landing versions are removed explicitly. The
+ *  landing files stay in R2 under landings/<slug>/ (immutable, unreferenced). */
 export async function deleteCampaign(actorId: number, id: number): Promise<void> {
   const before = await getCampaignById(id);
   if (!before) return;
   const db = getDb();
   await db.batch([
     db.prepare(`DELETE FROM campaign_translations WHERE campaign_id = ?`).bind(id),
+    db.prepare(`DELETE FROM campaign_landing_versions WHERE campaign_id = ?`).bind(id),
     db.prepare(`DELETE FROM campaigns WHERE id = ?`).bind(id),
   ]);
   await auditLog(actorId, "delete", "campaigns", id, before, null);

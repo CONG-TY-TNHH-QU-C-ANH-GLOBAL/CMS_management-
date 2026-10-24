@@ -45,6 +45,12 @@ export const EVENT_TYPES = [
     kind: "infra",
     description: "Provider AI bị tạm dừng do nhiều lỗi liên tiếp.",
   },
+  {
+    type: "landing_review",
+    label: "Báo cáo landing Chương trình",
+    kind: "infra",
+    description: "Marketing tải landing page lên — kết quả chuẩn hóa và các lỗi nội dung cần IT xem.",
+  },
   // Reserved — emitter wired in a later PR.
   {
     type: "draft_pending_review",
@@ -124,6 +130,24 @@ export interface ProviderBreakerTrippedPayload {
   paused_until: number;
 }
 
+/** One message per uploaded landing version (idempotency key landing_review:<version id>). */
+export interface LandingReviewPayload {
+  campaign_title: string;
+  campaign_slug: string;
+  version_id: string;
+  uploader: string | null;
+  critical: number;
+  major: number;
+  minor: number;
+  format_mode: "ai" | "deterministic";
+  format_note: string | null;
+  audit_mode: "ai" | "rules";
+  audit_note: string | null;
+  top: { severity: string; message: string }[];
+  editor_url: string;
+  preview_url: string;
+}
+
 export interface DraftPendingReviewPayload {
   entity_type: string;
   entity_id: number;
@@ -155,6 +179,11 @@ export type DispatchInput =
   | {
       event_type: "provider_breaker_tripped";
       payload: ProviderBreakerTrippedPayload;
+      idempotency_key?: string;
+    }
+  | {
+      event_type: "landing_review";
+      payload: LandingReviewPayload;
       idempotency_key?: string;
     }
   | {

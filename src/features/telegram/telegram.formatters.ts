@@ -7,6 +7,7 @@ import type {
   CommunityQuestionReceivedPayload,
   DispatchInput,
   DraftPendingReviewPayload,
+  LandingReviewPayload,
   LeadReceivedPayload,
   ProviderBreakerTrippedPayload,
   ShippingSyncFailedPayload,
@@ -116,6 +117,28 @@ export function formatDraftPendingReview(p: DraftPendingReviewPayload): string {
   );
 }
 
+const SEVERITY_ICON: Record<string, string> = { critical: "🛑", major: "⚠️", minor: "ℹ️" };
+
+export function formatLandingReview(p: LandingReviewPayload): string {
+  const lines = [
+    `🧪 <b>Landing mới cần IT xem</b>`,
+    `📣 ${esc(p.campaign_title)} (<code>${esc(p.campaign_slug)}</code>)`,
+    `🆔 Phiên bản <code>${esc(p.version_id.slice(0, 8))}</code>${p.uploader ? ` · ${esc(p.uploader)}` : ""}`,
+    `🛑 ${p.critical} nghiêm trọng · ⚠️ ${p.major} quan trọng · ℹ️ ${p.minor} nhỏ`,
+    `🎨 Định dạng: ${p.format_mode === "ai" ? "AI đã chỉnh" : "chỉ chuẩn hóa bằng code"}`,
+  ];
+  if (p.format_note) lines.push(`<i>${esc(truncate(p.format_note, 300))}</i>`);
+  if (p.audit_mode === "rules" && p.audit_note) lines.push(`<i>${esc(truncate(p.audit_note, 300))}</i>`);
+  if (p.top.length > 0) {
+    lines.push("");
+    for (const f of p.top) {
+      lines.push(`${SEVERITY_ICON[f.severity] ?? "•"} ${esc(truncate(f.message, 300))}`);
+    }
+  }
+  lines.push("", `🔍 <a href="${esc(p.preview_url)}">Xem trước</a> · ✏️ <a href="${esc(p.editor_url)}">Mở trong CMS</a>`);
+  return clampBody(lines.join("\n"));
+}
+
 export function formatChannelTest(channelLabel: string): string {
   return clampBody(
     [
@@ -144,5 +167,7 @@ export function formatEvent(input: DispatchInput): string {
       return formatBreakerTripped(input.payload);
     case "draft_pending_review":
       return formatDraftPendingReview(input.payload);
+    case "landing_review":
+      return formatLandingReview(input.payload);
   }
 }
