@@ -48,6 +48,25 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Smoke the built Worker in workerd
+        # Unit tests run the TypeScript sources under Bun, where Node globals
+        # exist. A bundling bug that only breaks the built Worker (2026-10-25:
+        # "stream is not defined" on every request after PR #103) passes all of
+        # them, so boot dist/ in workerd and hit a route that needs no database.
+        run: |
+          bunx wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 8787 > /tmp/wrangler-dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8787/api/v1/openapi || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          echo "GET /api/v1/openapi -> $code"
+          if [ "$code" != "200" ] || grep -qE "ReferenceError|is not defined" /tmp/wrangler-dev.log; then
+            echo "::error::Built Worker failed to serve /api/v1/openapi"
+            cat /tmp/wrangler-dev.log
+            exit 1
+          fi
+
       - name: OpenAPI contract drift
         # In-process schema identity check (no network/secrets). Catches the
         # Phase-D failure mode where a handler's response shape drifts from its
