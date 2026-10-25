@@ -54,7 +54,7 @@ jobs:
         # "stream is not defined" on every request after PR #103) passes all of
         # them, so boot dist/ in workerd and hit a route that needs no database.
         run: |
-          bunx wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 8787 > /tmp/wrangler-dev.log 2>&1 &
+          ./node_modules/.bin/wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 8787 > /tmp/wrangler-dev.log 2>&1 &
           for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8787/api/v1/openapi || true)
             [ "$code" = "200" ] && break
