@@ -1,6 +1,8 @@
 import { getDb, nowSeconds } from "@/core/db/client";
 
-export const SESSION_COOKIE = "thg_sid";
+import { SESSION_COOKIE, buildCookie, readCookie } from "./auth.cookies";
+
+export { SESSION_COOKIE } from "./auth.cookies";
 // Session lifetime + sliding refresh.
 //   - TTL: 24h. Active users refresh on activity (see SESSION_REFRESH_THRESHOLD)
 //     so they never see expiry mid-task. Inactive users get pushed to login
@@ -155,40 +157,17 @@ export function buildSessionCookie(
   expiresAt: number,
   isProduction: boolean,
 ): string {
-  const maxAge = Math.max(0, expiresAt - nowSeconds());
-  const parts = [
-    `${SESSION_COOKIE}=${sessionId}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    `Max-Age=${maxAge}`,
-  ];
-  if (isProduction) parts.push("Secure");
-  return parts.join("; ");
+  return buildCookie(SESSION_COOKIE, sessionId, expiresAt - nowSeconds(), isProduction);
 }
 
 export function buildClearCookie(isProduction: boolean): string {
-  const parts = [
-    `${SESSION_COOKIE}=`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    "Max-Age=0",
-  ];
-  if (isProduction) parts.push("Secure");
-  return parts.join("; ");
+  return buildCookie(SESSION_COOKIE, "", 0, isProduction);
 }
 
-export function parseSessionCookie(cookieHeader: string | null): string {
-  if (!cookieHeader) return "";
-  for (const part of cookieHeader.split(/;\s*/)) {
-    const eq = part.indexOf("=");
-    if (eq < 0) continue;
-    if (part.slice(0, eq) === SESSION_COOKIE) {
-      return part.slice(eq + 1);
-    }
-  }
-  return "";
+/** Session id from the request's Cookie header. Production reads ONLY `__Host-thg_sid`, so a
+ *  `thg_sid` tossed in from a sibling subdomain is never used (see auth.cookies.ts). */
+export function parseSessionCookie(cookieHeader: string | null, isProduction: boolean): string {
+  return readCookie(cookieHeader, SESSION_COOKIE, isProduction);
 }
 
 const ROLE_RANK: Record<Role, number> = { viewer: 1, editor: 2, admin: 3 };

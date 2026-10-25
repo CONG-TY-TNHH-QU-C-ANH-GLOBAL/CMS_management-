@@ -55,6 +55,18 @@ declare global {
       MARKETING_HUB_CALLBACK_URL?: string;
       MARKETING_HUB_PUBLIC_ORIGIN?: string;
       MARKETING_HUB_PREVIEW_SECRET?: string;
+      // Uploaded campaign landing pages. LANDING_HOST is the separate origin that serves them
+      // (src/features/campaigns/landing/landing.host.ts); LANDING_ORIGIN overrides the public
+      // URL built from it (local dev). TURNSTILE_SITE_KEY is the PUBLIC Turnstile widget key
+      // thg-lead.js renders; without it the form sends the DEV_BYPASS token.
+      LANDING_HOST?: string;
+      LANDING_ORIGIN?: string;
+      TURNSTILE_SITE_KEY?: string;
+      // Claude (Anthropic API) for the landing AI format + audit steps. Secret; undefined skips
+      // the AI steps (deterministic normalization and checks still run). LANDING_AI_MODEL
+      // overrides the model (default claude-opus-5-5).
+      ANTHROPIC_API_KEY?: string;
+      LANDING_AI_MODEL?: string;
     }
   }
 }

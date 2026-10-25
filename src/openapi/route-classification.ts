@@ -445,6 +445,14 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "CMS admin Media Library (same-origin, no CORS)",
     "withRequiredSession('editor'). Must never enter the public document.",
   ),
+  "v1/(admin)/landing-uploads/index.ts": adminApi(
+    "/api/v1/landing-uploads",
+    ["post"],
+    "campaigns",
+    "CMS admin campaign editor, Landing page card (same-origin, no CORS)",
+    "withRequiredSession('editor'). Accepts a campaign landing .zip; the files are served only " +
+      "on the separate landing host (lp.thgfulfill.com), never on this origin.",
+  ),
   "v1/(admin)/applicant-cv/$.ts": adminApi(
     "/api/v1/applicant-cv/{splat}",
     ["get"],

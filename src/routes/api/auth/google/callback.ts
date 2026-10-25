@@ -10,27 +10,12 @@ import {
   issueSession,
   upsertGoogleUser,
 } from "@/features/auth";
+import { buildCookie, readCookie } from "@/features/auth/auth.cookies";
 
 // H3 — per-IP rate limit on OAuth callback. Same envelope as the start
 // endpoint: 10 req/60s/IP. This bounds replay attempts and code-exchange
 // brute force; legitimate users only hit this endpoint once per login.
 const OAUTH_CALLBACK_RATE_LIMIT = { max: 10, windowSeconds: 60 };
-
-function getCookie(cookieHeader: string | null, name: string): string {
-  if (!cookieHeader) return "";
-  for (const part of cookieHeader.split(/;\s*/)) {
-    const eq = part.indexOf("=");
-    if (eq < 0) continue;
-    if (part.slice(0, eq) === name) return part.slice(eq + 1);
-  }
-  return "";
-}
-
-function clearCookie(name: string, prod: boolean): string {
-  const parts = [`${name}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
-  if (prod) parts.push("Secure");
-  return parts.join("; ");
-}
 
 function errorRedirect(reason: string): Response {
   const params = new URLSearchParams({ error: reason });
@@ -65,12 +50,12 @@ export const Route = createFileRoute("/api/auth/google/callback")({
         if (!code || !state) return errorRedirect("missing_code_or_state");
 
         const cookieHeader = request.headers.get("cookie");
-        const expectedState = getCookie(cookieHeader, OAUTH_STATE_COOKIE);
+        const expectedState = readCookie(cookieHeader, OAUTH_STATE_COOKIE, isProduction());
         if (!expectedState || expectedState !== state) {
           return errorRedirect("invalid_state");
         }
 
-        const redirectRaw = getCookie(cookieHeader, OAUTH_REDIRECT_COOKIE);
+        const redirectRaw = readCookie(cookieHeader, OAUTH_REDIRECT_COOKIE, isProduction());
         const redirectTo = redirectRaw ? decodeURIComponent(redirectRaw) : "/";
 
         let userInfo;
@@ -110,8 +95,8 @@ export const Route = createFileRoute("/api/auth/google/callback")({
         const prod = isProduction();
         const headers = new Headers();
         headers.append("set-cookie", sessionCookie);
-        headers.append("set-cookie", clearCookie(OAUTH_STATE_COOKIE, prod));
-        headers.append("set-cookie", clearCookie(OAUTH_REDIRECT_COOKIE, prod));
+        headers.append("set-cookie", buildCookie(OAUTH_STATE_COOKIE, "", 0, prod));
+        headers.append("set-cookie", buildCookie(OAUTH_REDIRECT_COOKIE, "", 0, prod));
         headers.set("location", redirectTo.startsWith("/") ? redirectTo : "/");
 
         return new Response(null, { status: 302, headers });

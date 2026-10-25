@@ -27,6 +27,7 @@ import {
   flagNote,
   type CampaignDraft,
 } from "./campaign-draft";
+import { LandingCard } from "./LandingCard";
 import { MenuItemsEditor } from "./MenuItemsEditor";
 import { TextFields } from "./TextFields";
 
@@ -204,6 +205,8 @@ export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDele
           </Field>
         </div>
       </Card>
+
+      <LandingCard campaignId={campaign.id} onPublished={onSaved} />
 
       <Card>
         <CardHeader title="Hiển thị" hint="Website chỉ hiện Chương trình đầu tiên được bật" />

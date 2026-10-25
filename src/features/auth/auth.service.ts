@@ -37,7 +37,7 @@ export function getRequestMeta(): { ip?: string; userAgent?: string } {
 }
 
 export async function readCurrentSession(): Promise<ActiveSession | null> {
-  const sid = parseSessionCookie(getCookieHeader());
+  const sid = parseSessionCookie(getCookieHeader(), isProduction());
   if (!sid) return null;
   const session = await getSession(sid);
   if (!session) return null;

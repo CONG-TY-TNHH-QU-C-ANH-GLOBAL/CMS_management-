@@ -21,7 +21,9 @@
 		// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
 		// Admin /admin/* is same-origin so doesn't need to appear here.
 		// Override locally via `.dev.vars` CORS_ORIGIN=http://localhost:5173,http://localhost:8080.
-		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com",
+		// lp.thgfulfill.com is listed because uploaded campaign landings post their consult
+		// form (thg-lead.js) to /api/v1/leads from that origin.
+		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com,https://lp.thgfulfill.com",
 		// C3 landing auto-redeploy: which repo + event the cron dispatches when a
 		// JD changes. The token is a SECRET — set via
 		// `bunx wrangler secret put GITHUB_DISPATCH_TOKEN` (fine-grained PAT,
@@ -31,7 +33,17 @@
 		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated",
 		"CRM_LEAD_SYNC_URL": "https://crm.thgfulfill.com/api/integrations/cms/leads",
 		"CRM_LEGACY_LEAD_BACKFILL_ENABLED": "false",
-		"MARKETING_HUB_PUBLIC_ORIGIN": "https://thgfulfill.com"
+		"MARKETING_HUB_PUBLIC_ORIGIN": "https://thgfulfill.com",
+		// Uploaded campaign landings are served ONLY on this separate host (src/server.ts
+		// routes it to landing.host.ts before TanStack Start). Never point it at cms. or the
+		// apex: the uploaded HTML runs arbitrary scripts.
+		"LANDING_HOST": "lp.thgfulfill.com",
+		"LANDING_ORIGIN": "https://lp.thgfulfill.com",
+		// Claude model for the landing AI steps; the key is the ANTHROPIC_API_KEY secret.
+		"LANDING_AI_MODEL": "claude-opus-5-5",
+		// PUBLIC Turnstile widget key (same one the landing ships as VITE_TURNSTILE_SITE_KEY).
+		// thg-lead.js renders the widget with it; the widget must allow lp.thgfulfill.com.
+		"TURNSTILE_SITE_KEY": "0x4AAAAAADN5ICQgo3Iw_ktP"
 	},
 	"d1_databases": [
 		{
@@ -66,7 +78,9 @@
 	// Custom domain — wrangler creates the binding + DNS + SSL on deploy.
 	// Requires the API token to have Zone.Workers Routes:Edit for thgfulfill.com.
 	"routes": [
-		{ "pattern": "cms.thgfulfill.com", "zone_name": "thgfulfill.com", "custom_domain": true }
+		{ "pattern": "cms.thgfulfill.com", "zone_name": "thgfulfill.com", "custom_domain": true },
+		// Campaign landing uploads (see LANDING_HOST). Same Worker, isolated by host.
+		{ "pattern": "lp.thgfulfill.com", "zone_name": "thgfulfill.com", "custom_domain": true }
 	],
 	// Cron Trigger — resume safety net for the async translation queue
 	// (src/server.ts `scheduled`). Every minute it claims any pending /
