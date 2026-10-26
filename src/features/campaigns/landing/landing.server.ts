@@ -16,6 +16,8 @@ import { vnToday } from "../campaigns.pure";
 import auditPrompt from "./audit.prompt.md?raw";
 import formatPrompt from "./format.prompt.md?raw";
 import { createLandingAi } from "./landing.ai";
+import { createAiChain, type NamedAi } from "./landing.ai.chain";
+import { createDeepSeekAi } from "./landing.ai.deepseek";
 import { landingOriginOf } from "./landing.config";
 import * as service from "./landing.service";
 
@@ -24,13 +26,37 @@ function newVersionId(): string {
   return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** AI providers in priority order: Claude, then DeepSeek. Empty means AI steps are skipped. */
+function landingAi(): service.LandingDeps["ai"] {
+  const providers: NamedAi[] = [];
+  // Never log either key.
+  const anthropicKey = env.ANTHROPIC_API_KEY?.trim();
+  if (anthropicKey) {
+    providers.push({
+      name: "Claude",
+      call: createLandingAi({ apiKey: anthropicKey, model: env.LANDING_AI_MODEL }),
+    });
+  }
+  const deepseekKey = env.DEEPSEEK_API_KEY?.trim();
+  if (deepseekKey) {
+    providers.push({
+      name: "DeepSeek",
+      call: createDeepSeekAi({
+        apiKey: deepseekKey,
+        model: env.LANDING_AI_MODEL_DEEPSEEK,
+        baseURL: env.LANDING_AI_BASE_URL_DEEPSEEK,
+      }),
+    });
+  }
+  if (providers.length === 0) return null;
+  return createAiChain(providers);
+}
+
 export function landingDeps(): service.LandingDeps {
-  // Never log this value.
-  const apiKey = env.ANTHROPIC_API_KEY?.trim();
   return {
     db: env.DB,
     bucket: env.MEDIA,
-    ai: apiKey ? createLandingAi({ apiKey, model: env.LANDING_AI_MODEL }) : null,
+    ai: landingAi(),
     prompts: { format: formatPrompt, audit: auditPrompt },
     auditLog,
     bumpCmsRev,

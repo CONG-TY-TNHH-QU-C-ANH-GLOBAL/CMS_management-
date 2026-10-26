@@ -61,8 +61,9 @@ function Counts({ v }: { v: LandingVersionView }) {
   );
 }
 
-function VersionDetail({ v }: { v: LandingVersionView }) {
+export function VersionDetail({ v }: { v: LandingVersionView }) {
   const format = v.report.format;
+  const audit = v.report.audit;
   return (
     <div className="space-y-4 border-t border-border p-5">
       {v.report.error && (
@@ -75,6 +76,7 @@ function VersionDetail({ v }: { v: LandingVersionView }) {
           <div className="font-medium">
             Định dạng:{" "}
             {format.mode === "ai" ? "AI đã chỉnh theo header chuẩn" : "chỉ chuẩn hóa bằng code"}
+            {format.ai_usage?.model && <span> (model: {format.ai_usage.model})</span>}
           </div>
           {format.note && <div className="mt-1 text-amber-700">{format.note}</div>}
           <ul className="mt-1 list-disc pl-5 text-muted-foreground">
@@ -85,6 +87,15 @@ function VersionDetail({ v }: { v: LandingVersionView }) {
           <div className="mt-1 text-muted-foreground">
             index.html: {formatSize(format.diff.bytesBefore)} → {formatSize(format.diff.bytesAfter)}
           </div>
+        </div>
+      )}
+      {audit && (
+        <div className="text-xs">
+          <div className="font-medium">
+            Kiểm tra nội dung: {audit.mode === "ai" ? "AI đã kiểm tra" : "chỉ kiểm tra bằng code"}
+            {audit.ai_usage?.model && <span> (model: {audit.ai_usage.model})</span>}
+          </div>
+          {audit.note && <div className="mt-1 text-amber-700">{audit.note}</div>}
         </div>
       )}
       {v.report.warnings.length > 0 && (

@@ -91,12 +91,8 @@ describe("runDeterministicChecks on the Christmas sample", () => {
     expect(found.filter((f) => f.category === "asset")).toEqual([]);
   });
 
-  test("flags both copied price rows by product name", () => {
-    const prices = by("price").map((f) => `${f.message} ${f.evidence}`);
-    expect(prices).toHaveLength(2);
-    expect(prices.find((m) => m.includes("Microfiber"))).toContain("Lambswool Composite Blanket");
-    expect(prices.find((m) => m.includes("Golf Towel"))).toContain("Peachskin Velvet Table Cloth");
-    expect(by("price").every((f) => f.severity === "major")).toBe(true);
+  test("does not report copied price rows", () => {
+    expect(by("price")).toEqual([]);
   });
 
   test("flags the old brand, the mailto fallback and the next-year countdown", () => {
@@ -117,8 +113,6 @@ describe("runDeterministicChecks on the Christmas sample", () => {
       "critical:asset",
       "major:brand",
       "major:form",
-      "major:price",
-      "major:price",
       "minor:countdown",
     ]);
   });
@@ -141,13 +135,7 @@ describe("runDeterministicChecks on the Christmas sample", () => {
   test("with the assets present, only the content findings remain", () => {
     const complete = runDeterministicChecks({ html, paths: new Set(referencedAssets(SAMPLE)) });
     expect(complete.filter((f) => f.category === "asset")).toEqual([]);
-    expect(complete.map((f): string => f.category).sort()).toEqual([
-      "brand",
-      "countdown",
-      "form",
-      "price",
-      "price",
-    ]);
+    expect(complete.map((f): string => f.category).sort()).toEqual(["brand", "countdown", "form"]);
   });
 });
 

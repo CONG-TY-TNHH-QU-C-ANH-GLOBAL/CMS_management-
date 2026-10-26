@@ -396,69 +396,6 @@ function checkCountdown(scripts: ScriptBlock[]): LandingFinding[] {
   return [];
 }
 
-// ── Prices copied between products ──────────────────────────────────────────
-
-const PRICE = /(?:US)?\$\s?\d{1,5}(?:[.,]\d{1,2})?|\d{1,3}(?:[.,]\d{3})+\s?(?:đ|₫|VND)\b/gi;
-
-interface PricedItem {
-  name: string;
-  signature: string;
-}
-
-/** Product-like records: JS object literals with a name, and HTML cards with a heading. */
-function pricedItems(html: string, tags: HtmlTag[], scripts: ScriptBlock[]): PricedItem[] {
-  const items: PricedItem[] = [];
-  const add = (name: string | null, chunk: string) => {
-    const prices = chunk.match(PRICE) ?? [];
-    if (!name || prices.length < 2) return;
-    items.push({
-      name: name.trim(),
-      signature: prices.map((p) => p.replace(/\s/g, "")).join(" | "),
-    });
-  };
-  for (const s of scripts) {
-    for (const obj of s.body.match(/\{[^{}]{0,2000}\}/g) ?? []) {
-      const name = /\b(?:name|title)\s*:\s*(["'])(.+?)\1/.exec(obj)?.[2] ?? null;
-      add(name, obj);
-    }
-  }
-  tags.forEach((tag, i) => {
-    if (tag.kind !== "start" || !["article", "li"].includes(tag.name)) return;
-    const close = tags.findIndex((t, j) => j > i && t.kind === "end" && t.name === tag.name);
-    if (close < 0) return;
-    const chunk = html.slice(tag.end, tags[close].start);
-    const heading = /<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/i.exec(chunk)?.[1];
-    add(heading ? visibleText(heading) : null, visibleText(chunk));
-  });
-  return items;
-}
-
-function checkCopiedPrices(
-  html: string,
-  tags: HtmlTag[],
-  scripts: ScriptBlock[],
-): LandingFinding[] {
-  const bySignature = new Map<string, Set<string>>();
-  for (const item of pricedItems(html, tags, scripts)) {
-    const names = bySignature.get(item.signature) ?? new Set<string>();
-    names.add(item.name);
-    bySignature.set(item.signature, names);
-  }
-  const out: LandingFinding[] = [];
-  for (const [signature, names] of bySignature) {
-    if (names.size < 2) continue;
-    out.push(
-      finding(
-        "major",
-        "price",
-        `Các sản phẩm khác nhau có bảng giá giống hệt nhau — có thể đã copy nhầm giá: ${[...names].join(", ")}.`,
-        signature,
-      ),
-    );
-  }
-  return out;
-}
-
 // ── Entry point ─────────────────────────────────────────────────────────────
 
 export function runDeterministicChecks(input: CheckInput): LandingFinding[] {
@@ -470,7 +407,6 @@ export function runDeterministicChecks(input: CheckInput): LandingFinding[] {
     ...checkBrand(input.html),
     ...checkMailto(input.html),
     ...checkPlaceholders(input.html),
-    ...checkCopiedPrices(input.html, tags, scripts),
     ...checkAlt(input.html, tags, scripts),
     ...checkCountdown(scripts),
   ];
