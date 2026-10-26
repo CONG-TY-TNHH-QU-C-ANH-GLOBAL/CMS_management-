@@ -1,7 +1,7 @@
 // AI audit step: reads the page and REPORTS content problems to IT. It never
 // edits anything. Deterministic checks (landing.checks.ts) already cover what
 // code can decide; the prompt (audit.prompt.md) covers the semantic rest —
-// copied prices, contradictory origin / delivery claims, wrong dates, etc.
+// contradictory origin / delivery claims, wrong dates, etc. Pricing is excluded.
 
 import { z } from "zod";
 
@@ -47,7 +47,6 @@ function metaDigest(html: string): string {
 
 const SEVERITIES = ["critical", "major", "minor"] as const;
 const AUDIT_CATEGORIES = [
-  "price",
   "origin",
   "delivery",
   "content",
@@ -109,9 +108,9 @@ export function buildAuditRequest(
 
 const aiFindingSchema = z.object({
   severity: z.enum(SEVERITIES),
-  category: z.enum(AUDIT_CATEGORIES).catch("content"),
+  category: z.enum(AUDIT_CATEGORIES),
   message: z.string().min(1).max(600),
-  evidence: z.string().max(600).default(""),
+  evidence: z.string().max(600),
 });
 
 export function parseAuditFindings(parsed: Record<string, unknown>): LandingFinding[] | null {
@@ -119,8 +118,14 @@ export function parseAuditFindings(parsed: Record<string, unknown>): LandingFind
   if (!list.success) return null;
   const out: LandingFinding[] = [];
   for (const raw of list.data.findings) {
+    // Pricing is deliberately out of scope, even if a provider ignores the prompt.
+    if (raw !== null && typeof raw === "object" && "category" in raw && raw.category === "price") {
+      continue;
+    }
     const item = aiFindingSchema.safeParse(raw);
-    if (item.success) out.push({ ...item.data, source: "ai" });
+    // A partly invalid answer cannot be reported as a complete, clean audit.
+    if (!item.success) return null;
+    out.push({ ...item.data, source: "ai" });
   }
   return out.slice(0, 40);
 }

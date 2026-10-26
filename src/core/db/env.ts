@@ -67,6 +67,12 @@ declare global {
       // overrides the model (default claude-opus-5-5).
       ANTHROPIC_API_KEY?: string;
       LANDING_AI_MODEL?: string;
+      // DeepSeek (OpenAI-compatible chat completions) used as the fallback when Claude is not
+      // configured or fails. Secret; undefined leaves the chain Claude-only.
+      // LANDING_AI_MODEL_DEEPSEEK overrides the model (default deepseek-flash).
+      DEEPSEEK_API_KEY?: string;
+      LANDING_AI_MODEL_DEEPSEEK?: string;
+      LANDING_AI_BASE_URL_DEEPSEEK?: string;
     }
   }
 }

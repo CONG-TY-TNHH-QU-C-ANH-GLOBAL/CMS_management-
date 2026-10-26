@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { createLandingAi, type JsonAiCall } from "./landing.ai";
-import { runAuditStep } from "./landing.audit";
+import { AUDIT_OUTPUT_SCHEMA, parseAuditFindings, runAuditStep } from "./landing.audit";
 import {
   FormatRejected,
   applyFormatEdits,
@@ -354,6 +354,40 @@ describe("validateFormatted", () => {
 });
 
 describe("runAuditStep", () => {
+  test("both providers receive a shared audit policy excluding pricing", () => {
+    expect(AUDIT_PROMPT).toContain("Do not audit or report pricing");
+    expect(JSON.stringify(AUDIT_OUTPUT_SCHEMA)).not.toContain('"price"');
+  });
+
+  test("ignores price findings without losing valid non-price findings", () => {
+    expect(
+      parseAuditFindings({
+        findings: [
+          {
+            severity: "critical",
+            category: "price",
+            message: "Price mismatch",
+            evidence: "$10 vs $20",
+          },
+          {
+            severity: "major",
+            category: "origin",
+            message: "Origin mismatch",
+            evidence: "USA vs VN",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        severity: "major",
+        category: "origin",
+        message: "Origin mismatch",
+        evidence: "USA vs VN",
+        source: "ai",
+      },
+    ]);
+    expect(parseAuditFindings({ findings: [{ category: "price" }] })).toEqual([]);
+  });
   const context = {
     campaignTitle: "Christmas 2026 Collection",
     startDate: "2026-10-24",
@@ -361,7 +395,30 @@ describe("runAuditStep", () => {
     today: "2026-10-24",
   };
 
-  test("parses AI findings, drops malformed ones and tags them as AI", async () => {
+  test("Claude audit ignores pricing but keeps origin findings", async () => {
+    replyWith({
+      findings: [
+        { severity: "major", category: "price", message: "Price mismatch", evidence: "$10 vs $20" },
+        {
+          severity: "critical",
+          category: "origin",
+          message: "Origin mismatch",
+          evidence: "USA vs VN",
+        },
+      ],
+    });
+    const result = await runAuditStep({
+      html: BASE.html,
+      prompt: AUDIT_PROMPT,
+      ai: ai(),
+      context,
+      ruleFindings: [],
+    });
+    expect(result.mode).toBe("ai");
+    expect(result.findings.map((f) => f.category)).toEqual(["origin"]);
+  });
+
+  test("parses valid AI findings and tags them as AI", async () => {
     replyWith({
       findings: [
         {
@@ -376,11 +433,10 @@ describe("runAuditStep", () => {
           message: "Thời gian sản xuất mâu thuẫn.",
           evidence: "1–3 vs 2–3",
         },
-        { severity: "urgent", category: "price", message: "bad severity", evidence: "" },
         {
           severity: "minor",
-          category: "weird",
-          message: "Unknown category becomes content.",
+          category: "content",
+          message: "Content issue.",
           evidence: "",
         },
       ],
@@ -611,19 +667,37 @@ describe("runAuditStep against an adversarial model", () => {
     evidence: "",
   });
 
-  test("junk items are dropped one by one; the model cannot claim to be a rule", async () => {
+  test("junk items invalidate the audit instead of silently dropping findings", async () => {
     replyWith({
       findings: [
         null,
         "critical: everything is wrong",
         42,
         [],
-        { severity: "critical", category: "price", message: "", evidence: "" },
-        { severity: "critical", category: "price", message: "x".repeat(601), evidence: "" },
-        { severity: "critical", category: "price", message: "ok", evidence: "e".repeat(601) },
+        { severity: "critical", category: "origin", message: "", evidence: "" },
+        { severity: "critical", category: "origin", message: "x".repeat(601), evidence: "" },
+        { severity: "critical", category: "origin", message: "ok", evidence: "e".repeat(601) },
         {
           severity: "major",
-          category: "price",
+          category: "origin",
+          message: "Giá copy",
+          evidence: "<b>$12.70</b>",
+          source: "rule",
+        },
+      ],
+    });
+    const result = await audit();
+    expect(result.mode).toBe("rules");
+    expect(result.findings).toEqual([]);
+    expect(result.note).toContain("sai định dạng");
+  });
+
+  test("the model cannot claim to be a rule", async () => {
+    replyWith({
+      findings: [
+        {
+          severity: "major",
+          category: "origin",
           message: "Giá copy",
           evidence: "<b>$12.70</b>",
           source: "rule",
@@ -635,7 +709,7 @@ describe("runAuditStep against an adversarial model", () => {
     expect(result.findings).toEqual([
       {
         severity: "major",
-        category: "price",
+        category: "origin",
         message: "Giá copy",
         evidence: "<b>$12.70</b>",
         source: "ai",

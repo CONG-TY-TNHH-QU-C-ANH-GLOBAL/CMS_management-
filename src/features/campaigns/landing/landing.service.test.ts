@@ -10,6 +10,8 @@ import { join, resolve } from "node:path";
 
 import { makeZip, type ZipInput } from "./__fixtures__/make-zip";
 import type { JsonAiCall } from "./landing.format";
+import { createAiChain } from "./landing.ai.chain";
+import { createDeepSeekAi } from "./landing.ai.deepseek";
 import { handleLandingRequest } from "./landing.host";
 import { landingHostDeps } from "./landing.host.server";
 import { leadScriptTag } from "./landing.normalize";
@@ -202,6 +204,85 @@ describe("upload", () => {
 });
 
 describe("process", () => {
+  test.each(["valid", "malformed", "interrupted"])(
+    "Claude failure falls back to Flash and persists an honest audit report (%s)",
+    async (scenario) => {
+      let claudeCalls = 0;
+      let deepseekCalls = 0;
+      const ai = createAiChain([
+        {
+          name: "Claude",
+          call: async () => {
+            claudeCalls++;
+            return { parsed: null, error: "Claude API từ chối yêu cầu (400).", usage: null };
+          },
+        },
+        {
+          name: "DeepSeek",
+          call: createDeepSeekAi({
+            apiKey: "mock",
+            fetch: (async (_url: RequestInfo | URL, init?: RequestInit) => {
+              deepseekCalls++;
+              const body = JSON.parse(String(init?.body));
+              expect(body.model).toBe("deepseek-flash");
+              expect(body.max_tokens).toBe(30000);
+              const format = body.messages[0].content.startsWith("FORMAT PROMPT");
+              const content = format
+                ? { edits: [], notes: "" }
+                : {
+                    findings:
+                      scenario === "malformed"
+                        ? [
+                            {
+                              severity: "CRITICAL",
+                              category: "origin",
+                              message: "wrong origin",
+                              evidence: "$10",
+                            },
+                          ]
+                        : [],
+                  };
+              return Response.json({
+                model: "deepseek-flash",
+                choices: [
+                  {
+                    message: { content: JSON.stringify(content) },
+                    finish_reason: !format && scenario === "interrupted" ? "aborted" : "stop",
+                  },
+                ],
+                usage: { prompt_tokens: 20, completion_tokens: 10 },
+              });
+            }) as typeof fetch,
+          }),
+        },
+      ]);
+      const v = await uploadLanding(deps(), ACTOR, {
+        campaignId,
+        fileName: "test.zip",
+        zip: sampleZip(),
+      });
+      const ready = await processLanding(deps(ai), v.id);
+      expect(ready.status).toBe("ready");
+      expect(claudeCalls).toBe(2);
+      expect(deepseekCalls).toBe(2);
+      const listing = await listLandingVersions(deps(), campaignId);
+      const report = listing.versions[0].report;
+      expect(report.format?.mode).toBe("ai");
+      expect(report.format?.ai_usage?.model).toBe("deepseek-flash");
+      expect(report.audit?.ai_usage?.model).toBe("deepseek-flash");
+      expect(report.audit?.mode).toBe(scenario === "valid" ? "ai" : "rules");
+      if (scenario === "valid") {
+        expect(report.audit?.note).toBeNull();
+        expect(listing.versions[0].findings.some((f) => f.category === "ai")).toBe(false);
+      } else {
+        expect(report.audit?.note).toContain(
+          scenario === "malformed" ? "sai định dạng" : "finish_reason",
+        );
+        expect(listing.versions[0].findings.some((f) => f.category === "ai")).toBe(true);
+      }
+    },
+  );
+
   test("without AI: deterministic output, rule findings saved, one Telegram report", async () => {
     const v = await uploadLanding(deps(), ACTOR, {
       campaignId,
@@ -212,9 +293,9 @@ describe("process", () => {
     expect(ready.status).toBe("ready");
     const findings = JSON.parse(ready.findings_json) as { severity: string; category: string }[];
     expect(findings[0]).toMatchObject({ severity: "critical", category: "asset" });
-    expect(findings.filter((f) => f.category === "price")).toHaveLength(2);
+    expect(findings.filter((f) => f.category === "price")).toHaveLength(0);
     expect(findings.at(-1)).toMatchObject({ category: "ai", severity: "minor" });
-    expect([ready.critical_count, ready.major_count]).toEqual([1, 4]); // critical: assets · major: brand, mailto, 2× price
+    expect([ready.critical_count, ready.major_count]).toEqual([1, 2]); // critical: assets · major: brand, mailto
     const report = JSON.parse(ready.report_json);
     expect(report.format.mode).toBe("deterministic");
     // Uploaded bytes vs served bytes: the only deterministic change is the script tag.
@@ -232,13 +313,13 @@ describe("process", () => {
       version_id: v.id,
       uploader: "Marketing",
       critical: 1,
-      major: 4,
+      major: 2,
       format_mode: "deterministic",
       audit_mode: "rules",
       editor_url: "https://cms.thgfulfill.com/admin/content/campaigns/christmas-2026",
       preview_url: `${LP}/_preview/${v.id}/`,
     });
-    expect((dispatched[0].payload.top as unknown[]).length).toBe(6);
+    expect((dispatched[0].payload.top as unknown[]).length).toBe(5);
   });
 
   test("with AI: the validated edit list is applied and AI findings are merged", async () => {

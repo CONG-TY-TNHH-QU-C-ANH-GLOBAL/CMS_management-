@@ -50,3 +50,11 @@ MARKETING_AGENT_TOKEN=
 # Leave BLANK to skip them: uploads still get deterministic normalization and checks.
 # Production: bunx wrangler secret put ANTHROPIC_API_KEY
 ANTHROPIC_API_KEY=
+# Fallback when Claude is missing or fails (e.g. credit exhausted -> 400). DeepSeek is
+# OpenAI-compatible; the key is only read server-side. Leave BLANK to keep Claude-only.
+# Production: bunx wrangler secret put DEEPSEEK_API_KEY
+DEEPSEEK_API_KEY=
+# Flash uses thinking mode; max_tokens is 30000 including reasoning and final JSON.
+# Optional overrides (defaults: deepseek-flash, https://api.deepseek.com).
+LANDING_AI_MODEL_DEEPSEEK=
+LANDING_AI_BASE_URL_DEEPSEEK=
