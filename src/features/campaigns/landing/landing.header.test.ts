@@ -13,8 +13,10 @@
 // landing header shows it for the four services only (pricing / events items are label-only).
 
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 
 import { HEADER_END, HEADER_START, renderStandardHeader } from "./landing.header";
+import { LOGO_URL } from "./landing.logo";
 import type { LandingLang } from "./landing.normalize";
 
 type L = [en: string, vi: string, zh: string];
@@ -137,10 +139,11 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
   test("is wrapped in the markers and has the TH Group logo linking home", () => {
     expect(html.startsWith(HEADER_START)).toBe(true);
     expect(html.endsWith(HEADER_END)).toBe(true);
-    expect(html).toMatch(
-      new RegExp(
-        `<a class="thg-h-logo" href="${site("")}"[^>]*><img src="https://thgfulfill\\.com/logo\\.png" alt="TH Group"`,
-      ),
+    expect(html).toContain(`<a class="thg-h-logo" href="${site("")}"`);
+    expect(html).toContain(`<img src="${LOGO_URL}" alt="TH Group"`);
+    const image = Buffer.from(LOGO_URL.slice("data:image/webp;base64,".length), "base64");
+    expect(createHash("sha256").update(image).digest("hex")).toBe(
+      "d37985d08da6688ef84e3a4aab3df129cd18297261b02f64971767efd9169db2",
     );
     expect(html).not.toMatch(/THG\s+Fulfill/i);
   });
@@ -190,7 +193,7 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
       if (a.href === "#thg-consult") continue;
       expect(a.href).toMatch(/^https:\/\/(?:hub\.)?thgfulfill\.com(?:\/|$)/);
     }
-    for (const m of html.matchAll(/\bsrc="([^"]+)"/g)) expect(m[1]).toMatch(/^https:\/\//);
+    for (const m of html.matchAll(/\bsrc="([^"]+)"/g)) expect(m[1]).toBe(LOGO_URL);
   });
 
   test("both consult CTAs carry data-consult (thg-lead.js opens the form) with the site's label", () => {

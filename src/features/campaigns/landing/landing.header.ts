@@ -11,11 +11,11 @@
 // Every class is prefixed `thg-h` and the CSS is scoped under #thg-header so it
 // cannot collide with the uploaded page's styles.
 
+import { LOGO_URL } from "./landing.logo";
 import type { LandingLang } from "./landing.normalize";
 
 export const SITE_ORIGIN = "https://thgfulfill.com";
 export const HUB_URL = "https://hub.thgfulfill.com";
-export const LOGO_URL = `${SITE_ORIGIN}/logo.png`;
 
 export const HEADER_START = "<!-- thg:header:start -->";
 export const HEADER_END = "<!-- thg:header:end -->";
