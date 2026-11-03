@@ -401,6 +401,37 @@
     if (e.key === "Escape" && root && root.classList.contains("thg-open")) close();
   });
 
+  // Published headers are stored HTML; repair their viewport sizing in this shared script.
+  function fitMobileHeader() {
+    var menu = document.querySelector("#thg-header .thg-h-mobile");
+    if (!menu) return;
+    var sheet = menu.querySelector(".thg-h-sheet");
+    if (!sheet) return;
+    var originalMaxHeight = sheet.style.maxHeight;
+    var viewport = window.visualViewport;
+    function update() {
+      if (!menu.open || !menu.getClientRects().length) {
+        sheet.style.maxHeight = originalMaxHeight;
+        return;
+      }
+      var bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+      sheet.style.maxHeight = Math.max(0, bottom - sheet.getBoundingClientRect().top) + "px";
+    }
+    menu.addEventListener("toggle", update);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    if (viewport) {
+      viewport.addEventListener("resize", update);
+      viewport.addEventListener("scroll", update, { passive: true });
+    }
+    update();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fitMobileHeader);
+  } else {
+    fitMobileHeader();
+  }
+
   // A deep link to the consult form: clear the hash NOW (this script runs before the page's
   // scripts, which may open their own popup for it) and open ours once the body exists.
   if (OPEN_HASHES.indexOf(location.hash) >= 0) {
