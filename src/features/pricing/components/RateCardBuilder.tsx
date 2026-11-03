@@ -21,6 +21,7 @@ import { exportCsv } from "../rateCardCsv";
 import type { DiffResult, RateCardColumn } from "../rateCardTypes";
 import { useRateCardEditor, type OpResult } from "../useRateCardEditor";
 import { FormulaGeneratorDialog } from "./FormulaGeneratorDialog";
+import { FxRatePanel } from "./FxRatePanel";
 import { ImportRateCardDialog } from "./ImportRateCardDialog";
 import { MassUpdateDialog } from "./MassUpdateDialog";
 import { RateCardDiffDialog } from "./RateCardDiffDialog";
@@ -323,6 +324,8 @@ export function RateCardBuilder({ table, versions, canEdit }: Props) {
           removableColumns={removableColumns}
         />
       )}
+      <FxRatePanel rate={editor.fxRate} onRateChange={editor.setFxRate} readOnly={!canEdit} />
+
       {/* Viewers still get Export (read-only, safe) */}
       {!canEdit && (
         <div className="flex">

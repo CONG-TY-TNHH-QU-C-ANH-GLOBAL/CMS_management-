@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { diffRateCard } from "./rateCardDiff";
+import { readFxRate, withFxRate } from "./rateCardFx";
 import { normalizeCellBySemantic } from "./rateCardParse";
 import {
   annotateSemantics,
@@ -203,6 +204,9 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
   const [changedCells, setChangedCells] = useState<Set<string>>(new Set());
   const [publishing, setPublishing] = useState(false);
   const [lastOpLabel, setLastOpLabel] = useState<string | null>(null);
+  // VND per 1 USD, stored on the table (schema_json.fx_rate). null = unset.
+  const initialFxRate = useMemo(() => readFxRate(args.schemaRaw), [args.schemaRaw]);
+  const [fxRate, setFxRate] = useState<number | null>(initialFxRate);
 
   const [storedDraftAt, setStoredDraftAt] = useState<number | null>(null);
 
@@ -225,8 +229,8 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
   const initialPlain = useMemo(() => stripIds(initial.rows), [initial.rows]);
 
   const isDirty = useMemo(
-    () => JSON.stringify(plainRows) !== JSON.stringify(initialPlain),
-    [plainRows, initialPlain],
+    () => JSON.stringify(plainRows) !== JSON.stringify(initialPlain) || fxRate !== initialFxRate,
+    [plainRows, initialPlain, fxRate, initialFxRate],
   );
 
   // Infer which columns this table treats as strictly numeric from the
@@ -356,7 +360,8 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
   const discard = useCallback(() => {
     commit(initial.rows, [], null);
     setCols(initial.cols);
-  }, [initial.rows, initial.cols, commit]);
+    setFxRate(initialFxRate);
+  }, [initial.rows, initial.cols, initialFxRate, commit]);
 
   // --- Draft persistence ---
   const saveDraft = useCallback(() => {
@@ -410,7 +415,7 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
             ? (args.schemaRaw as Record<string, unknown>)
             : {};
         const schemaJson = JSON.stringify({
-          ...baseSchema,
+          ...withFxRate(baseSchema, fxRate),
           type: "weight_grid",
           // Persist resolved semantics additively (landing ignores unknown keys)
           // so currency/rate intent is the source of truth on the next load.
@@ -429,7 +434,7 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
         setPublishing(false);
       }
     },
-    [rows, cols, config.columns, config.currency, config.step, version, args, clearDraft],
+    [rows, cols, config.columns, config.currency, config.step, fxRate, version, args, clearDraft],
   );
 
   // --- Unsaved-changes guard ---
@@ -461,6 +466,8 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     canRedo: future.length > 0,
     publishing,
     storedDraftAt,
+    fxRate,
+    setFxRate,
     setGridRows,
     applyOp,
     addRow,
