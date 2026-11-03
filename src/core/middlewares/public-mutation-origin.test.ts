@@ -11,7 +11,7 @@
 // dynamic `await import()` — the same shape src/openapi/public-surface.test.ts uses, because a
 // static import would be hoisted above the mock registration.
 
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { join } from "node:path";
 
 const ALLOWED_ORIGIN = "https://thgfulfill.com";
@@ -63,33 +63,52 @@ const [actualRateLimit, actualLeads, actualCareers, actualCommunity, actualTeleg
     import("@/features/telegram"),
   ]);
 
+// `mock.module` cannot be undone (re-registering the real module does not displace the spy for
+// files that run later), so each override forwards to the real export once this file is finished.
+// Otherwise a suite that reaches a collaborator through a dynamic import — crm-lead-sync's
+// Telegram replay → dispatchEvent — gets the spy instead of the real thing: it passes alone and
+// fails in the full run, depending on file order.
+let suiteActive = true;
+afterAll(() => {
+  suiteActive = false;
+});
+// The spies are deliberately loosely typed stubs, so the real export's signature is not enforced.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyFn = (...args: any[]) => any;
+function forward(spy: AnyFn, real: AnyFn): AnyFn {
+  return (...args) => (suiteActive ? spy(...args) : real(...args));
+}
+
 mock.module("@/core/middlewares/rate-limit", () => ({
   ...actualRateLimit,
   // Real getClientIp is kept — the requests below carry a cf-connecting-ip header.
-  rateLimit: spies.rateLimit,
-  verifyTurnstile: spies.verifyTurnstile,
+  rateLimit: forward(spies.rateLimit, actualRateLimit.rateLimit),
+  verifyTurnstile: forward(spies.verifyTurnstile, actualRateLimit.verifyTurnstile),
 }));
 
-mock.module("@/features/leads", () => ({ ...actualLeads, createLead: spies.createLead }));
+mock.module("@/features/leads", () => ({
+  ...actualLeads,
+  createLead: forward(spies.createLead, actualLeads.createLead),
+}));
 
 mock.module("@/features/careers", () => ({
   ...actualCareers,
-  createApplicant: spies.createApplicant,
-  getCareersJob: spies.getCareersJob,
+  createApplicant: forward(spies.createApplicant, actualCareers.createApplicant),
+  getCareersJob: forward(spies.getCareersJob, actualCareers.getCareersJob),
 }));
 
 mock.module("@/features/community", () => ({
   ...actualCommunity,
-  addSameIssueReaction: spies.addSameIssueReaction,
-  createCommunityQuestion: spies.createCommunityQuestion,
-  createCommunityReview: spies.createCommunityReview,
-  withdrawCommunityQuestion: spies.withdrawCommunityQuestion,
-  withdrawCommunityReview: spies.withdrawCommunityReview,
+  addSameIssueReaction: forward(spies.addSameIssueReaction, actualCommunity.addSameIssueReaction),
+  createCommunityQuestion: forward(spies.createCommunityQuestion, actualCommunity.createCommunityQuestion),
+  createCommunityReview: forward(spies.createCommunityReview, actualCommunity.createCommunityReview),
+  withdrawCommunityQuestion: forward(spies.withdrawCommunityQuestion, actualCommunity.withdrawCommunityQuestion),
+  withdrawCommunityReview: forward(spies.withdrawCommunityReview, actualCommunity.withdrawCommunityReview),
 }));
 
 mock.module("@/features/telegram", () => ({
   ...actualTelegram,
-  dispatchEvent: spies.dispatchEvent,
+  dispatchEvent: forward(spies.dispatchEvent, actualTelegram.dispatchEvent),
 }));
 
 // ── Route table ─────────────────────────────────────────────────────────────
