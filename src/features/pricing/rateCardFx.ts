@@ -6,9 +6,17 @@
 // unknown schema keys, so this is additive). Unset means "no conversion
 // offered" — nothing is assumed, a wrong default rate would misquote prices.
 
+import {
+  toNumberOrNull,
+  type GridConfig,
+  type RateCardColumn,
+  type RateCardRow,
+  type SemanticType,
+} from "./rateCardTypes";
+
 export const FX_RATE_KEY = "fx_rate";
 
-/** Direction of a one-off conversion in the editor's converter. */
+/** Direction of a whole-grid currency conversion. */
 export type FxDirection = "vnd_to_usd" | "usd_to_vnd";
 
 const MIN_RATE = 1000;
@@ -60,13 +68,6 @@ export function convertFx(
   return direction === "vnd_to_usd" ? vndToUsd(amount, rate) : usdToVnd(amount, rate);
 }
 
-/** Display a converted amount: USD to 4 dp max, VND whole. */
-export function formatFxResult(value: number, direction: FxDirection): string {
-  return direction === "vnd_to_usd"
-    ? `$${value.toLocaleString("en-US", { maximumFractionDigits: 4 })}`
-    : `${Math.round(value).toLocaleString("vi-VN")} ₫`;
-}
-
 /** Return `schema` with the rate set, or removed when null. Never mutates. */
 export function withFxRate(
   schema: Record<string, unknown>,
@@ -75,4 +76,62 @@ export function withFxRate(
   const { [FX_RATE_KEY]: _old, ...rest } = schema;
   void _old;
   return isValidFxRate(rate) ? { ...rest, [FX_RATE_KEY]: rate } : rest;
+}
+
+export interface GridCurrencyConversion {
+  rows: RateCardRow[];
+  cols: RateCardColumn[];
+  /** `${rowIndex}:${code}` for every cell whose value changed. */
+  changedCells: string[];
+  /** Number of price cells converted. */
+  converted: number;
+  /** Table currency after the conversion. */
+  currency: "VND" | "USD";
+}
+
+/**
+ * Convert every money cell of the grid to the other currency at `rate`
+ * (VND per 1 USD). Only columns whose semantic matches the source currency are
+ * touched; the weight column and text cells ("Liên hệ") are left as they are.
+ * USD is rounded to cents and VND to whole đồng — the same precision the
+ * validator and the landing expect for each currency. Converted columns are
+ * re-tagged with the target semantic/currency so validation and display follow.
+ * Returns null when the rate is unusable.
+ */
+export function convertGridCurrency(
+  rows: RateCardRow[],
+  cols: RateCardColumn[],
+  config: GridConfig,
+  rate: number | null,
+  direction: FxDirection,
+): GridCurrencyConversion | null {
+  if (!isValidFxRate(rate)) return null;
+  const toUsd = direction === "vnd_to_usd";
+  const from: SemanticType = toUsd ? "money_vnd" : "money_usd";
+  const to: SemanticType = toUsd ? "money_usd" : "money_vnd";
+  const targets = new Set(config.priceCols.filter((c) => config.semanticByCol[c] === from));
+
+  const changedCells: string[] = [];
+  const nextRows = rows.map((row, i) => {
+    const next = { ...row };
+    for (const code of targets) {
+      const n = toNumberOrNull(row[code]);
+      if (n === null) continue;
+      next[code] = toUsd
+        ? Math.round(vndToUsd(n, rate) * 100) / 100
+        : Math.round(usdToVnd(n, rate));
+      changedCells.push(`${i}:${code}`);
+    }
+    return next;
+  });
+
+  return {
+    rows: nextRows,
+    cols: cols.map((c) =>
+      targets.has(c.code) ? { ...c, semantic: to, currency: toUsd ? "USD" : "VND" } : c,
+    ),
+    changedCells,
+    converted: changedCells.length,
+    currency: toUsd ? "USD" : "VND",
+  };
 }
