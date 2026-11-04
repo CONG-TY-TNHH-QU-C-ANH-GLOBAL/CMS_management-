@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeEach, mock } from "bun:test";
+import { test, expect, describe, beforeEach, mock, spyOn } from "bun:test";
 
 // The auth module reads its config from the `cloudflare:workers` env binding, which bun:test cannot
 // resolve. Stub it with a MUTABLE object so each test controls the config, then import the module (its
@@ -7,11 +7,66 @@ const fakeEnv: Record<string, string> = {};
 mock.module("cloudflare:workers", () => ({ env: fakeEnv }));
 mock.module("@/core/db/env", () => ({}));
 
-const { buildGoogleAuthUrl, exchangeCodeForTokens, OAuthConfigError, GoogleProviderError } =
-  await import("./auth.google");
+const {
+  buildGoogleAuthUrl,
+  exchangeCodeForTokens,
+  fetchGoogleUserInfo,
+  OAuthConfigError,
+  GoogleProviderError,
+} = await import("./auth.google");
 
 const CLIENT_ID = "test-client-id.apps.googleusercontent.com";
 const SECRET_SENTINEL = "super-secret-value-DO-NOT-LEAK";
+
+test("the diagnostic no-store mode changes only cache policy for the same UserInfo token", async () => {
+  const requests: {
+    url: string;
+    authorization: string | null;
+    cache: RequestCache | undefined;
+    bounded: boolean;
+  }[] = [];
+  const response = async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => {
+    requests.push({
+      url: String(input),
+      authorization: new Headers(init?.headers).get("Authorization"),
+      cache: init?.cache,
+      bounded: init?.signal instanceof AbortSignal,
+    });
+    return Response.json({
+      sub: "provider-subject",
+      email: "private@example.test",
+      email_verified: true,
+    });
+  };
+  const network = spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(response, { preconnect() {} }),
+  );
+  try {
+    const original = await fetchGoogleUserInfo("SECRET_TOKEN");
+    const uncached = await fetchGoogleUserInfo("SECRET_TOKEN", "no-store");
+    expect(original.email).toBe("private@example.test");
+    expect(uncached.email).toBe(original.email);
+    expect(requests).toEqual([
+      {
+        url: "https://www.googleapis.com/oauth2/v3/userinfo",
+        authorization: "Bearer SECRET_TOKEN",
+        cache: undefined,
+        bounded: false,
+      },
+      {
+        url: "https://www.googleapis.com/oauth2/v3/userinfo",
+        authorization: "Bearer SECRET_TOKEN",
+        cache: "no-store",
+        bounded: true,
+      },
+    ]);
+  } finally {
+    network.mockRestore();
+  }
+});
 
 beforeEach(() => {
   for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];

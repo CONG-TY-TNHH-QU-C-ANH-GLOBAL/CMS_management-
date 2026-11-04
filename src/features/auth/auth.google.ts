@@ -117,9 +117,13 @@ export async function exchangeCodeForTokens(
   return res.json();
 }
 
-export async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
+export async function fetchGoogleUserInfo(
+  accessToken: string,
+  cache?: "no-store",
+): Promise<GoogleUserInfo> {
   const res = await fetch(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
+    ...(cache ? { cache, signal: AbortSignal.timeout(2000) } : {}),
   });
   if (!res.ok) {
     throw new GoogleProviderError("userinfo", res.status);

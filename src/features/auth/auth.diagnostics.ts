@@ -12,7 +12,7 @@ type FailureReason =
   | "session_issue_failed";
 
 type Detail =
-  | { stage: "provider"; emailFingerprint: string; emailVerified: boolean }
+  | { stage: "provider" | "provider_uncached"; emailFingerprint: string; emailVerified: boolean }
   | { stage: "mapped"; userId: number; role: Role; emailMatchesProvider: boolean }
   | { stage: "issued"; userId: number }
   | { stage: "failed"; reason: FailureReason }
@@ -40,7 +40,10 @@ export function createLoginDiagnostic() {
 
   return {
     correlationId,
-    async provider(email: string, emailVerified: boolean): Promise<void> {
+    get enabled(): boolean {
+      return !!correlationId && Date.now() < LOGIN_DIAGNOSTICS_UNTIL;
+    },
+    async provider(email: string, emailVerified: boolean, uncached = false): Promise<void> {
       if (!correlationId || Date.now() >= LOGIN_DIAGNOSTICS_UNTIL) return;
       try {
         const canonical = `thg-auth-login-v1\n${email.toLowerCase().trim()}`;
@@ -48,7 +51,11 @@ export function createLoginDiagnostic() {
         const emailFingerprint = Array.from(new Uint8Array(digest), (byte) =>
           byte.toString(16).padStart(2, "0"),
         ).join("");
-        record({ stage: "provider", emailFingerprint, emailVerified });
+        record({
+          stage: uncached ? "provider_uncached" : "provider",
+          emailFingerprint,
+          emailVerified,
+        });
       } catch {
         record({ stage: "unavailable" });
       }
@@ -61,6 +68,9 @@ export function createLoginDiagnostic() {
     },
     failed(reason: FailureReason): void {
       record({ stage: "failed", reason });
+    },
+    unavailable(): void {
+      record({ stage: "unavailable" });
     },
   };
 }

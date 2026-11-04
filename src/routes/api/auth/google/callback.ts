@@ -61,8 +61,9 @@ export const Route = createFileRoute("/api/auth/google/callback")({
         const diagnostic = createLoginDiagnostic();
 
         let userInfo;
+        let tokens;
         try {
-          const tokens = await exchangeCodeForTokens(code);
+          tokens = await exchangeCodeForTokens(code);
           userInfo = await fetchGoogleUserInfo(tokens.access_token);
         } catch (err) {
           diagnostic.failed("token_exchange_failed");
@@ -74,6 +75,16 @@ export const Route = createFileRoute("/api/auth/google/callback")({
         if (!userInfo.email_verified) {
           diagnostic.failed("email_not_verified");
           return errorRedirect("email_not_verified");
+        }
+
+        // Compare only: keep the original identity and never let this probe reject a login.
+        if (diagnostic.enabled) {
+          try {
+            const uncached = await fetchGoogleUserInfo(tokens.access_token, "no-store");
+            await diagnostic.provider(uncached.email, uncached.email_verified, true);
+          } catch {
+            diagnostic.unavailable();
+          }
         }
 
         let user;
