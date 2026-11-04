@@ -11,6 +11,7 @@ import {
   upsertGoogleUser,
 } from "@/features/auth";
 import { buildCookie, readCookie } from "@/features/auth/auth.cookies";
+import { createLoginDiagnostic } from "@/features/auth/auth.diagnostics";
 
 // H3 — per-IP rate limit on OAuth callback. Same envelope as the start
 // endpoint: 10 req/60s/IP. This bounds replay attempts and code-exchange
@@ -57,31 +58,51 @@ export const Route = createFileRoute("/api/auth/google/callback")({
 
         const redirectRaw = readCookie(cookieHeader, OAUTH_REDIRECT_COOKIE, isProduction());
         const redirectTo = redirectRaw ? decodeURIComponent(redirectRaw) : "/";
+        const diagnostic = createLoginDiagnostic();
 
         let userInfo;
         try {
           const tokens = await exchangeCodeForTokens(code);
           userInfo = await fetchGoogleUserInfo(tokens.access_token);
         } catch (err) {
+          diagnostic.failed("token_exchange_failed");
           console.error("Google OAuth error:", err);
           return errorRedirect("token_exchange_failed");
         }
 
-        if (!userInfo.email_verified) return errorRedirect("email_not_verified");
+        await diagnostic.provider(userInfo.email, userInfo.email_verified);
+        if (!userInfo.email_verified) {
+          diagnostic.failed("email_not_verified");
+          return errorRedirect("email_not_verified");
+        }
 
         let user;
         try {
           user = await upsertGoogleUser(userInfo);
+          diagnostic.mapped(
+            user.id,
+            user.role,
+            user.email.toLowerCase().trim() === userInfo.email.toLowerCase().trim(),
+          );
         } catch (err) {
           const code = (err as { code?: string }).code;
-          if (code === "EMAIL_NOT_INVITED") return errorRedirect("email_not_invited");
-          if (code === "USER_DISABLED") return errorRedirect("user_disabled");
+          if (code === "EMAIL_NOT_INVITED") {
+            diagnostic.failed("email_not_invited");
+            return errorRedirect("email_not_invited");
+          }
+          if (code === "USER_DISABLED") {
+            diagnostic.failed("user_disabled");
+            return errorRedirect("user_disabled");
+          }
+          diagnostic.failed("user_mapping_failed");
           throw err;
         }
         let sessionCookie: string;
         try {
           sessionCookie = await issueSession(user);
+          diagnostic.issued(user.id);
         } catch (err) {
+          diagnostic.failed("session_issue_failed");
           // issueSession() throws SESSION_CLEANUP_FAILED if it cannot purge
           // prior sessions — fail-closed for admin auth (see comment in
           // issueSession). Surface as a friendly redirect instead of a 500.
@@ -94,6 +115,7 @@ export const Route = createFileRoute("/api/auth/google/callback")({
 
         const prod = isProduction();
         const headers = new Headers();
+        if (diagnostic.correlationId) headers.set("x-thg-auth-trace", diagnostic.correlationId);
         headers.append("set-cookie", sessionCookie);
         headers.append("set-cookie", buildCookie(OAUTH_STATE_COOKIE, "", 0, prod));
         headers.append("set-cookie", buildCookie(OAUTH_REDIRECT_COOKIE, "", 0, prod));
