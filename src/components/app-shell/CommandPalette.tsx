@@ -39,7 +39,7 @@ const ITEMS: Item[] = [
   { to: "/change-requests", label: "Yêu cầu thay đổi", group: "Trợ lý AI", icon: GitPullRequest, keywords: "change request" },
   { to: "/reviews", label: "Chờ duyệt", group: "Phê duyệt", icon: CheckCheck },
   { to: "/history", label: "Lịch sử xuất bản", group: "Phê duyệt", icon: History, keywords: "publish" },
-  { to: "/users", label: "Người dùng & Phân quyền", group: "Hệ thống", icon: Users, keywords: "users roles" },
+  { to: "/admin/system/users", label: "Người dùng & Phân quyền", group: "Hệ thống", icon: Users, keywords: "users roles" },
   { to: "/telegram", label: "Tích hợp Telegram", group: "Hệ thống", icon: Send },
   { to: "/audit", label: "Nhật ký bảo mật", group: "Hệ thống", icon: ShieldCheck, keywords: "audit log" },
 ];
