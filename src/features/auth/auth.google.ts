@@ -123,7 +123,9 @@ export async function fetchGoogleUserInfo(
 ): Promise<GoogleUserInfo> {
   const res = await fetch(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
-    ...(cache ? { cache, signal: AbortSignal.timeout(2000) } : {}),
+    // Identity responses must never be reused between access tokens.
+    cache: "no-store",
+    ...(cache ? { signal: AbortSignal.timeout(2000) } : {}),
   });
   if (!res.ok) {
     throw new GoogleProviderError("userinfo", res.status);

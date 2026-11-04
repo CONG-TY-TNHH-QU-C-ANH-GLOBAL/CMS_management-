@@ -18,7 +18,7 @@ const {
 const CLIENT_ID = "test-client-id.apps.googleusercontent.com";
 const SECRET_SENTINEL = "super-secret-value-DO-NOT-LEAK";
 
-test("the diagnostic no-store mode changes only cache policy for the same UserInfo token", async () => {
+test("primary and diagnostic UserInfo requests both bypass cache, with only the probe time-bounded", async () => {
   const requests: {
     url: string;
     authorization: string | null;
@@ -37,7 +37,10 @@ test("the diagnostic no-store mode changes only cache policy for the same UserIn
     });
     return Response.json({
       sub: "provider-subject",
-      email: "private@example.test",
+      email:
+        new Headers(init?.headers).get("Authorization") === "Bearer OTHER_SECRET_TOKEN"
+          ? "other@example.test"
+          : "private@example.test",
       email_verified: true,
     });
   };
@@ -47,13 +50,15 @@ test("the diagnostic no-store mode changes only cache policy for the same UserIn
   try {
     const original = await fetchGoogleUserInfo("SECRET_TOKEN");
     const uncached = await fetchGoogleUserInfo("SECRET_TOKEN", "no-store");
+    const other = await fetchGoogleUserInfo("OTHER_SECRET_TOKEN");
     expect(original.email).toBe("private@example.test");
     expect(uncached.email).toBe(original.email);
+    expect(other.email).toBe("other@example.test");
     expect(requests).toEqual([
       {
         url: "https://www.googleapis.com/oauth2/v3/userinfo",
         authorization: "Bearer SECRET_TOKEN",
-        cache: undefined,
+        cache: "no-store",
         bounded: false,
       },
       {
@@ -61,6 +66,12 @@ test("the diagnostic no-store mode changes only cache policy for the same UserIn
         authorization: "Bearer SECRET_TOKEN",
         cache: "no-store",
         bounded: true,
+      },
+      {
+        url: "https://www.googleapis.com/oauth2/v3/userinfo",
+        authorization: "Bearer OTHER_SECRET_TOKEN",
+        cache: "no-store",
+        bounded: false,
       },
     ]);
   } finally {
