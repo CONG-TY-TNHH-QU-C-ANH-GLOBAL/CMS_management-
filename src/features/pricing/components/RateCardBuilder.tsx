@@ -324,7 +324,26 @@ export function RateCardBuilder({ table, versions, canEdit }: Props) {
           removableColumns={removableColumns}
         />
       )}
-      <FxRatePanel rate={editor.fxRate} onRateChange={editor.setFxRate} readOnly={!canEdit} />
+      <FxRatePanel
+        rate={editor.fxRate}
+        onRateChange={editor.setFxRate}
+        currency={editor.config.currency}
+        onConvert={(direction) => {
+          const target = direction === "vnd_to_usd" ? "USD" : "VNĐ";
+          if (
+            !window.confirm(
+              `Đổi toàn bộ giá trong bảng sang ${target} theo tỉ giá ${editor.fxRate?.toLocaleString("vi-VN")}? Có thể bấm "Bỏ thay đổi" để quay lại bản đang hiển thị.`,
+            )
+          )
+            return;
+          const result = editor.convertCurrency(direction);
+          if (!result) toast.error("Tỉ giá không hợp lệ");
+          else if (result.converted === 0)
+            toast.warning(`Không có cột giá nào cần đổi sang ${target}`);
+          else toast.success(`Đã đổi ${result.converted} ô sang ${target}`);
+        }}
+        readOnly={!canEdit}
+      />
 
       {/* Viewers still get Export (read-only, safe) */}
       {!canEdit && (

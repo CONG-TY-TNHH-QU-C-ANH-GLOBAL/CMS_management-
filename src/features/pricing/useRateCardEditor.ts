@@ -9,7 +9,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { diffRateCard } from "./rateCardDiff";
-import { readFxRate, withFxRate } from "./rateCardFx";
+import {
+  convertGridCurrency,
+  readFxRate,
+  withFxRate,
+  type FxDirection,
+  type GridCurrencyConversion,
+} from "./rateCardFx";
 import { normalizeCellBySemantic } from "./rateCardParse";
 import {
   annotateSemantics,
@@ -154,6 +160,10 @@ interface StoredDraft {
   savedAt: number;
   rows: RateCardRow[];
   cols: RateCardColumn[];
+  /** Table currency and rate travel with the draft: restoring USD rows under a
+   *  VND table header would publish wrong prices. Optional for older drafts. */
+  currency?: string;
+  fxRate?: number | null;
 }
 
 function draftKey(slug: string): string {
@@ -207,6 +217,9 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
   // VND per 1 USD, stored on the table (schema_json.fx_rate). null = unset.
   const initialFxRate = useMemo(() => readFxRate(args.schemaRaw), [args.schemaRaw]);
   const [fxRate, setFxRate] = useState<number | null>(initialFxRate);
+  // Table currency is editor state (not just a prop) because a whole-grid
+  // conversion flips it, and publish must persist the new one.
+  const [currency, setCurrency] = useState<string | undefined>(args.currency);
 
   const [storedDraftAt, setStoredDraftAt] = useState<number | null>(null);
 
@@ -220,9 +233,9 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     () =>
       inferGridConfig(cols, stripIds(rows), {
         step: args.declaredStep ?? undefined,
-        currency: args.currency,
+        currency,
       }),
-    [cols, rows, args.declaredStep, args.currency],
+    [cols, rows, args.declaredStep, currency],
   );
 
   const plainRows = useMemo(() => stripIds(rows), [rows]);
@@ -361,7 +374,36 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     commit(initial.rows, [], null);
     setCols(initial.cols);
     setFxRate(initialFxRate);
-  }, [initial.rows, initial.cols, initialFxRate, commit]);
+    setCurrency(args.currency);
+  }, [initial.rows, initial.cols, initialFxRate, args.currency, commit]);
+
+  /** Convert every money cell to the other currency at the current rate. The
+   *  table currency and column semantics change with it, which the row-only
+   *  undo stack cannot restore, so history is cleared (as for column edits);
+   *  "Bỏ thay đổi" still returns to the published table. */
+  const convertCurrency = useCallback(
+    (direction: FxDirection): GridCurrencyConversion | null => {
+      const result = convertGridCurrency(
+        stripIds(rowsRef.current),
+        colsRef.current,
+        config,
+        fxRate,
+        direction,
+      );
+      if (!result || result.converted === 0) return result;
+      setRowsState(attachIds(result.rows, rowsRef.current));
+      setCols(result.cols);
+      setCurrency(result.currency);
+      setPast([]);
+      setFuture([]);
+      setChangedCells(new Set(result.changedCells));
+      setLastOpLabel(
+        `Đổi ${result.converted} ô sang ${result.currency === "USD" ? "USD" : "VNĐ"} (tỉ giá ${fxRate?.toLocaleString("vi-VN")})`,
+      );
+      return result;
+    },
+    [config, fxRate],
+  );
 
   // --- Draft persistence ---
   const saveDraft = useCallback(() => {
@@ -370,6 +412,8 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
       savedAt: Date.now(),
       rows: stripIds(rows),
       cols,
+      currency,
+      fxRate,
     };
     try {
       localStorage.setItem(draftKey(slug), JSON.stringify(draft));
@@ -377,13 +421,15 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     } catch {
       // localStorage may be full / disabled; surfaced by caller via return.
     }
-  }, [rows, cols, slug, version]);
+  }, [rows, cols, currency, fxRate, slug, version]);
 
   const restoreDraft = useCallback(() => {
     const d = readStoredDraft(slug, version);
     if (!d) return false;
     commit(attachIds(d.rows, rowsRef.current), [], null);
     setCols(d.cols);
+    if (d.currency !== undefined) setCurrency(d.currency);
+    if (d.fxRate !== undefined) setFxRate(d.fxRate);
     return true;
   }, [slug, version, commit]);
 
@@ -468,6 +514,7 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     storedDraftAt,
     fxRate,
     setFxRate,
+    convertCurrency,
     setGridRows,
     applyOp,
     addRow,
