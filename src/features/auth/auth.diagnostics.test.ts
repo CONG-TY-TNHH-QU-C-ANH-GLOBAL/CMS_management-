@@ -114,7 +114,14 @@ test("a failed logging sink cannot fail authentication", async () => {
   expect(() => trace.issued(6)).not.toThrow();
 });
 
-type Scenario = "success" | "unverified" | "not_invited" | "provider_failed" | "session_failed";
+type Scenario =
+  | "success"
+  | "unverified"
+  | "not_invited"
+  | "provider_failed"
+  | "session_failed"
+  | "different_uncached"
+  | "probe_failed";
 
 function callbackFixture(scenario: Scenario = "success") {
   const calls: string[] = [];
@@ -130,9 +137,12 @@ function callbackFixture(scenario: Scenario = "success") {
       if (scenario === "provider_failed") throw new Error("provider unavailable");
       return { access_token: "SECRET_ACCESS_TOKEN" };
     },
-    async fetchGoogleUserInfo(token: string) {
-      calls.push("userinfo");
+    async fetchGoogleUserInfo(token: string, cache?: "no-store") {
+      calls.push(cache ? "userinfo_uncached" : "userinfo");
       expect(token).toBe("SECRET_ACCESS_TOKEN");
+      if (cache && scenario === "probe_failed") throw new Error("uncached probe unavailable");
+      if (cache && scenario === "different_uncached")
+        return { email: "other-private@example.test", email_verified: true };
       return providerInfo;
     },
     async upsertGoogleUser(info: unknown) {
@@ -207,9 +217,14 @@ test("real callback preserves session cookies/redirect and links the diagnostic 
   expect(response.headers.get("set-cookie")).toContain(
     "__Host-thg_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure",
   );
-  expect(fixture.calls).toEqual(["exchange", "userinfo", "map", "issue"]);
+  expect(fixture.calls).toEqual(["exchange", "userinfo", "userinfo_uncached", "map", "issue"]);
   const rows = records();
-  expect(rows.map((row) => row.stage)).toEqual(["provider", "mapped", "issued"]);
+  expect(rows.map((row) => row.stage)).toEqual([
+    "provider",
+    "provider_uncached",
+    "mapped",
+    "issued",
+  ]);
   expect(response.headers.get("x-thg-auth-trace")).toBe(String(rows[0].correlationId));
   for (const secret of [
     "SECRET_AUTH_CODE",
@@ -224,9 +239,9 @@ test("real callback preserves session cookies/redirect and links the diagnostic 
 
 for (const [scenario, reason, stages] of [
   ["unverified", "email_not_verified", ["provider", "failed"]],
-  ["not_invited", "email_not_invited", ["provider", "failed"]],
+  ["not_invited", "email_not_invited", ["provider", "provider_uncached", "failed"]],
   ["provider_failed", "token_exchange_failed", ["failed"]],
-  ["session_failed", "session_init_failed", ["provider", "mapped", "failed"]],
+  ["session_failed", "session_init_failed", ["provider", "provider_uncached", "mapped", "failed"]],
 ] satisfies [Scenario, string, string[]][]) {
   test(`real callback retains the ${scenario} rejection without issuing a session`, async () => {
     const response = await callbackFixture(scenario).invoke();
@@ -246,9 +261,36 @@ test("invalid OAuth state still stops before any provider call or diagnostic", a
 
 test("expired diagnostics leave the real callback successful without trace headers", async () => {
   setSystemTime(new Date(LOGIN_DIAGNOSTICS_UNTIL));
-  const response = await callbackFixture().invoke();
+  const fixture = callbackFixture();
+  const response = await fixture.invoke();
   expect(response.status).toBe(302);
   expect(response.headers.get("location")).toBe("/admin");
   expect(response.headers.get("x-thg-auth-trace")).toBeNull();
   expect(records()).toEqual([]);
+  expect(fixture.calls).toEqual(["exchange", "userinfo", "map", "issue"]);
+});
+
+test("different uncached provider data is recorded but never substituted as the login identity", async () => {
+  const fixture = callbackFixture("different_uncached");
+  const response = await fixture.invoke();
+  const rows = records();
+  expect(rows[0].stage).toBe("provider");
+  expect(rows[1].stage).toBe("provider_uncached");
+  expect(rows[0].emailFingerprint).not.toBe(rows[1].emailFingerprint);
+  expect(rows[2]).toMatchObject({ stage: "mapped", userId: 6, emailMatchesProvider: true });
+  expect(response.status).toBe(302);
+  expect(response.headers.get("set-cookie")).toContain("__Host-thg_sid=SECRET_SESSION");
+  expect(JSON.stringify(rows)).not.toContain("other-private@example.test");
+});
+
+test("a failed uncached comparison does not block the original successful login", async () => {
+  const response = await callbackFixture("probe_failed").invoke();
+  expect(response.status).toBe(302);
+  expect(response.headers.get("location")).toBe("/admin");
+  expect(records().map((row) => row.stage)).toEqual([
+    "provider",
+    "unavailable",
+    "mapped",
+    "issued",
+  ]);
 });
