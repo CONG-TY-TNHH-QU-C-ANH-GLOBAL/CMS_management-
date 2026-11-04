@@ -33,8 +33,10 @@ export function parseFxInput(raw: string): number | null {
   const s = raw.trim().replace(/\s/g, "");
   if (s === "") return null;
   let normalized = s;
-  if (/^\d{1,3}(\.\d{3})+$/.test(s)) normalized = s.replace(/\./g, ""); // 25.400 → 25400
-  else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) normalized = s.replace(/,/g, ""); // 25,400.5
+  if (/^\d{1,3}(\.\d{3})+$/.test(s))
+    normalized = s.replace(/\./g, ""); // 25.400 → 25400
+  else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))
+    normalized = s.replace(/,/g, ""); // 25,400.5
   else if (/^\d+,\d+$/.test(s)) normalized = s.replace(",", "."); // 25400,5
   const n = Number(normalized);
   return Number.isFinite(n) ? n : null;
@@ -49,7 +51,11 @@ export function usdToVnd(usd: number, rate: number): number {
 }
 
 /** Convert in the chosen direction; null when the rate is unusable. */
-export function convertFx(amount: number, direction: FxDirection, rate: number | null): number | null {
+export function convertFx(
+  amount: number,
+  direction: FxDirection,
+  rate: number | null,
+): number | null {
   if (!isValidFxRate(rate) || !Number.isFinite(amount)) return null;
   return direction === "vnd_to_usd" ? vndToUsd(amount, rate) : usdToVnd(amount, rate);
 }
