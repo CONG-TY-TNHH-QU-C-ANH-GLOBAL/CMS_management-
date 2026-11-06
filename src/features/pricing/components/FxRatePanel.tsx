@@ -31,6 +31,8 @@ export function FxRatePanel({ rate, onRateChange, currency, onConvert, readOnly 
   const isUsd = currency.toUpperCase() === "USD";
   const direction: FxDirection = isUsd ? "usd_to_vnd" : "vnd_to_usd";
   const target = isUsd ? "VNĐ" : "USD";
+  const from = isUsd ? "$" : "VNĐ";
+  const to = isUsd ? "VNĐ" : "$";
 
   return (
     <div className="flex items-end gap-3 flex-wrap p-2.5 rounded-lg border border-border bg-surface">
@@ -61,7 +63,7 @@ export function FxRatePanel({ rate, onRateChange, currency, onConvert, readOnly 
           className="h-8 px-3 inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           title={rate == null ? "Nhập tỉ giá trước" : `Đổi toàn bộ giá trong bảng sang ${target}`}
         >
-          <ArrowLeftRight className="w-3.5 h-3.5" /> Đổi bảng sang {target}
+          <ArrowLeftRight className="w-3.5 h-3.5" /> Đổi bảng: {from} → {to}
         </button>
       )}
 

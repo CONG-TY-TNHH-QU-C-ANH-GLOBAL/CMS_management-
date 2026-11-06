@@ -240,6 +240,17 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
 
   const plainRows = useMemo(() => stripIds(rows), [rows]);
   const initialPlain = useMemo(() => stripIds(initial.rows), [initial.rows]);
+  // Config of the PUBLISHED table. The diff review formats old values with it:
+  // after a whole-table currency conversion the old cells are VND while the
+  // current config already says USD.
+  const publishedConfig: GridConfig = useMemo(
+    () =>
+      inferGridConfig(initial.cols, initialPlain, {
+        step: args.declaredStep ?? undefined,
+        currency: args.currency,
+      }),
+    [initial.cols, initialPlain, args.declaredStep, args.currency],
+  );
 
   const isDirty = useMemo(
     () => JSON.stringify(plainRows) !== JSON.stringify(initialPlain) || fxRate !== initialFxRate,
@@ -528,6 +539,7 @@ export function useRateCardEditor(args: UseRateCardEditorArgs) {
     restoreDraft,
     clearDraft,
     computeDiff,
+    publishedConfig,
     publish,
     plainRows,
   };
