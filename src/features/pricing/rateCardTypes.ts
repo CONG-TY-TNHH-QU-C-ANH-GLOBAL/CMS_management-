@@ -247,7 +247,9 @@ export function formatCellBySemantic(
     case "money_vnd":
       return n.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
     case "money_usd":
-      return `$${n.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+      // Cents always show on a fractional amount ($5.90, not $5.9); whole
+      // dollars stay whole.
+      return `$${n.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 4 })}`;
     case "rate_decimal":
     case "number_decimal":
       return n.toLocaleString("en-US", { maximumFractionDigits: 6 });

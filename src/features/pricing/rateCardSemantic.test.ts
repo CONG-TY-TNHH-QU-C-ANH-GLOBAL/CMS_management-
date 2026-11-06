@@ -202,6 +202,10 @@ describe("formatCellBySemantic (display only)", () => {
   test("vnd grouped no decimals", () =>
     expect(formatCellBySemantic(1387634, "money_vnd")).toBe("1.387.634"));
   test("usd prefixes $", () => expect(formatCellBySemantic(4.03, "money_usd")).toBe("$4.03"));
+  test("usd shows cents on fractional amounts only", () => {
+    expect(formatCellBySemantic(5.9, "money_usd")).toBe("$5.90");
+    expect(formatCellBySemantic(84, "money_usd")).toBe("$84");
+  });
   test("rate decimal preserved", () =>
     expect(formatCellBySemantic(4.03, "rate_decimal")).toBe("4.03"));
   test("non-numeric shown raw", () =>

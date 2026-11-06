@@ -519,6 +519,7 @@ export function RateCardBuilder({ table, versions, canEdit }: Props) {
         diff={diffOpen ? editor.computeDiff() : EMPTY_DIFF}
         validation={validation}
         config={editor.config}
+        publishedConfig={editor.publishedConfig}
         publishing={editor.publishing}
         onSaveDraft={() => {
           editor.saveDraft();
