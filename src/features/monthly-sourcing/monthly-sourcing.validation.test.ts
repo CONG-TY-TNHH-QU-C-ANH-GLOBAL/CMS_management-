@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { monthlySourcingPdfProblem } from "./monthly-sourcing.validation";
+import { hasPdfSignature, monthlySourcingPdfProblem } from "./monthly-sourcing.validation";
 
 describe("monthly sourcing PDF publishing", () => {
   test("accepts a ready PDF and rejects every other stored media state", () => {
@@ -19,5 +19,12 @@ describe("monthly sourcing PDF publishing", () => {
     expect(
       monthlySourcingPdfProblem({ mime: "application/octet-stream", status: "ready" }),
     ).toContain("PDF");
+  });
+
+  test("recognizes the required %PDF- file signature before storage", () => {
+    const encoder = new TextEncoder();
+    expect(hasPdfSignature(encoder.encode("%PDF-1.7\nbody").buffer)).toBe(true);
+    expect(hasPdfSignature(encoder.encode("not a PDF").buffer)).toBe(false);
+    expect(hasPdfSignature(encoder.encode("%PDF").buffer)).toBe(false);
   });
 });
