@@ -36,6 +36,7 @@ export interface MonthlySourcingAdminMonthRow extends MonthlySourcingMonthRow {
   pdf_r2_key: string | null;
   pdf_mime: string | null;
   pdf_media_status: string | null;
+  pdf_monthly_pdf_verified: number | null;
 }
 
 export interface MonthlySourcingAdminYear extends MonthlySourcingYearRow {
@@ -117,9 +118,9 @@ async function assertPublishablePdf(pdfMediaId: number | null): Promise<void> {
     throw invalidPdf(monthlySourcingPdfProblem(null)!);
   }
   const media = await getDb()
-    .prepare("SELECT mime, status FROM media WHERE id = ? LIMIT 1")
+    .prepare("SELECT mime, status, monthly_pdf_verified FROM media WHERE id = ? LIMIT 1")
     .bind(pdfMediaId)
-    .first<{ mime: string; status: string }>();
+    .first<{ mime: string; status: string; monthly_pdf_verified: number }>();
   const problem = monthlySourcingPdfProblem(media ?? null);
   if (problem) throw invalidPdf(problem);
 }
@@ -151,7 +152,8 @@ export async function listMonthlySourcingAdmin(): Promise<MonthlySourcingAdminYe
     db
       .prepare(
         `SELECT ms.${MONTH_COLUMNS.replaceAll(", ", ", ms.")},
-                media.r2_key AS pdf_r2_key, media.mime AS pdf_mime, media.status AS pdf_media_status
+                media.r2_key AS pdf_r2_key, media.mime AS pdf_mime, media.status AS pdf_media_status,
+                media.monthly_pdf_verified AS pdf_monthly_pdf_verified
            FROM monthly_sourcing_months ms
            LEFT JOIN media ON media.id = ms.pdf_media_id
           ORDER BY ms.year_id, ms.month`,
@@ -313,6 +315,7 @@ export async function getActiveLiveMonthlySourcing(): Promise<PublicMonthlySourc
           AND ms.status = 'live'
           AND media.status = 'ready'
           AND media.mime = 'application/pdf'
+          AND media.monthly_pdf_verified = 1
         ORDER BY ms.month`,
     )
     .bind(year.id)
@@ -348,6 +351,7 @@ export async function getLiveMonthlySourcingForLanding(
           AND ms.status = 'live'
           AND media.status = 'ready'
           AND media.mime = 'application/pdf'
+          AND media.monthly_pdf_verified = 1
         LIMIT 1`,
     )
     .bind(year, month)

@@ -35,10 +35,13 @@ beforeEach(() => {
   audits = [];
 });
 
-function insertReadyPdf(id: number, key = "monthly-sourcing/january.pdf") {
+function insertReadyPdf(id: number, key = "monthly-sourcing/january.pdf", verified = true) {
   sql
-    .query(`INSERT INTO media (id, r2_key, mime, bytes, status) VALUES (?, ?, ?, ?, ?)`)
-    .run(id, key, "application/pdf", 10, "ready");
+    .query(
+      `INSERT INTO media (id, r2_key, mime, bytes, status, monthly_pdf_verified)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(id, key, "application/pdf", 10, "ready", verified ? 1 : 0);
 }
 
 describe("monthly sourcing year lifecycle", () => {
@@ -135,7 +138,7 @@ describe("monthly sourcing year lifecycle", () => {
     const january = (await service.listMonthlySourcingAdmin())[0]?.months[0];
     expect(january).toBeDefined();
 
-    insertReadyPdf(704, "monthly-sourcing/unverified.pdf");
+    insertReadyPdf(704, "monthly-sourcing/unverified.pdf", false);
     await expect(
       service.updateMonthlySourcingMonth(ACTOR, {
         id: january!.id,

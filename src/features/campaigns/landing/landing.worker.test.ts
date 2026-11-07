@@ -274,6 +274,7 @@ describe("lp host: monthly PDF sources", () => {
     monthStatus?: "draft" | "live" | "archived";
     mediaStatus?: "pending" | "ready" | "archived";
     mime?: string;
+    verified?: number;
   }) => {
     const year = sql
       .query(
@@ -284,9 +285,15 @@ describe("lp host: monthly PDF sources", () => {
     const mediaId = 9900 + input.month;
     const objectKey = `monthly-sourcing/${input.year}-${input.month}.pdf`;
     sql.query(
-      `INSERT INTO media (id, r2_key, mime, bytes, status)
-       VALUES (?, ?, ?, 1, ?)`,
-    ).run(mediaId, objectKey, input.mime ?? "application/pdf", input.mediaStatus ?? "ready");
+      `INSERT INTO media (id, r2_key, mime, bytes, status, monthly_pdf_verified)
+       VALUES (?, ?, ?, 1, ?, ?)`,
+    ).run(
+      mediaId,
+      objectKey,
+      input.mime ?? "application/pdf",
+      input.mediaStatus ?? "ready",
+      input.verified ?? ((input.mime ?? "application/pdf") === "application/pdf" ? 1 : 0),
+    );
     sql.query(
       `INSERT INTO monthly_sourcing_months (year_id, month, title, pdf_media_id, status)
        VALUES (?, ?, ?, ?, ?)`,
@@ -323,8 +330,15 @@ describe("lp host: monthly PDF sources", () => {
     insertReadyMonth({ year: 2026, month: 2, monthStatus: "draft" });
     insertReadyMonth({ year: 2027, month: 3, mediaStatus: "archived" });
     insertReadyMonth({ year: 2028, month: 4, mime: "image/png" });
+    insertReadyMonth({ year: 2029, month: 5, verified: 0 });
 
-    for (const path of ["/thang-2-2026", "/thang-3-2027", "/thang-4-2028", "/thang-01-2026"]) {
+    for (const path of [
+      "/thang-2-2026",
+      "/thang-3-2027",
+      "/thang-4-2028",
+      "/thang-5-2029",
+      "/thang-01-2026",
+    ]) {
       const res = await fetchWorker(`${LP}${path}`);
       expect({ path, status: res.status }).toEqual({ path, status: 404 });
       expectLandingResponse(res);

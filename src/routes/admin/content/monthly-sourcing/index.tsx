@@ -16,6 +16,7 @@ import {
   type MonthlySourcingStatus,
 } from "@/features/monthly-sourcing/monthly-sourcing.actions";
 import { monthlySourcingSlug } from "@/features/monthly-sourcing/monthly-sourcing.pure";
+import { MONTHLY_SOURCING_MEDIA_TAG } from "@/features/monthly-sourcing/monthly-sourcing.validation";
 
 export const Route = createFileRoute("/admin/content/monthly-sourcing/")({
   head: () => ({ meta: [{ title: "Top sản phẩm & nguồn hàng — TH Group Content OS" }] }),
@@ -132,7 +133,7 @@ function MonthRow({
       form.append("file", file);
       form.append("alt_text", title);
       form.append("title", title);
-      form.append("tag", "monthly-sourcing");
+      form.append("tag", MONTHLY_SOURCING_MEDIA_TAG);
       const response = await fetch("/api/v1/media/upload", {
         method: "POST",
         body: form,
@@ -164,7 +165,8 @@ function MonthRow({
     yearIsLive &&
     row.status === "live" &&
     row.pdf_mime === "application/pdf" &&
-    row.pdf_media_status === "ready";
+    row.pdf_media_status === "ready" &&
+    row.pdf_monthly_pdf_verified === 1;
 
   return (
     <tr className="border-t border-border align-top">
