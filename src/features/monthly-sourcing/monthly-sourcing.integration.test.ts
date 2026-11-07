@@ -42,6 +42,17 @@ function insertReadyPdf(id: number, key = "monthly-sourcing/january.pdf") {
 }
 
 describe("monthly sourcing year lifecycle", () => {
+  test("refuses a year whose fixed LP namespace is already used by a campaign", async () => {
+    sql
+      .query(`INSERT INTO campaigns (slug, locale, title, status) VALUES (?, 'vi', ?, 'live')`)
+      .run("thang-7-2026", "Existing campaign");
+
+    await expect(service.createMonthlySourcingYear(ACTOR, 2026)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(await service.listMonthlySourcingAdmin()).toEqual([]);
+  });
+
   test("creates twelve slots, publishes only a ready PDF, and exposes the active year", async () => {
     const year = await service.createMonthlySourcingYear(ACTOR, 2026);
     const admin = await service.listMonthlySourcingAdmin();
