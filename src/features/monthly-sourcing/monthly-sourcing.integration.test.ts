@@ -130,6 +130,22 @@ describe("monthly sourcing year lifecycle", () => {
     ).resolves.toBeNull();
   });
 
+  test("does not publish a PDF that was not verified when uploaded", async () => {
+    const year = await service.createMonthlySourcingYear(ACTOR, 2026);
+    const january = (await service.listMonthlySourcingAdmin())[0]?.months[0];
+    expect(january).toBeDefined();
+
+    insertReadyPdf(704, "monthly-sourcing/unverified.pdf");
+    await expect(
+      service.updateMonthlySourcingMonth(ACTOR, {
+        id: january!.id,
+        pdf_media_id: 704,
+        status: "live",
+      }),
+    ).rejects.toMatchObject({ statusCode: 422 });
+    expect(year.year).toBe(2026);
+  });
+
   test("moves the menu to one new year without breaking an older live direct link", async () => {
     const oldYear = await service.createMonthlySourcingYear(ACTOR, 2026);
     const oldJanuary = (await service.listMonthlySourcingAdmin())[0]?.months[0];

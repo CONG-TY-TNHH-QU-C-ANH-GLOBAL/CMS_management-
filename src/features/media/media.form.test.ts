@@ -174,6 +174,16 @@ test("a traversal tag is rejected before anything reaches storage", async () => 
   expect(result.persisted).toEqual([]);
 });
 
+test("a MIME-labelled fake PDF cannot enter the monthly-source upload path", async () => {
+  const fakePdf = new File(["This is not a PDF."], "monthly.pdf", {
+    type: "application/pdf",
+  });
+  const result = await upload({ file: fakePdf, tag: "monthly-sourcing" });
+
+  expect(result.status).toBe(422);
+  expect(result.persisted).toEqual([]);
+});
+
 test("no accepted upload can carry an object stringification into storage", async () => {
   const cases: Record<string, string | File>[] = [
     { file: png(), alt_text: "ok" },
