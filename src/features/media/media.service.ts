@@ -25,6 +25,7 @@ export interface MediaRow {
   thumb_url: string | null;
   tag: string | null;
   title: string | null;
+  monthly_pdf_verified: number;
 }
 
 export interface ListMediaInput {
@@ -114,6 +115,7 @@ export interface UploadMediaInput {
   title?: string | null;
   width?: number | null;
   height?: number | null;
+  monthly_pdf_verified?: boolean;
 }
 
 function slugifyFilename(s: string): string {
@@ -145,8 +147,8 @@ export async function uploadMedia(actorId: number, input: UploadMediaInput): Pro
 
   const result = await getDb()
     .prepare(
-      `INSERT INTO media (r2_key, mime, bytes, width, height, alt_text, status, uploaded_by, tag, title, url)
-         VALUES (?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?)`,
+      `INSERT INTO media (r2_key, mime, bytes, width, height, alt_text, status, uploaded_by, tag, title, url, monthly_pdf_verified)
+         VALUES (?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?)`,
     )
     .bind(
       r2_key,
@@ -159,6 +161,7 @@ export async function uploadMedia(actorId: number, input: UploadMediaInput): Pro
       tag,
       input.title?.trim() || null,
       url,
+      input.monthly_pdf_verified ? 1 : 0,
     )
     .run();
 

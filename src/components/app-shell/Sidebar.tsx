@@ -4,11 +4,19 @@ import {
   Image as ImageIcon, Bot, Inbox, GitPullRequest, CheckCheck, History,
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
   Plug, Handshake, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
-  Layers, MessagesSquare, Star, UserRoundCog, SearchCheck, CalendarDays, Megaphone,
+  Layers, MessagesSquare, Star, UserRoundCog, SearchCheck, CalendarDays, Megaphone, FolderOpen,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 
-type NavItem = { to: string; icon: any; label: string; count?: number; alert?: boolean; matchPrefix?: boolean };
+type NavItem = {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  count?: number;
+  alert?: boolean;
+  matchPrefix?: boolean;
+};
 type NavGroup = { label?: string; items: NavItem[] };
 
 const NAV: NavGroup[] = [
@@ -29,6 +37,7 @@ const NAV: NavGroup[] = [
       { to: "/admin/content/blogs", icon: FileText, label: "Bài viết" },
       { to: "/admin/content/events", icon: CalendarDays, label: "Event", matchPrefix: true },
       { to: "/admin/content/campaigns", icon: Megaphone, label: "Chương trình", matchPrefix: true },
+      { to: "/admin/content/monthly-sourcing", icon: FolderOpen, label: "Top sản phẩm & nguồn hàng", matchPrefix: true },
       { to: "/admin/content/careers", icon: Briefcase, label: "Tuyển dụng", matchPrefix: true },
       { to: "/admin/content/community", icon: MessagesSquare, label: "Cộng đồng (Q&A)" },
       { to: "/admin/content/community/reviews", icon: Star, label: "Cộng đồng (Đánh giá)" },

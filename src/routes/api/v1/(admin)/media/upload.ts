@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { withRequiredSession } from "@/features/auth/auth.guard";
 import {
+  hasPdfSignature,
+  MONTHLY_SOURCING_MEDIA_TAG,
+} from "@/features/monthly-sourcing/monthly-sourcing.validation";
+import {
   FormFieldTypeError,
   optionalKeySegmentField,
   optionalTextField,
@@ -57,6 +61,16 @@ export const Route = createFileRoute("/api/v1/(admin)/media/upload")({
         }
 
         const buf = await file.arrayBuffer();
+        const verifiedMonthlyPdf =
+          tag === MONTHLY_SOURCING_MEDIA_TAG &&
+          file.type === "application/pdf" &&
+          hasPdfSignature(buf);
+        if (tag === MONTHLY_SOURCING_MEDIA_TAG && !verifiedMonthlyPdf) {
+          return new Response(JSON.stringify({ error: "Tệp nguồn hàng phải là PDF hợp lệ." }), {
+            status: 422,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         const media = await uploadMedia(me.id, {
           filename: file.name,
           mime: file.type || "application/octet-stream",
@@ -65,6 +79,7 @@ export const Route = createFileRoute("/api/v1/(admin)/media/upload")({
           alt_text: altText,
           tag,
           title,
+          monthly_pdf_verified: verifiedMonthlyPdf,
         });
 
         return new Response(JSON.stringify({ media }), {

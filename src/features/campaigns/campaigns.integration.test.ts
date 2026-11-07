@@ -664,8 +664,17 @@ describe("admin saves: roles, audit log, cache bump, translation staleness", () 
 // ── Server-function input validation (landing_path / href rule) ──────────────
 
 describe("save validation for landing_path and menu hrefs", () => {
+  const validateCreate = (data: Record<string, unknown>) =>
+    actions.createCampaignFn.validator(data);
   const validateUpdate = (data: Record<string, unknown>) =>
     actions.updateCampaignFn.validator({ id: 1, ...data });
+
+  test("reserves monthly-source LP paths so a new campaign cannot shadow them", () => {
+    expect(() => validateCreate({ slug: "thang-1-2026", title: "Collision" })).toThrow();
+    expect(validateCreate({ slug: "thang-13-2026", title: "Allowed" }).slug).toBe(
+      "thang-13-2026",
+    );
+  });
 
   test("accepts internal paths without a lang prefix, https URLs and null", () => {
     for (const landing_path of [
