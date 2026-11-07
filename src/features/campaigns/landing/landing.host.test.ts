@@ -34,6 +34,41 @@ const lp = (path: string, init: RequestInit = {}) =>
   handleLandingRequest(new Request(`https://${LP}${path}`, init), deps);
 
 describe("landing host responses", () => {
+  test("serves the fixed monthly PDF template with the shared consult form", async () => {
+    const monthlyDeps = {
+      ...deps,
+      resolveMonthlySourcing: async (year: number, month: number) =>
+        year === 2026 && month === 1
+          ? {
+              title: "Top sản phẩm & nguồn hàng tháng 1/2026",
+              pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf",
+            }
+          : null,
+    };
+
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-1-2026`),
+      monthlyDeps as LandingHostDeps,
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    const html = await res.text();
+    expect(html).toContain("Top sản phẩm & nguồn hàng tháng 1/2026");
+    expect(html).toContain("https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf");
+    expect(html).toContain('src="/_thg/thg-lead.js"');
+    expect(html).toContain("data-consult");
+  });
+
+  test("keeps an unpublished or missing monthly PDF off the LP host", async () => {
+    const monthlyDeps = { ...deps, resolveMonthlySourcing: async () => null };
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-2-2026`),
+      monthlyDeps as LandingHostDeps,
+    );
+    expect(res.status).toBe(404);
+  });
+
   test("serves the published index with html type, nosniff, referrer policy and short cache", async () => {
     const res = await lp("/christmas-2026/");
     expect(res.status).toBe(200);
