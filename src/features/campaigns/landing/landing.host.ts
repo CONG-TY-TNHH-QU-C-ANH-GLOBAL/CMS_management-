@@ -189,12 +189,13 @@ async function route(request: Request, deps: LandingHostDeps): Promise<Response>
       : null;
   if (monthlySource) {
     const source = await deps.resolveMonthlySourcing?.(monthlySource.year, monthlySource.month);
-    if (!source) return notFound();
-    const html = renderMonthlySourcingPage({ ...monthlySource, ...source });
-    return respond(200, head ? null : html, {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=60",
-    });
+    if (source) {
+      const html = renderMonthlySourcingPage({ ...monthlySource, ...source });
+      return respond(200, head ? null : html, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=60",
+      });
+    }
   }
   if (!first || !SLUG.test(first)) return notFound();
   // Only a slug with a published landing exists on this host; anything else is a plain 404.

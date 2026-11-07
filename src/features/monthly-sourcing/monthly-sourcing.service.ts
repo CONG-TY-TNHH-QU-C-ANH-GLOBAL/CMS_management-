@@ -124,6 +124,22 @@ async function assertPublishablePdf(pdfMediaId: number | null): Promise<void> {
   if (problem) throw invalidPdf(problem);
 }
 
+/** Campaign LPs and monthly PDFs share the root of lp.thgfulfill.com.  Years
+ * are therefore created only when every one of their twelve stable paths is
+ * free, preserving any campaign that predates the reserved monthly namespace. */
+async function campaignSlugCollision(year: number): Promise<string | null> {
+  const slugs = Array.from({ length: 12 }, (_, index) => monthlySourcingSlug(year, index + 1));
+  const row = await getDb()
+    .prepare(
+      `SELECT slug FROM campaigns
+        WHERE locale = 'vi' AND slug IN (${slugs.map(() => "?").join(", ")})
+        LIMIT 1`,
+    )
+    .bind(...slugs)
+    .first<{ slug: string }>();
+  return row?.slug ?? null;
+}
+
 // ── Admin reads ─────────────────────────────────────────────────────────────
 
 export async function listMonthlySourcingAdmin(): Promise<MonthlySourcingAdminYear[]> {
@@ -162,6 +178,10 @@ export async function createMonthlySourcingYear(
   actorId: number,
   year: number,
 ): Promise<MonthlySourcingYearRow> {
+  const collision = await campaignSlugCollision(year);
+  if (collision) {
+    throw conflict(`Đường dẫn ${collision} đang được một Chương trình sử dụng.`);
+  }
   const existing = await getDb()
     .prepare("SELECT id FROM monthly_sourcing_years WHERE year = ? LIMIT 1")
     .bind(year)
