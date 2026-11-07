@@ -69,6 +69,29 @@ describe("landing host responses", () => {
     expect(res.status).toBe(404);
   });
 
+  test("preserves an existing campaign when its reserved-looking monthly path has no live PDF", async () => {
+    const campaignKey = landingObjectKey("thang-1-2026", LIVE, "index.html");
+    const collisionDeps: LandingHostDeps = {
+      ...deps,
+      resolveLive: async (slug) => (slug === "thang-1-2026" ? LIVE : null),
+      resolveMonthlySourcing: async () => null,
+      getObject: async (key, headOnly) => {
+        if (key === campaignKey) {
+          return { body: headOnly ? null : "<html>campaign</html>", etag: '"campaign"', size: 21 };
+        }
+        return deps.getObject(key, headOnly);
+      },
+    };
+
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-1-2026/`),
+      collisionDeps,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html>campaign</html>");
+  });
+
   test("serves the published index with html type, nosniff, referrer policy and short cache", async () => {
     const res = await lp("/christmas-2026/");
     expect(res.status).toBe(200);
