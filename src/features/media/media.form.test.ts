@@ -184,6 +184,16 @@ test("a MIME-labelled fake PDF cannot enter the monthly-source upload path", asy
   expect(result.persisted).toEqual([]);
 });
 
+test("a signature-checked monthly PDF is marked verified before storage", async () => {
+  const pdf = new File(["%PDF-1.7\n1 0 obj\n"], "monthly.pdf", {
+    type: "application/pdf",
+  });
+  const result = await upload({ file: pdf, tag: "monthly-sourcing" });
+
+  expect(result.status).toBe(201);
+  expect(result.persisted[0]).toMatchObject({ monthly_pdf_verified: true });
+});
+
 test("no accepted upload can carry an object stringification into storage", async () => {
   const cases: Record<string, string | File>[] = [
     { file: png(), alt_text: "ok" },
