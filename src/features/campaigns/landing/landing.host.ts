@@ -21,6 +21,8 @@ import {
   contentTypeFor,
   type ServeMode,
 } from "./landing.mime";
+import { parseMonthlySourcingSlug } from "@/features/monthly-sourcing/monthly-sourcing.pure";
+import { renderMonthlySourcingPage } from "@/features/monthly-sourcing/monthly-sourcing.page";
 
 export const VERSION_ID = /^[a-f0-9]{32}$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -40,6 +42,11 @@ export interface LandingHostDeps {
   getObject(key: string, headOnly: boolean): Promise<LandingObject | null>;
   /** Full body of /_thg/thg-lead.js, config included. */
   leadScript(): string;
+  /** Live monthly PDF source, served through the fixed LP template. */
+  resolveMonthlySourcing?(
+    year: number,
+    month: number,
+  ): Promise<{ title: string; pdfUrl: string } | null>;
 }
 
 export function landingObjectKey(slug: string, versionId: string, path: string): string {
@@ -175,6 +182,19 @@ async function route(request: Request, deps: LandingHostDeps): Promise<Response>
     const path = decodeFilePath(segments.slice(2));
     if (!slug || !path) return notFound();
     return serveFile(request, deps, landingObjectKey(slug, second, path), path, "preview");
+  }
+  const monthlySource =
+    (segments.length === 1 || (segments.length === 2 && second === "")) && first
+      ? parseMonthlySourcingSlug(first)
+      : null;
+  if (monthlySource) {
+    const source = await deps.resolveMonthlySourcing?.(monthlySource.year, monthlySource.month);
+    if (!source) return notFound();
+    const html = renderMonthlySourcingPage({ ...monthlySource, ...source });
+    return respond(200, head ? null : html, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=60",
+    });
   }
   if (!first || !SLUG.test(first)) return notFound();
   // Only a slug with a published landing exists on this host; anything else is a plain 404.

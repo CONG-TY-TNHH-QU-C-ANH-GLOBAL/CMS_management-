@@ -54,7 +54,7 @@ describe("landing host responses", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
     const html = await res.text();
-    expect(html).toContain("Top sản phẩm & nguồn hàng tháng 1/2026");
+    expect(html).toContain("Top sản phẩm &amp; nguồn hàng tháng 1/2026");
     expect(html).toContain("https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf");
     expect(html).toContain('src="/_thg/thg-lead.js"');
     expect(html).toContain("data-consult");

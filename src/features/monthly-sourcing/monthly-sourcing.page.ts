@@ -1,0 +1,77 @@
+import { renderStandardHeader } from "@/features/campaigns/landing/landing.header";
+import { leadScriptTag } from "@/features/campaigns/landing/landing.normalize";
+
+import { monthlySourcingSlug } from "./monthly-sourcing.pure";
+
+export interface MonthlySourcingLandingPage {
+  year: number;
+  month: number;
+  title: string;
+  pdfUrl: string;
+}
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+function safePdfUrl(value: string): string {
+  const url = new URL(value);
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error("PDF URL must use HTTP or HTTPS.");
+  }
+  return url.href;
+}
+
+/** Fixed LP page: CMS supplies only the month title and its uploaded PDF. */
+export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): string {
+  const slug = monthlySourcingSlug(input.year, input.month);
+  const title = escapeHtml(
+    input.title.trim() || `Top sản phẩm & nguồn hàng tháng ${input.month}/${input.year}`,
+  );
+  const pdfUrl = escapeHtml(safePdfUrl(input.pdfUrl));
+
+  return `<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title} | TH Group</title>
+    ${leadScriptTag(slug, "vi")}
+    <style>
+      body { margin: 0; background: #faf8f5; color: #172033; font-family: "Be Vietnam Pro", system-ui, sans-serif; }
+      .monthly-source { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+      .monthly-source__eyebrow { margin: 0 0 10px; color: #8a6739; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      .monthly-source__title { margin: 0; max-width: 760px; font-size: clamp(30px, 4vw, 48px); line-height: 1.16; }
+      .monthly-source__lead { max-width: 700px; margin: 16px 0 0; color: #586174; line-height: 1.7; }
+      .monthly-source__actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
+      .monthly-source__button { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px; border: 0; border-radius: 999px; background: #8a6739; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+      .monthly-source__button--secondary { border: 1px solid #d8d3c8; background: #fff; color: #172033; }
+      .monthly-source__pdf { overflow: hidden; min-height: 72vh; border: 1px solid #e2ddd4; border-radius: 20px; background: #fff; box-shadow: 0 24px 64px -36px rgba(23, 32, 51, .35); }
+      .monthly-source__pdf iframe { display: block; width: 100%; min-height: 72vh; border: 0; }
+      .monthly-source__fallback { padding: 24px; color: #586174; }
+      @media (max-width: 640px) { .monthly-source { width: min(100% - 24px, 1180px); padding-top: 28px; } .monthly-source__pdf, .monthly-source__pdf iframe { min-height: 60vh; } }
+    </style>
+  </head>
+  <body>
+    ${renderStandardHeader("vi")}
+    <main class="monthly-source">
+      <p class="monthly-source__eyebrow">Top sản phẩm &amp; nguồn hàng</p>
+      <h1 class="monthly-source__title">${title}</h1>
+      <p class="monthly-source__lead">Xem tài liệu sản phẩm và nguồn hàng được TH Group cập nhật cho tháng này.</p>
+      <div class="monthly-source__actions">
+        <a class="monthly-source__button" href="${pdfUrl}" target="_blank" rel="noopener noreferrer">Mở / tải PDF</a>
+        <button class="monthly-source__button monthly-source__button--secondary" type="button" data-consult>Nhận tư vấn</button>
+      </div>
+      <section class="monthly-source__pdf" aria-label="Tài liệu PDF">
+        <iframe src="${pdfUrl}" title="${title}">
+          <p class="monthly-source__fallback">Trình duyệt không hiển thị PDF. <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer">Mở / tải PDF</a>.</p>
+        </iframe>
+      </section>
+    </main>
+  </body>
+</html>`;
+}

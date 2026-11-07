@@ -63,6 +63,7 @@ import {
   campaignResponseSchema,
   campaignsResponseSchema,
 } from "@/features/campaigns/campaigns.schemas";
+import { monthlySourcingResponseSchema } from "@/features/monthly-sourcing/monthly-sourcing.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -264,6 +265,23 @@ export const campaignRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(campaignRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/monthly-sourcing/index.ts.  This compact
+// navbar feed deliberately exposes only the single active live year and its
+// months with ready PDF assets; LP URLs are derived by the consumer from slug.
+export const monthlySourcingRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/monthly-sourcing",
+  summary: "Get the active monthly product sourcing year",
+  description:
+    "Returns the one live navigation year and its live PDF-backed months. " +
+    "Returns `{ year: null, months: [] }` until an operator activates a year.",
+  responses: {
+    200: jsonResponse("Active year and available monthly product sourcing PDFs", monthlySourcingResponseSchema),
+  },
+} as const;
+
+openApiRegistry.registerPath(monthlySourcingRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the

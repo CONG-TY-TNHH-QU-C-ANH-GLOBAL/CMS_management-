@@ -265,6 +265,74 @@ describe("lp host: versions", () => {
   });
 });
 
+describe("lp host: monthly PDF sources", () => {
+  const insertReadyMonth = (input: {
+    year: number;
+    month: number;
+    yearStatus?: "draft" | "live" | "archived";
+    navActive?: number;
+    monthStatus?: "draft" | "live" | "archived";
+    mediaStatus?: "pending" | "ready" | "archived";
+    mime?: string;
+  }) => {
+    const year = sql
+      .query(
+        `INSERT INTO monthly_sourcing_years (year, status, nav_active)
+         VALUES (?, ?, ?) RETURNING id`,
+      )
+      .get(input.year, input.yearStatus ?? "live", input.navActive ?? 0) as { id: number };
+    const mediaId = 9900 + input.month;
+    const objectKey = `monthly-sourcing/${input.year}-${input.month}.pdf`;
+    sql.query(
+      `INSERT INTO media (id, r2_key, mime, bytes, status)
+       VALUES (?, ?, ?, 1, ?)`,
+    ).run(mediaId, objectKey, input.mime ?? "application/pdf", input.mediaStatus ?? "ready");
+    sql.query(
+      `INSERT INTO monthly_sourcing_months (year_id, month, title, pdf_media_id, status)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      year.id,
+      input.month,
+      `Top sản phẩm & nguồn hàng tháng ${input.month}/${input.year}`,
+      mediaId,
+      input.monthStatus ?? "live",
+    );
+    return objectKey;
+  };
+
+  test("serves the fixed PDF template only for a live month with a ready PDF", async () => {
+    const objectKey = insertReadyMonth({ year: 2026, month: 1 });
+
+    const page = await fetchWorker(`${LP}/thang-1-2026`);
+    expect(page.status).toBe(200);
+    expectLandingResponse(page);
+    expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    const html = await page.text();
+    expect(html).toContain(`src="${CMS}/api/v1/media/${encodeURIComponent(objectKey)}"`);
+    expect(html).toContain('src="/_thg/thg-lead.js"');
+    expect(html).toContain("data-consult");
+    expect(cmsCalls).toEqual([]);
+
+    const head = await fetchWorker(`${LP}/thang-1-2026`, { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toBe(page.headers.get("content-type"));
+    expect(await head.text()).toBe("");
+  });
+
+  test("keeps draft, archived, or non-PDF monthly sources off the LP host", async () => {
+    insertReadyMonth({ year: 2026, month: 2, monthStatus: "draft" });
+    insertReadyMonth({ year: 2027, month: 3, mediaStatus: "archived" });
+    insertReadyMonth({ year: 2028, month: 4, mime: "image/png" });
+
+    for (const path of ["/thang-2-2026", "/thang-3-2027", "/thang-4-2028", "/thang-01-2026"]) {
+      const res = await fetchWorker(`${LP}${path}`);
+      expect({ path, status: res.status }).toEqual({ path, status: 404 });
+      expectLandingResponse(res);
+    }
+    expect(cmsCalls).toEqual([]);
+  });
+});
+
 describe("lp host: served paths never leave the version prefix", () => {
   const ATTEMPTS = [
     "/../secret.txt",
