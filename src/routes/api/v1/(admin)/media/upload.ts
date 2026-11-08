@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { withRequiredSession } from "@/features/auth/auth.guard";
 import {
   hasPdfSignature,
+  maxUploadBytes,
   MONTHLY_SOURCING_MEDIA_TAG,
 } from "@/features/monthly-sourcing/monthly-sourcing.validation";
 import {
@@ -51,10 +52,11 @@ export const Route = createFileRoute("/api/v1/(admin)/media/upload")({
           });
         }
 
-        // Cap at 10 MB per upload to protect the worker (R2 supports up to 5 GB
-        // but we don't want admin to accidentally upload monster files).
-        if (file.size > 10 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: "File quá lớn (giới hạn 10MB)" }), {
+        // Cap per upload to protect the worker (R2 supports up to 5 GB but the Worker heap is
+        // 128 MB): 10 MB by default, larger only for monthly sourcing PDFs.
+        const limit = maxUploadBytes(tag);
+        if (file.size > limit) {
+          return new Response(JSON.stringify({ error: `File quá lớn (giới hạn ${limit / 1024 / 1024}MB)` }), {
             status: 413,
             headers: { "Content-Type": "application/json" },
           });

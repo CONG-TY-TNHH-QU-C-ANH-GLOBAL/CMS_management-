@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { hasPdfSignature, monthlySourcingPdfProblem } from "./monthly-sourcing.validation";
+import { hasPdfSignature, maxUploadBytes, monthlySourcingPdfProblem } from "./monthly-sourcing.validation";
 
 describe("monthly sourcing PDF publishing", () => {
   test("accepts a ready PDF and rejects every other stored media state", () => {
@@ -53,5 +53,13 @@ describe("monthly sourcing PDF publishing", () => {
     expect(hasPdfSignature(encoder.encode("%PDF-1.7\nbody").buffer)).toBe(true);
     expect(hasPdfSignature(encoder.encode("not a PDF").buffer)).toBe(false);
     expect(hasPdfSignature(encoder.encode("%PDF").buffer)).toBe(false);
+  });
+});
+
+describe("upload size cap", () => {
+  test("monthly sourcing PDFs may exceed 10 MB (22 MB deck), other uploads may not", () => {
+    expect(maxUploadBytes("monthly-sourcing")).toBeGreaterThan(22 * 1024 * 1024);
+    expect(maxUploadBytes(null)).toBe(10 * 1024 * 1024);
+    expect(maxUploadBytes("blog")).toBe(10 * 1024 * 1024);
   });
 });
