@@ -132,35 +132,36 @@ function shortId(): string {
   return Math.random().toString(36).slice(2, 12);
 }
 
-export async function uploadMedia(actorId: number, input: UploadMediaInput): Promise<MediaRow> {
-  const { env } = await import("cloudflare:workers");
+interface RecordMediaInput {
+  r2_key: string;
+  url: string;
+  mime: string;
+  bytes: number;
+  width?: number | null;
+  height?: number | null;
+  alt_text: string;
+  tag: string;
+  title?: string | null;
+  monthly_pdf_verified?: boolean;
+}
 
-  const ext = input.filename.includes(".") ? input.filename.split(".").pop() : "bin";
-  const safeName = slugifyFilename(input.filename.replace(/\.[^.]+$/, ""));
-  const tag = input.tag?.trim() || "misc";
-  const r2_key = `${tag}/${shortId()}-${safeName}.${ext}`;
-  const url = `${env.BASE_URL}/api/v1/media/${encodeURIComponent(r2_key)}`;
-
-  await env.MEDIA.put(r2_key, input.body, {
-    httpMetadata: { contentType: input.mime },
-  });
-
+async function recordMedia(actorId: number, input: RecordMediaInput): Promise<MediaRow> {
   const result = await getDb()
     .prepare(
       `INSERT INTO media (r2_key, mime, bytes, width, height, alt_text, status, uploaded_by, tag, title, url, monthly_pdf_verified)
          VALUES (?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?)`,
     )
     .bind(
-      r2_key,
+      input.r2_key,
       input.mime,
       input.bytes,
       input.width ?? null,
       input.height ?? null,
       input.alt_text,
       actorId,
-      tag,
+      input.tag,
       input.title?.trim() || null,
-      url,
+      input.url,
       input.monthly_pdf_verified ? 1 : 0,
     )
     .run();
@@ -169,6 +170,85 @@ export async function uploadMedia(actorId: number, input: UploadMediaInput): Pro
   await auditLog(actorId, "create", "media", row?.id ?? null, null, row);
   await bumpCmsRev();
   return row!;
+}
+
+async function newMediaKey(filename: string, tagInput: string | null | undefined) {
+  const { env } = await import("cloudflare:workers");
+  const ext = filename.includes(".") ? filename.split(".").pop() : "bin";
+  const safeName = slugifyFilename(filename.replace(/\.[^.]+$/, ""));
+  const tag = tagInput?.trim() || "misc";
+  const r2_key = `${tag}/${shortId()}-${safeName}.${ext}`;
+  return { env, tag, r2_key, url: `${env.BASE_URL}/api/v1/media/${encodeURIComponent(r2_key)}` };
+}
+
+export async function uploadMedia(actorId: number, input: UploadMediaInput): Promise<MediaRow> {
+  const { env, tag, r2_key, url } = await newMediaKey(input.filename, input.tag);
+
+  await env.MEDIA.put(r2_key, input.body, {
+    httpMetadata: { contentType: input.mime },
+  });
+
+  return recordMedia(actorId, { ...input, r2_key, url, tag, bytes: input.bytes });
+}
+
+// ────────────── chunked (R2 multipart) upload ──────────────
+
+/** Start a multipart upload; the browser then PUTs parts and calls complete. */
+export async function startMultipartMedia(input: { filename: string; mime: string; tag?: string | null }) {
+  const { env, r2_key } = await newMediaKey(input.filename, input.tag);
+  const upload = await env.MEDIA.createMultipartUpload(r2_key, { httpMetadata: { contentType: input.mime } });
+  return { key: r2_key, uploadId: upload.uploadId };
+}
+
+export async function uploadMediaPart(key: string, uploadId: string, partNumber: number, body: ArrayBuffer) {
+  const { env } = await import("cloudflare:workers");
+  const part = await env.MEDIA.resumeMultipartUpload(key, uploadId).uploadPart(partNumber, body);
+  return { partNumber: part.partNumber, etag: part.etag };
+}
+
+export async function abortMultipartMedia(key: string, uploadId: string): Promise<void> {
+  const { env } = await import("cloudflare:workers");
+  await env.MEDIA.resumeMultipartUpload(key, uploadId).abort();
+}
+
+export interface CompleteMultipartInput {
+  key: string;
+  uploadId: string;
+  parts: { partNumber: number; etag: string }[];
+  mime: string;
+  alt_text: string;
+  tag: string;
+  title?: string | null;
+  /** Reads the object's first bytes after assembly; return false to reject and delete it. */
+  verifyHead?: (head: Uint8Array) => boolean;
+  monthly_pdf_verified?: boolean;
+}
+
+export class MultipartRejectedError extends Error {}
+
+export async function completeMultipartMedia(actorId: number, input: CompleteMultipartInput): Promise<MediaRow> {
+  const { env } = await import("cloudflare:workers");
+  const object = await env.MEDIA.resumeMultipartUpload(input.key, input.uploadId).complete(input.parts);
+
+  if (input.verifyHead) {
+    const head = await env.MEDIA.get(input.key, { range: { offset: 0, length: 1024 } });
+    const bytes = head ? new Uint8Array(await head.arrayBuffer()) : new Uint8Array();
+    if (!input.verifyHead(bytes)) {
+      await env.MEDIA.delete(input.key);
+      throw new MultipartRejectedError("Tệp không hợp lệ.");
+    }
+  }
+
+  return recordMedia(actorId, {
+    r2_key: input.key,
+    url: `${env.BASE_URL}/api/v1/media/${encodeURIComponent(input.key)}`,
+    mime: input.mime,
+    bytes: object.size,
+    alt_text: input.alt_text,
+    tag: input.tag,
+    title: input.title,
+    monthly_pdf_verified: input.monthly_pdf_verified,
+  });
 }
 
 export interface UpdateMediaMetaInput {
