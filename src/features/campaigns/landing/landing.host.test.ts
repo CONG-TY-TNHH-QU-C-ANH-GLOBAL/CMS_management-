@@ -34,6 +34,64 @@ const lp = (path: string, init: RequestInit = {}) =>
   handleLandingRequest(new Request(`https://${LP}${path}`, init), deps);
 
 describe("landing host responses", () => {
+  test("serves the fixed monthly PDF template with the shared consult form", async () => {
+    const monthlyDeps = {
+      ...deps,
+      resolveMonthlySourcing: async (year: number, month: number) =>
+        year === 2026 && month === 1
+          ? {
+              title: "Top sản phẩm & nguồn hàng tháng 1/2026",
+              pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf",
+            }
+          : null,
+    };
+
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-1-2026`),
+      monthlyDeps as LandingHostDeps,
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    const html = await res.text();
+    expect(html).toContain("Top sản phẩm &amp; nguồn hàng tháng 1/2026");
+    expect(html).toContain("https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf");
+    expect(html).toContain('src="/_thg/thg-lead.js"');
+    expect(html).toContain("data-consult");
+  });
+
+  test("keeps an unpublished or missing monthly PDF off the LP host", async () => {
+    const monthlyDeps = { ...deps, resolveMonthlySourcing: async () => null };
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-2-2026`),
+      monthlyDeps as LandingHostDeps,
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test("preserves an existing campaign when its reserved-looking monthly path has no live PDF", async () => {
+    const campaignKey = landingObjectKey("thang-1-2026", LIVE, "index.html");
+    const collisionDeps: LandingHostDeps = {
+      ...deps,
+      resolveLive: async (slug) => (slug === "thang-1-2026" ? LIVE : null),
+      resolveMonthlySourcing: async () => null,
+      getObject: async (key, headOnly) => {
+        if (key === campaignKey) {
+          return { body: headOnly ? null : "<html>campaign</html>", etag: '"campaign"', size: 21 };
+        }
+        return deps.getObject(key, headOnly);
+      },
+    };
+
+    const res = await handleLandingRequest(
+      new Request(`https://${LP}/thang-1-2026/`),
+      collisionDeps,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html>campaign</html>");
+  });
+
   test("serves the published index with html type, nosniff, referrer policy and short cache", async () => {
     const res = await lp("/christmas-2026/");
     expect(res.status).toBe(200);

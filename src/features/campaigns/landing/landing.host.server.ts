@@ -3,6 +3,8 @@
 
 import leadScriptSource from "./thg-lead.js?raw";
 
+import { getLiveMonthlySourcingForLanding } from "@/features/monthly-sourcing";
+
 import { leadScriptConfig, type LandingEnv } from "./landing.config";
 import type { LandingHostDeps } from "./landing.host";
 
@@ -27,6 +29,11 @@ export function landingHostDeps(env: HostEnv): LandingHostDeps {
         .first<{ slug: string }>();
       return row?.slug ?? null;
     },
+    resolveMonthlySourcing: (year, month) =>
+      // The PDF proxy lives on the CMS origin, while this handler runs only
+      // on lp.thgfulfill.com.  Passing BASE_URL prevents iframe URLs from
+      // accidentally pointing back to the locked-down landing host.
+      getLiveMonthlySourcingForLanding(year, month, env.BASE_URL, env.DB),
     async getObject(key, headOnly) {
       const object = headOnly ? await env.MEDIA.head(key) : await env.MEDIA.get(key);
       if (!object) return null;

@@ -258,6 +258,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "campaigns",
     `${LANDING} campaign detail`,
   ),
+  "v1/(public)/monthly-sourcing/index.ts": read(
+    "/api/v1/monthly-sourcing",
+    "monthly-sourcing",
+    `${LANDING} top products & sourcing navbar menu`,
+  ),
   "v1/(public)/contact-locations/index.ts": read(
     "/api/v1/contact-locations",
     "content",

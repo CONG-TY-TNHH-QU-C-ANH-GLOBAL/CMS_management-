@@ -8,6 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { isValidCampaignHref } from "./campaigns.pure";
+import { parseMonthlySourcingSlug } from "@/features/monthly-sourcing/monthly-sourcing.pure";
 
 export type { CampaignRow, CampaignStatus } from "./campaigns.service";
 export type { CampaignTranslationRow } from "../translations/campaign.translation.service";
@@ -19,6 +20,10 @@ const SLUG = z
   .min(1)
   .max(120)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Đường dẫn chỉ gồm chữ thường, số và dấu gạch ngang.");
+const NEW_CAMPAIGN_SLUG = SLUG.refine(
+  (slug) => parseMonthlySourcingSlug(slug) === null,
+  "Đường dẫn thang-{1..12}-{năm} dành riêng cho trang PDF nguồn hàng.",
+);
 const HREF = z
   .string()
   .trim()
@@ -76,7 +81,7 @@ function toColumns<T extends { menu_items?: unknown[] }>(data: T) {
   return menu_items === undefined ? rest : { ...rest, menu_items_json: JSON.stringify(menu_items) };
 }
 
-const campaignCreate = campaignFields.extend({ slug: SLUG });
+const campaignCreate = campaignFields.extend({ slug: NEW_CAMPAIGN_SLUG });
 const campaignUpdate = campaignFields.partial().extend({ id: ID });
 
 export const listCampaignsFn = createServerFn({ method: "GET" }).handler(async () =>

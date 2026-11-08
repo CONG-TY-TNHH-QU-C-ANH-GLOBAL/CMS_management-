@@ -30,6 +30,7 @@ import { Route as AdminContentServicesIndexRouteImport } from './routes/admin/co
 import { Route as AdminContentServiceBlocksIndexRouteImport } from './routes/admin/content/service-blocks/index'
 import { Route as AdminContentPoliciesIndexRouteImport } from './routes/admin/content/policies/index'
 import { Route as AdminContentPartnersIndexRouteImport } from './routes/admin/content/partners/index'
+import { Route as AdminContentMonthlySourcingIndexRouteImport } from './routes/admin/content/monthly-sourcing/index'
 import { Route as AdminContentMediaIndexRouteImport } from './routes/admin/content/media/index'
 import { Route as AdminContentMarketplacesIndexRouteImport } from './routes/admin/content/marketplaces/index'
 import { Route as AdminContentLeadershipIndexRouteImport } from './routes/admin/content/leadership/index'
@@ -71,6 +72,7 @@ import { Route as ApiV1publicPricingIndexRouteImport } from './routes/api/v1/(pu
 import { Route as ApiV1publicPoliciesIndexRouteImport } from './routes/api/v1/(public)/policies/index'
 import { Route as ApiV1publicPartnersIndexRouteImport } from './routes/api/v1/(public)/partners/index'
 import { Route as ApiV1publicOpenapiIndexRouteImport } from './routes/api/v1/(public)/openapi/index'
+import { Route as ApiV1publicMonthlySourcingIndexRouteImport } from './routes/api/v1/(public)/monthly-sourcing/index'
 import { Route as ApiV1publicMarqueeImagesIndexRouteImport } from './routes/api/v1/(public)/marquee-images/index'
 import { Route as ApiV1publicLeadsIndexRouteImport } from './routes/api/v1/(public)/leads/index'
 import { Route as ApiV1publicLeadershipIndexRouteImport } from './routes/api/v1/(public)/leadership/index'
@@ -228,6 +230,12 @@ const AdminContentPartnersIndexRoute =
   AdminContentPartnersIndexRouteImport.update({
     id: '/admin/content/partners/',
     path: '/admin/content/partners/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminContentMonthlySourcingIndexRoute =
+  AdminContentMonthlySourcingIndexRouteImport.update({
+    id: '/admin/content/monthly-sourcing/',
+    path: '/admin/content/monthly-sourcing/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AdminContentMediaIndexRoute = AdminContentMediaIndexRouteImport.update({
@@ -460,6 +468,12 @@ const ApiV1publicOpenapiIndexRoute = ApiV1publicOpenapiIndexRouteImport.update({
   path: '/api/v1/openapi/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicMonthlySourcingIndexRoute =
+  ApiV1publicMonthlySourcingIndexRouteImport.update({
+    id: '/api/v1/(public)/monthly-sourcing/',
+    path: '/api/v1/monthly-sourcing/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicMarqueeImagesIndexRoute =
   ApiV1publicMarqueeImagesIndexRouteImport.update({
     id: '/api/v1/(public)/marquee-images/',
@@ -731,6 +745,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/leadership/': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
+  '/admin/content/monthly-sourcing/': typeof AdminContentMonthlySourcingIndexRoute
   '/admin/content/partners/': typeof AdminContentPartnersIndexRoute
   '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
   '/admin/content/service-blocks/': typeof AdminContentServiceBlocksIndexRoute
@@ -773,6 +788,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/leadership/': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/monthly-sourcing/': typeof ApiV1publicMonthlySourcingIndexRoute
   '/api/v1/openapi/': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/partners/': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/policies/': typeof ApiV1publicPoliciesIndexRoute
@@ -833,6 +849,7 @@ export interface FileRoutesByTo {
   '/admin/content/leadership': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media': typeof AdminContentMediaIndexRoute
+  '/admin/content/monthly-sourcing': typeof AdminContentMonthlySourcingIndexRoute
   '/admin/content/partners': typeof AdminContentPartnersIndexRoute
   '/admin/content/policies': typeof AdminContentPoliciesIndexRoute
   '/admin/content/service-blocks': typeof AdminContentServiceBlocksIndexRoute
@@ -875,6 +892,7 @@ export interface FileRoutesByTo {
   '/api/v1/leadership': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/leads': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/marquee-images': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/monthly-sourcing': typeof ApiV1publicMonthlySourcingIndexRoute
   '/api/v1/openapi': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/partners': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/policies': typeof ApiV1publicPoliciesIndexRoute
@@ -939,6 +957,7 @@ export interface FileRoutesById {
   '/admin/content/leadership/': typeof AdminContentLeadershipIndexRoute
   '/admin/content/marketplaces/': typeof AdminContentMarketplacesIndexRoute
   '/admin/content/media/': typeof AdminContentMediaIndexRoute
+  '/admin/content/monthly-sourcing/': typeof AdminContentMonthlySourcingIndexRoute
   '/admin/content/partners/': typeof AdminContentPartnersIndexRoute
   '/admin/content/policies/': typeof AdminContentPoliciesIndexRoute
   '/admin/content/service-blocks/': typeof AdminContentServiceBlocksIndexRoute
@@ -981,6 +1000,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/leadership/': typeof ApiV1publicLeadershipIndexRoute
   '/api/v1/(public)/leads/': typeof ApiV1publicLeadsIndexRoute
   '/api/v1/(public)/marquee-images/': typeof ApiV1publicMarqueeImagesIndexRoute
+  '/api/v1/(public)/monthly-sourcing/': typeof ApiV1publicMonthlySourcingIndexRoute
   '/api/v1/(public)/openapi/': typeof ApiV1publicOpenapiIndexRoute
   '/api/v1/(public)/partners/': typeof ApiV1publicPartnersIndexRoute
   '/api/v1/(public)/policies/': typeof ApiV1publicPoliciesIndexRoute
@@ -1046,6 +1066,7 @@ export interface FileRouteTypes {
     | '/admin/content/leadership/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
+    | '/admin/content/monthly-sourcing/'
     | '/admin/content/partners/'
     | '/admin/content/policies/'
     | '/admin/content/service-blocks/'
@@ -1088,6 +1109,7 @@ export interface FileRouteTypes {
     | '/api/v1/leadership/'
     | '/api/v1/leads/'
     | '/api/v1/marquee-images/'
+    | '/api/v1/monthly-sourcing/'
     | '/api/v1/openapi/'
     | '/api/v1/partners/'
     | '/api/v1/policies/'
@@ -1148,6 +1170,7 @@ export interface FileRouteTypes {
     | '/admin/content/leadership'
     | '/admin/content/marketplaces'
     | '/admin/content/media'
+    | '/admin/content/monthly-sourcing'
     | '/admin/content/partners'
     | '/admin/content/policies'
     | '/admin/content/service-blocks'
@@ -1190,6 +1213,7 @@ export interface FileRouteTypes {
     | '/api/v1/leadership'
     | '/api/v1/leads'
     | '/api/v1/marquee-images'
+    | '/api/v1/monthly-sourcing'
     | '/api/v1/openapi'
     | '/api/v1/partners'
     | '/api/v1/policies'
@@ -1253,6 +1277,7 @@ export interface FileRouteTypes {
     | '/admin/content/leadership/'
     | '/admin/content/marketplaces/'
     | '/admin/content/media/'
+    | '/admin/content/monthly-sourcing/'
     | '/admin/content/partners/'
     | '/admin/content/policies/'
     | '/admin/content/service-blocks/'
@@ -1295,6 +1320,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/leadership/'
     | '/api/v1/(public)/leads/'
     | '/api/v1/(public)/marquee-images/'
+    | '/api/v1/(public)/monthly-sourcing/'
     | '/api/v1/(public)/openapi/'
     | '/api/v1/(public)/partners/'
     | '/api/v1/(public)/policies/'
@@ -1354,6 +1380,7 @@ export interface RootRouteChildren {
   AdminContentLeadershipIndexRoute: typeof AdminContentLeadershipIndexRoute
   AdminContentMarketplacesIndexRoute: typeof AdminContentMarketplacesIndexRoute
   AdminContentMediaIndexRoute: typeof AdminContentMediaIndexRoute
+  AdminContentMonthlySourcingIndexRoute: typeof AdminContentMonthlySourcingIndexRoute
   AdminContentPartnersIndexRoute: typeof AdminContentPartnersIndexRoute
   AdminContentPoliciesIndexRoute: typeof AdminContentPoliciesIndexRoute
   AdminContentServiceBlocksIndexRoute: typeof AdminContentServiceBlocksIndexRoute
@@ -1394,6 +1421,7 @@ export interface RootRouteChildren {
   ApiV1publicLeadershipIndexRoute: typeof ApiV1publicLeadershipIndexRoute
   ApiV1publicLeadsIndexRoute: typeof ApiV1publicLeadsIndexRoute
   ApiV1publicMarqueeImagesIndexRoute: typeof ApiV1publicMarqueeImagesIndexRoute
+  ApiV1publicMonthlySourcingIndexRoute: typeof ApiV1publicMonthlySourcingIndexRoute
   ApiV1publicOpenapiIndexRoute: typeof ApiV1publicOpenapiIndexRoute
   ApiV1publicPartnersIndexRoute: typeof ApiV1publicPartnersIndexRoute
   ApiV1publicPoliciesIndexRoute: typeof ApiV1publicPoliciesIndexRoute
@@ -1566,6 +1594,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/content/partners'
       fullPath: '/admin/content/partners/'
       preLoaderRoute: typeof AdminContentPartnersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content/monthly-sourcing/': {
+      id: '/admin/content/monthly-sourcing/'
+      path: '/admin/content/monthly-sourcing'
+      fullPath: '/admin/content/monthly-sourcing/'
+      preLoaderRoute: typeof AdminContentMonthlySourcingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/media/': {
@@ -1853,6 +1888,13 @@ declare module '@tanstack/react-router' {
       path: '/api/v1/openapi'
       fullPath: '/api/v1/openapi/'
       preLoaderRoute: typeof ApiV1publicOpenapiIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/(public)/monthly-sourcing/': {
+      id: '/api/v1/(public)/monthly-sourcing/'
+      path: '/api/v1/monthly-sourcing'
+      fullPath: '/api/v1/monthly-sourcing/'
+      preLoaderRoute: typeof ApiV1publicMonthlySourcingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/(public)/marquee-images/': {
@@ -2259,6 +2301,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentLeadershipIndexRoute: AdminContentLeadershipIndexRoute,
   AdminContentMarketplacesIndexRoute: AdminContentMarketplacesIndexRoute,
   AdminContentMediaIndexRoute: AdminContentMediaIndexRoute,
+  AdminContentMonthlySourcingIndexRoute: AdminContentMonthlySourcingIndexRoute,
   AdminContentPartnersIndexRoute: AdminContentPartnersIndexRoute,
   AdminContentPoliciesIndexRoute: AdminContentPoliciesIndexRoute,
   AdminContentServiceBlocksIndexRoute: AdminContentServiceBlocksIndexRoute,
@@ -2300,6 +2343,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicLeadershipIndexRoute: ApiV1publicLeadershipIndexRoute,
   ApiV1publicLeadsIndexRoute: ApiV1publicLeadsIndexRoute,
   ApiV1publicMarqueeImagesIndexRoute: ApiV1publicMarqueeImagesIndexRoute,
+  ApiV1publicMonthlySourcingIndexRoute: ApiV1publicMonthlySourcingIndexRoute,
   ApiV1publicOpenapiIndexRoute: ApiV1publicOpenapiIndexRoute,
   ApiV1publicPartnersIndexRoute: ApiV1publicPartnersIndexRoute,
   ApiV1publicPoliciesIndexRoute: ApiV1publicPoliciesIndexRoute,
