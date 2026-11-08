@@ -21,7 +21,7 @@ import { z } from "zod";
 // from it; `satisfies` guarantees every key has a schema. Services without verified specific
 // fields use an empty strict object (common envelope only — never fabricated fields). Fulfill's
 // product_type is grounded in the approved catalog categories.
-export const SERVICE_KEYS = ["fulfill", "express", "warehouse", "dropship"] as const;
+export const SERVICE_KEYS = ["fulfill", "express", "warehouse", "dropship", "label"] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
 
 export const FULFILL_PRODUCT_TYPES = ["apparel", "drinkware", "fleece", "other"] as const;
@@ -31,6 +31,7 @@ const SERVICE_DETAILS_SCHEMAS = {
   express: z.object({}).strict(),
   warehouse: z.object({}).strict(),
   dropship: z.object({}).strict(),
+  label: z.object({}).strict(),
 } satisfies Record<ServiceKey, z.ZodTypeAny>;
 
 function isServiceKey(value: string): value is ServiceKey {
@@ -44,6 +45,7 @@ export const SURFACE_KEYS = [
   "express-inline",
   "warehouse-inline",
   "dropship-inline",
+  "label-inline",
   "home-conversion-inline",
 ] as const;
 export type SurfaceKey = (typeof SURFACE_KEYS)[number];

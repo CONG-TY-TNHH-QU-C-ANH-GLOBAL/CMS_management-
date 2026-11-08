@@ -50,8 +50,8 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
       .monthly-source__actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
       .monthly-source__button { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 20px; border: 0; border-radius: 999px; background: #8a6739; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
       .monthly-source__button--secondary { border: 1px solid #d8d3c8; background: #fff; color: #172033; }
-      .monthly-source__pdf { position: relative; overflow: hidden; min-height: 72vh; border: 1px solid #e2ddd4; border-radius: 20px; background: #fff; box-shadow: 0 24px 64px -36px rgba(23, 32, 51, .35); }
-      .monthly-source__pdf canvas { display: block; max-width: 100%; max-height: 72vh; margin: 0 auto; }
+      .monthly-source__pdf { position: relative; overflow: hidden; min-height: 40vh; border: 1px solid #e2ddd4; border-radius: 20px; background: #fff; box-shadow: 0 24px 64px -36px rgba(23, 32, 51, .35); }
+      .monthly-source__pdf canvas { display: block; width: 100%; height: auto; margin: 0 auto; }
       .monthly-source__slide-control { position: absolute; top: 50%; z-index: 1; width: 48px; height: 48px; border: 0; border-radius: 999px; background: #8a6739; color: #fff; font-size: 28px; cursor: pointer; transform: translateY(-50%); }
       .monthly-source__slide-control:disabled { opacity: .35; cursor: default; } .monthly-source__slide-control--previous { left: 16px; } .monthly-source__slide-control--next { right: 16px; }
       .monthly-source__page-count { position: absolute; bottom: 14px; left: 50%; padding: 6px 10px; border-radius: 999px; background: rgba(23,32,51,.75); color:#fff; font-size: 13px; transform: translateX(-50%); }
@@ -80,7 +80,7 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
         pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
         const canvas = document.querySelector("#monthly-pdf-canvas"), previous = document.querySelector("[data-pdf-previous]"), next = document.querySelector("[data-pdf-next]"), count = document.querySelector("[data-pdf-page-count]");
         let pdf, page = 1, rendering = false;
-        const render = async () => { if (!pdf || rendering) return; rendering = true; const current = await pdf.getPage(page); const viewport = current.getViewport({ scale: 1.5 }); canvas.width = viewport.width; canvas.height = viewport.height; await current.render({ canvasContext: canvas.getContext("2d"), viewport }).promise; count.textContent = "Trang " + page + " / " + pdf.numPages; previous.disabled = page === 1; next.disabled = page === pdf.numPages; rendering = false; };
+        const render = async () => { if (!pdf || rendering) return; rendering = true; const current = await pdf.getPage(page); const base = current.getViewport({ scale: 1 }); const maxWidth = base.height > base.width ? 880 : 1180; const shown = Math.min(canvas.parentElement.clientWidth || maxWidth, maxWidth); canvas.style.maxWidth = shown + "px"; const viewport = current.getViewport({ scale: (shown / base.width) * Math.min(window.devicePixelRatio || 1, 2) }); canvas.width = viewport.width; canvas.height = viewport.height; await current.render({ canvasContext: canvas.getContext("2d"), viewport }).promise; count.textContent = "Trang " + page + " / " + pdf.numPages; previous.disabled = page === 1; next.disabled = page === pdf.numPages; rendering = false; };
         previous.addEventListener("click", () => { if (page > 1) { page--; render(); } }); next.addEventListener("click", () => { if (pdf && page < pdf.numPages) { page++; render(); } });
         pdfjsLib.getDocument("${pdfUrl}").promise.then((document) => { pdf = document; render(); }).catch(() => { count.textContent = "Không thể tải PDF"; });
       </script>

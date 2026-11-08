@@ -79,6 +79,7 @@
     ["express", "International Express"],
     ["warehouse", "US 3PL Warehouse"],
     ["dropship", "Dropship / TH Group Order"],
+    ["label", "Shipping Labels / TH Group Label"],
   ];
   var BANDS = [
     ["<100", "Under 100"],
