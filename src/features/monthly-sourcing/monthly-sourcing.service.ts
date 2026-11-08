@@ -6,7 +6,12 @@ import { auditLog } from "@/core/db/mutations";
 import { toMediaUrl } from "@/features/partners/partners.media";
 
 import { isMonthlySourcingIdentity, monthlySourcingSlug } from "./monthly-sourcing.pure";
-import { monthlySourcingPdfProblem } from "./monthly-sourcing.validation";
+import {
+  MONTHLY_SOURCING_MAX_PAGES,
+  MONTHLY_SOURCING_PAGE_MIMES,
+  MONTHLY_SOURCING_PAGE_TAG,
+  monthlySourcingPdfProblem,
+} from "./monthly-sourcing.validation";
 
 export type MonthlySourcingStatus = "draft" | "live" | "archived";
 
@@ -37,6 +42,8 @@ export interface MonthlySourcingAdminMonthRow extends MonthlySourcingMonthRow {
   pdf_mime: string | null;
   pdf_media_status: string | null;
   pdf_monthly_pdf_verified: number | null;
+  /** Page images rendered from the CURRENT pdf (0 = none, landing uses the PDF viewer). */
+  page_count: number;
 }
 
 export interface MonthlySourcingAdminYear extends MonthlySourcingYearRow {
@@ -55,10 +62,17 @@ export interface PublicMonthlySourcing {
 }
 
 interface LandingMonthlySourcingRow {
+  month_id: number;
   year: number;
   month: number;
   title: string;
   r2_key: string;
+}
+
+export interface LiveMonthlySourcingPage {
+  url: string;
+  width: number;
+  height: number;
 }
 
 export interface LiveMonthlySourcingForLanding {
@@ -66,6 +80,15 @@ export interface LiveMonthlySourcingForLanding {
   month: number;
   title: string;
   pdfUrl: string;
+  /** Pre-rendered page images; empty when none exist for the current PDF. */
+  pages: LiveMonthlySourcingPage[];
+}
+
+export interface MonthlySourcingPageInput {
+  page_no: number;
+  media_id: number;
+  width: number;
+  height: number;
 }
 
 export interface UpdateMonthlySourcingMonthInput {
@@ -153,7 +176,9 @@ export async function listMonthlySourcingAdmin(): Promise<MonthlySourcingAdminYe
       .prepare(
         `SELECT ms.${MONTH_COLUMNS.replaceAll(", ", ", ms.")},
                 media.r2_key AS pdf_r2_key, media.mime AS pdf_mime, media.status AS pdf_media_status,
-                media.monthly_pdf_verified AS pdf_monthly_pdf_verified
+                media.monthly_pdf_verified AS pdf_monthly_pdf_verified,
+                (SELECT COUNT(*) FROM monthly_sourcing_pages p
+                  WHERE p.month_id = ms.id AND p.pdf_media_id = ms.pdf_media_id) AS page_count
            FROM monthly_sourcing_months ms
            LEFT JOIN media ON media.id = ms.pdf_media_id
           ORDER BY ms.year_id, ms.month`,
@@ -341,7 +366,7 @@ export async function getLiveMonthlySourcingForLanding(
   if (!isMonthlySourcingIdentity({ year, month })) return null;
   const row = await db
     .prepare(
-      `SELECT sy.year, ms.month, ms.title, media.r2_key
+      `SELECT ms.id AS month_id, sy.year, ms.month, ms.title, media.r2_key
          FROM monthly_sourcing_years sy
          JOIN monthly_sourcing_months ms ON ms.year_id = sy.id
          JOIN media ON media.id = ms.pdf_media_id
@@ -357,5 +382,82 @@ export async function getLiveMonthlySourcingForLanding(
     .bind(year, month)
     .first<LandingMonthlySourcingRow>();
   const pdfUrl = row ? toMediaUrl(row.r2_key, origin) : null;
-  return row && pdfUrl ? { year: row.year, month: row.month, title: row.title, pdfUrl } : null;
+  if (!row || !pdfUrl) return null;
+
+  const pageRows = await db
+    .prepare(
+      `SELECT p.width, p.height, m.r2_key
+         FROM monthly_sourcing_pages p
+         JOIN monthly_sourcing_months ms ON ms.id = p.month_id
+         JOIN media m ON m.id = p.media_id
+        WHERE p.month_id = ?
+          AND p.pdf_media_id = ms.pdf_media_id
+          AND m.status = 'ready'
+        ORDER BY p.page_no`,
+    )
+    .bind(row.month_id)
+    .all<{ width: number; height: number; r2_key: string }>();
+  const pages: LiveMonthlySourcingPage[] = [];
+  for (const page of pageRows.results ?? []) {
+    const url = toMediaUrl(page.r2_key, origin);
+    if (url) pages.push({ url, width: page.width, height: page.height });
+  }
+  return { year: row.year, month: row.month, title: row.title, pdfUrl, pages };
+}
+
+/** Replaces a month's page images. They must have been rendered from the month's CURRENT PDF,
+ *  be ready images tagged for this purpose, and cover pages 1..n without gaps. */
+export async function setMonthlySourcingPages(
+  actorId: number,
+  input: { id: number; pdf_media_id: number; pages: MonthlySourcingPageInput[] },
+): Promise<{ page_count: number }> {
+  const month = await getMonthById(input.id);
+  if (!month) throw notFound("month");
+  if (month.pdf_media_id === null || month.pdf_media_id !== input.pdf_media_id) {
+    throw conflict("PDF của tháng đã đổi; hãy tạo lại ảnh trang từ PDF hiện tại.");
+  }
+  const pages = [...input.pages].sort((a, b) => a.page_no - b.page_no);
+  if (pages.length === 0 || pages.length > MONTHLY_SOURCING_MAX_PAGES) {
+    throw invalidPdf(`Số trang phải từ 1 đến ${MONTHLY_SOURCING_MAX_PAGES}.`);
+  }
+  if (pages.some((page, index) => page.page_no !== index + 1)) {
+    throw invalidPdf("Các trang phải liền mạch từ 1 đến n.");
+  }
+  const db = getDb();
+  const mediaIds = pages.map((page) => page.media_id);
+  if (new Set(mediaIds).size !== mediaIds.length) throw invalidPdf("Mỗi trang cần một ảnh riêng.");
+  const found = await db
+    .prepare(
+      `SELECT id, mime, status, tag FROM media WHERE id IN (${mediaIds.map(() => "?").join(", ")})`,
+    )
+    .bind(...mediaIds)
+    .all<{ id: number; mime: string; status: string; tag: string | null }>();
+  const okIds = new Set(
+    (found.results ?? [])
+      .filter(
+        (row) =>
+          row.status === "ready" &&
+          row.tag === MONTHLY_SOURCING_PAGE_TAG &&
+          MONTHLY_SOURCING_PAGE_MIMES.includes(row.mime),
+      )
+      .map((row) => row.id),
+  );
+  if (mediaIds.some((id) => !okIds.has(id))) throw invalidPdf("Ảnh trang không hợp lệ.");
+
+  await db.batch([
+    db.prepare("DELETE FROM monthly_sourcing_pages WHERE month_id = ?").bind(input.id),
+    ...pages.map((page) =>
+      db
+        .prepare(
+          `INSERT INTO monthly_sourcing_pages (month_id, page_no, media_id, pdf_media_id, width, height)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(input.id, page.page_no, page.media_id, input.pdf_media_id, page.width, page.height),
+    ),
+  ]);
+  await auditLog(actorId, "update", "monthly_sourcing_pages", input.id, null, {
+    pdf_media_id: input.pdf_media_id,
+    page_count: pages.length,
+  });
+  return { page_count: pages.length };
 }

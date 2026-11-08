@@ -43,3 +43,54 @@ describe("monthly sourcing fixed landing template", () => {
     expect(html).not.toContain("<iframe");
   });
 });
+
+describe("monthly sourcing page images", () => {
+  const pages = [
+    { url: "https://cms.test/api/v1/media/monthly-sourcing-page%2Fa-1.webp", width: 1200, height: 1697 },
+    { url: "https://cms.test/api/v1/media/monthly-sourcing-page%2Fa-2.webp", width: 1200, height: 1697 },
+  ];
+  const render = () =>
+    renderMonthlySourcingPage({
+      year: 2026,
+      month: 10,
+      title: "Monthly source",
+      pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Foct.pdf",
+      pages,
+    });
+
+  test("shows page 1 as a preloaded image instead of downloading the PDF", () => {
+    const html = render();
+    expect(html).toContain('<link rel="preload" as="image" href="https://cms.test/api/v1/media/monthly-sourcing-page%2Fa-1.webp"');
+    expect(html).toContain('id="monthly-page-image"');
+    expect(html).toContain('width="1200" height="1697"');
+    expect(html).toContain("Trang 1 / 2");
+    expect(html).not.toContain("pdfjs-dist");
+    expect(html).not.toContain('id="monthly-pdf-canvas"');
+    // The download link to the original PDF stays available.
+    expect(html).toContain('href="https://cms.test/api/v1/media/monthly-sourcing%2Foct.pdf"');
+  });
+
+  test("falls back to the PDF viewer when no page images exist", () => {
+    const html = renderMonthlySourcingPage({
+      year: 2026,
+      month: 10,
+      title: "Monthly source",
+      pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Foct.pdf",
+      pages: [],
+    });
+    expect(html).toContain('id="monthly-pdf-canvas"');
+    expect(html).not.toContain("monthly-page-image");
+  });
+
+  test("refuses a non-web page image URL", () => {
+    expect(() =>
+      renderMonthlySourcingPage({
+        year: 2026,
+        month: 10,
+        title: "x",
+        pdfUrl: "https://cms.test/a.pdf",
+        pages: [{ url: "javascript:alert(1)", width: 10, height: 10 }],
+      }),
+    ).toThrow("PDF URL must use HTTP or HTTPS.");
+  });
+});

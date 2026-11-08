@@ -1,7 +1,8 @@
 import { uploadMediaFile } from "@/features/media/media.upload-client";
+import { renderAndUploadMonthPages } from "@/features/monthly-sourcing/monthly-pages.browser";
 import { useServerFn } from "@tanstack/react-start";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { CalendarDays, CheckCircle2, ExternalLink, FileUp, Link2, Loader2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, ExternalLink, FileUp, ImageIcon, Link2, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +12,7 @@ import {
   activateMonthlySourcingYearFn,
   createMonthlySourcingYearFn,
   getMonthlySourcingAdminFn,
+  setMonthlySourcingPagesFn,
   updateMonthlySourcingMonthFn,
   type MonthlySourcingAdminMonth,
   type MonthlySourcingAdminYear,
@@ -93,6 +95,7 @@ function MonthRow({
   onChanged: () => void;
 }>) {
   const update = useServerFn(updateMonthlySourcingMonthFn);
+  const savePages = useServerFn(setMonthlySourcingPagesFn);
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(row.title);
   const [status, setStatus] = useState<MonthlySourcingStatus>(row.status);
@@ -116,6 +119,39 @@ function MonthRow({
     } catch (error) {
       toast.error(message(error));
       return false;
+    } finally {
+      setPending(false);
+    }
+  }
+
+  /** Renders every PDF page to a small image so the public page opens instantly. A failure here is
+   *  not fatal: the landing keeps working through the PDF viewer until pages exist. */
+  async function generatePages(pdfMediaId: number, pdfData: ArrayBuffer) {
+    const toastId = toast.loading(`Tháng ${row.month}: đang tạo ảnh trang...`);
+    try {
+      const pages = await renderAndUploadMonthPages({
+        monthId: row.id,
+        month: row.month,
+        pdfData,
+        onStatus: (text) => toast.loading(`Tháng ${row.month}: ${text}`, { id: toastId }),
+      });
+      await savePages({ data: { id: row.id, pdf_media_id: pdfMediaId, pages } });
+      toast.success(`Tháng ${row.month}: đã tạo ${pages.length} ảnh trang, trang LP sẽ mở ngay.`, { id: toastId });
+      onChanged();
+    } catch (error) {
+      toast.error(`Tạo ảnh trang thất bại (${message(error)}). Trang LP vẫn dùng PDF.`, { id: toastId });
+    }
+  }
+
+  async function regeneratePages() {
+    if (!row.pdf_media_id || !row.pdf_url) return;
+    setPending(true);
+    try {
+      const response = await fetch(row.pdf_url, { credentials: "include" });
+      if (!response.ok) throw new Error(`Không tải được PDF (${response.status})`);
+      await generatePages(row.pdf_media_id, await response.arrayBuffer());
+    } catch (error) {
+      toast.error(message(error));
     } finally {
       setPending(false);
     }
@@ -151,6 +187,7 @@ function MonthRow({
       await update({ data: { id: row.id, pdf_media_id: media.id } });
       toast.success(`Đã gắn PDF cho tháng ${row.month}`);
       onChanged();
+      await generatePages(media.id, await file.arrayBuffer());
     } catch (error) {
       toast.error(message(error));
     } finally {
@@ -218,6 +255,22 @@ function MonthRow({
             <span className="text-xs text-muted-foreground">Chưa có PDF</span>
           )}
         </div>
+        {row.pdf_media_id ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+            <span className={row.page_count > 0 ? "text-emerald-600" : "text-amber-600"}>
+              {row.page_count > 0 ? `Ảnh trang: ${row.page_count} (mở nhanh)` : "Chưa có ảnh trang (LP mở chậm)"}
+            </span>
+            <button
+              type="button"
+              onClick={() => void regeneratePages()}
+              disabled={pending}
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline disabled:opacity-50"
+            >
+              <ImageIcon className="h-3 w-3" />
+              {row.page_count > 0 ? "Tạo lại" : "Tạo ảnh trang"}
+            </button>
+          </div>
+        ) : null}
       </td>
       <td className="px-3 py-3">
         <select

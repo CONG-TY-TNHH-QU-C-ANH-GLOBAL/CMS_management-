@@ -94,6 +94,7 @@ describe("monthly sourcing year lifecycle", () => {
       month: 1,
       title: "Top sản phẩm & nguồn hàng tháng 1/2026",
       pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf",
+      pages: [],
     });
     expect(audits.map(({ action, entity }) => [action, entity])).toEqual([
       ["create", "monthly_sourcing_years"],
@@ -171,5 +172,69 @@ describe("monthly sourcing year lifecycle", () => {
       month: 1,
       pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2F2026-1.pdf",
     });
+  });
+});
+
+describe("monthly sourcing page images", () => {
+  function insertPageImage(id: number, tag = "monthly-sourcing-page", mime = "image/webp") {
+    sql
+      .query(`INSERT INTO media (id, r2_key, mime, bytes, status, tag) VALUES (?, ?, ?, ?, 'ready', ?)`)
+      .run(id, `monthly-sourcing-page/p-${id}.webp`, mime, 10, tag);
+  }
+  async function liveJanuary() {
+    const year = await service.createMonthlySourcingYear(ACTOR, 2026);
+    await service.activateMonthlySourcingYear(ACTOR, year.id);
+    const january = (await service.listMonthlySourcingAdmin())[0]!.months[0]!;
+    insertReadyPdf(800, "monthly-sourcing/jan.pdf");
+    await service.updateMonthlySourcingMonth(ACTOR, { id: january.id, pdf_media_id: 800, status: "live" });
+    return january;
+  }
+  const pageInput = (ids: number[]) =>
+    ids.map((media_id, index) => ({ page_no: index + 1, media_id, width: 1200, height: 1697 }));
+
+  test("stores pages for the current PDF and serves them to the landing in order", async () => {
+    const january = await liveJanuary();
+    insertPageImage(801);
+    insertPageImage(802);
+    await expect(
+      service.setMonthlySourcingPages(ACTOR, { id: january.id, pdf_media_id: 800, pages: pageInput([801, 802]) }),
+    ).resolves.toEqual({ page_count: 2 });
+
+    const landing = await service.getLiveMonthlySourcingForLanding(2026, 1, "https://cms.test", db);
+    expect(landing?.pages.map((page) => page.url)).toEqual([
+      "https://cms.test/api/v1/media/monthly-sourcing-page%2Fp-801.webp",
+      "https://cms.test/api/v1/media/monthly-sourcing-page%2Fp-802.webp",
+    ]);
+    expect((await service.listMonthlySourcingAdmin())[0]!.months[0]!.page_count).toBe(2);
+  });
+
+  test("replacing the PDF retires the old page images until they are regenerated", async () => {
+    const january = await liveJanuary();
+    insertPageImage(801);
+    await service.setMonthlySourcingPages(ACTOR, { id: january.id, pdf_media_id: 800, pages: pageInput([801]) });
+    insertReadyPdf(803, "monthly-sourcing/jan-v2.pdf");
+    await service.updateMonthlySourcingMonth(ACTOR, { id: january.id, pdf_media_id: 803 });
+
+    const landing = await service.getLiveMonthlySourcingForLanding(2026, 1, "https://cms.test", db);
+    expect(landing?.pages).toEqual([]);
+    expect((await service.listMonthlySourcingAdmin())[0]!.months[0]!.page_count).toBe(0);
+    await expect(
+      service.setMonthlySourcingPages(ACTOR, { id: january.id, pdf_media_id: 800, pages: pageInput([801]) }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  test("rejects wrong tag/mime, gaps and duplicate images", async () => {
+    const january = await liveJanuary();
+    insertPageImage(801, "misc");
+    insertPageImage(802, "monthly-sourcing-page", "application/pdf");
+    insertPageImage(803);
+    insertPageImage(804);
+    const set = (pages: ReturnType<typeof pageInput>) =>
+      service.setMonthlySourcingPages(ACTOR, { id: january.id, pdf_media_id: 800, pages });
+    await expect(set(pageInput([801]))).rejects.toMatchObject({ statusCode: 422 });
+    await expect(set(pageInput([802]))).rejects.toMatchObject({ statusCode: 422 });
+    await expect(set([{ page_no: 2, media_id: 803, width: 1, height: 1 }])).rejects.toMatchObject({ statusCode: 422 });
+    await expect(set(pageInput([803, 803]))).rejects.toMatchObject({ statusCode: 422 });
+    await expect(set(pageInput([803, 804]))).resolves.toEqual({ page_count: 2 });
   });
 });

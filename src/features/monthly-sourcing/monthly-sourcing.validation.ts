@@ -1,4 +1,8 @@
 export const MONTHLY_SOURCING_MEDIA_TAG = "monthly-sourcing";
+/** Media tag for the per-page images rendered from a month's PDF. */
+export const MONTHLY_SOURCING_PAGE_TAG = "monthly-sourcing-page";
+export const MONTHLY_SOURCING_MAX_PAGES = 200;
+export const MONTHLY_SOURCING_PAGE_MIMES = ["image/webp", "image/jpeg", "image/png"];
 
 export interface MonthlySourcingPdfMedia {
   mime: string;
