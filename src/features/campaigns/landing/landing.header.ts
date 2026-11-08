@@ -67,14 +67,16 @@ const SERVICES: NavLink[] = [
     ),
     href: "/thg-order",
   },
-  labelService(), // nav.thg_label
+  {
+    label: tr("TH Group Label", "TH Group Label", "TH Group Label"), // nav.thg_label
+    desc: tr(
+      "USPS, UPS, FedEx, DHL labels below retail",
+      "Label USPS, UPS, FedEx, DHL giá thấp hơn bán lẻ",
+      "低于零售价的 USPS、UPS、FedEx、DHL 面单",
+    ),
+    href: "/thg-label",
+  },
 ];
-
-function labelService(): NavLink {
-  const name = "TH Group Label";
-  const desc = ["USPS, UPS, FedEx, DHL labels below retail", "Label USPS, UPS, FedEx, DHL giá thấp hơn bán lẻ", "低于零售价的 USPS、UPS、FedEx、DHL 面单"] as const;
-  return { label: tr(name, name, name), desc: tr(...desc), href: "/thg-label" };
-}
 
 const PRICING: NavLink[] = [
   {

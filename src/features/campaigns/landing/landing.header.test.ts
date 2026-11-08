@@ -25,12 +25,6 @@ interface Item {
   href: string;
 }
 
-const LABEL_SERVICE: Item & { desc: L } = {
-  label: ["TH Group Label", "TH Group Label", "TH Group Label"],
-  href: "/thg-label",
-  desc: ["USPS, UPS, FedEx, DHL labels below retail", "Label USPS, UPS, FedEx, DHL giá thấp hơn bán lẻ", "低于零售价的 USPS、UPS、FedEx、DHL 面单"],
-};
-
 const SITE_NAV: {
   groups: { label: L; items: (Item & { desc?: L })[] }[];
   plain: Item[];
@@ -77,7 +71,15 @@ const SITE_NAV: {
             "淘宝/1688代购直邮美国",
           ],
         },
-        LABEL_SERVICE,
+        {
+          label: ["TH Group Label", "TH Group Label", "TH Group Label"],
+          href: "/thg-label",
+          desc: [
+            "USPS, UPS, FedEx, DHL labels below retail",
+            "Label USPS, UPS, FedEx, DHL giá thấp hơn bán lẻ",
+            "低于零售价的 USPS、UPS、FedEx、DHL 面单",
+          ],
+        },
       ],
     },
     {
