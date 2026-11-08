@@ -95,7 +95,8 @@ const SITE_NAV: {
       label: ["Events", "Event", "活动"],
       items: [
         { label: ["Events", "Event", "活动"], href: "/events" },
-        { label: ["FAQ", "Câu hỏi thường gặp", "常见问题"], href: "/#faq" },
+        { label: ["Programs", "Chương trình", "计划"], href: "/campaigns" },
+        { label: ["Q&A", "Q&A", "问答"], href: "/#faq" },
       ],
     },
   ],
@@ -167,6 +168,20 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
       .slice(0, 4)
       .map((a) => text(/<small>([\s\S]*?)<\/small>/.exec(a.inner)?.[1] ?? ""));
     expect(services).toEqual(SITE_NAV.groups[0].items.map((it) => it.desc![i]));
+  });
+
+  test("desktop dropdown rows carry the same visual icon affordance as the site navbar", () => {
+    expect(desktop).toContain('data-thg-icon="package"');
+    expect(desktop).toContain('data-thg-icon="truck"');
+    expect(desktop).toContain('data-thg-icon="calendar-days"');
+    expect(desktop).toContain('data-thg-icon="gift"');
+    expect(desktop).toContain('data-thg-icon="warehouse"');
+    expect(desktop).toContain('data-thg-icon="shopping-cart"');
+    expect(desktop).toContain('data-thg-icon="globe"');
+    expect(desktop).toContain('data-thg-icon="map-pin"');
+    expect(desktop).toContain('data-thg-icon="ship"');
+    expect(desktop).toContain('data-thg-icon="tag"');
+    expect(desktop).toContain('data-thg-icon="circle-help"');
   });
 
   test("mobile sheet carries the same items, the lang switch, the CTA and Hub", () => {

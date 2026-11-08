@@ -90,7 +90,8 @@ const PRICING: NavLink[] = [
 
 const EVENTS: NavLink[] = [
   { label: tr("Events", "Event", "活动"), href: "/events" }, // nav.event
-  { label: tr("FAQ", "Câu hỏi thường gặp", "常见问题"), href: "/#faq" }, // nav.faq
+  { label: tr("Programs", "Chương trình", "计划"), href: "/campaigns" }, // nav.campaigns
+  { label: tr("Q&A", "Q&A", "问答"), href: "/#faq" }, // nav.faq
 ];
 
 const PLAIN: NavLink[] = [
@@ -117,6 +118,12 @@ const esc = (s: string) =>
 
 const siteUrl = (lang: LandingLang, path: string) => `${SITE_ORIGIN}/${lang}${path}`;
 
+const dropdownIcon = (href: string) => {
+  const icon = ({ "/thg-fulfill": "package", "/thg-express": "truck", "/thg-warehouse": "warehouse", "/thg-order": "shopping-cart", "/international-pricing": "globe", "/domestic-pricing": "map-pin", "/chinh-ngach-pricing": "ship", "/catalog": "tag", "/events": "calendar-days", "/campaigns": "gift", "/#faq": "circle-help" } as Record<string, string>)[href] ?? "package";
+  const path = icon === "calendar-days" ? '<path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>' : icon === "gift" ? '<path d="M20 12v10H4V12m16-5H4v5h16V7ZM12 22V7m0 0H7.5a2.5 2.5 0 1 1 2.5-2.5V7Zm0 0h4.5A2.5 2.5 0 1 0 14.5 4.5V7Z"/>' : icon === "truck" ? '<path d="M10 17h4V5H2v12h3m9 0h1l2-3V9h-3M6 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4m12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>' : '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73zM12 22V12m-8.7-5 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/>';
+  return `<span class="thg-h-icon" data-thg-icon="${icon}"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg></span>`;
+};
+
 const HEADER_CSS = `#thg-header{position:sticky;top:0;z-index:9990;background:rgba(250,248,245,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid hsl(40 15% 90%);font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:hsl(220 25% 12%);font-size:14px;line-height:1.4}
 #thg-header *{box-sizing:border-box}
 #thg-header a{color:inherit;text-decoration:none}
@@ -129,8 +136,12 @@ const HEADER_CSS = `#thg-header{position:sticky;top:0;z-index:9990;background:rg
 #thg-header .thg-h-menu{position:absolute;top:100%;left:0;padding-top:10px;opacity:0;visibility:hidden;transform:translateY(-8px);transition:all .2s}
 #thg-header .thg-h-group:hover .thg-h-menu,#thg-header .thg-h-group:focus-within .thg-h-menu{opacity:1;visibility:visible;transform:none}
 #thg-header .thg-h-panel{background:#fff;border:1px solid hsl(40 15% 90%);border-radius:16px;box-shadow:0 20px 60px -15px hsl(36 45% 42% / .2);padding:12px;min-width:300px}
-#thg-header .thg-h-panel a{display:block;padding:10px 12px;border-radius:12px}
+#thg-header .thg-h-panel a{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:12px}
 #thg-header .thg-h-panel a:hover{background:hsl(40 18% 92% / .6)}
+#thg-header .thg-h-icon{width:40px;height:40px;display:grid;place-items:center;flex:none;border-radius:10px;background:hsl(40 18% 92% / .8);color:hsl(36 45% 42%)}
+#thg-header .thg-h-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#thg-header .thg-h-panel a:hover .thg-h-icon{background:hsl(36 45% 42%);color:#fff}
+#thg-header .thg-h-copy{min-width:0}
 #thg-header .thg-h-panel b{display:block;font-size:14px;font-weight:600}
 #thg-header .thg-h-panel small{display:block;margin-top:2px;font-size:12px;color:hsl(220 10% 46%)}
 #thg-header .thg-h-right{display:flex;align-items:center;gap:12px}
@@ -153,9 +164,9 @@ function desktopGroup(group: { label: Labels; items: NavLink[] }, lang: LandingL
   const items = group.items
     .map(
       (item) =>
-        `<a href="${siteUrl(lang, item.href)}"><b translate="no">${esc(item.label[lang])}</b>${
+        `<a href="${siteUrl(lang, item.href)}">${dropdownIcon(item.href)}<span class="thg-h-copy"><b translate="no">${esc(item.label[lang])}</b>${
           item.desc ? `<small>${esc(item.desc[lang])}</small>` : ""
-        }</a>`,
+        }</span></a>`,
     )
     .join("");
   return `<div class="thg-h-group"><button type="button" class="thg-h-item" aria-haspopup="true"><span translate="no">${esc(
