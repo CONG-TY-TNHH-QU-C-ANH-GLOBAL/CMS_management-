@@ -95,7 +95,7 @@ const SITE_NAV: {
       label: ["Events", "Event", "活动"],
       items: [
         { label: ["Events", "Event", "活动"], href: "/events" },
-        { label: ["FAQ", "Câu hỏi thường gặp", "常见问题"], href: "/#faq" },
+        { label: ["Programs", "Chương trình", "计划"], href: "/campaigns" },
       ],
     },
   ],
