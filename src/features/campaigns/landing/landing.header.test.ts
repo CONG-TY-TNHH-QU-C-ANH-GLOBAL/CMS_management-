@@ -96,6 +96,7 @@ const SITE_NAV: {
       items: [
         { label: ["Events", "Event", "活动"], href: "/events" },
         { label: ["Programs", "Chương trình", "计划"], href: "/campaigns" },
+        { label: ["Q&A", "Q&A", "问答"], href: "/#faq" },
       ],
     },
   ],
@@ -174,6 +175,13 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
     expect(desktop).toContain('data-thg-icon="truck"');
     expect(desktop).toContain('data-thg-icon="calendar-days"');
     expect(desktop).toContain('data-thg-icon="gift"');
+    expect(desktop).toContain('data-thg-icon="warehouse"');
+    expect(desktop).toContain('data-thg-icon="shopping-cart"');
+    expect(desktop).toContain('data-thg-icon="globe"');
+    expect(desktop).toContain('data-thg-icon="map-pin"');
+    expect(desktop).toContain('data-thg-icon="ship"');
+    expect(desktop).toContain('data-thg-icon="tag"');
+    expect(desktop).toContain('data-thg-icon="circle-help"');
   });
 
   test("mobile sheet carries the same items, the lang switch, the CTA and Hub", () => {

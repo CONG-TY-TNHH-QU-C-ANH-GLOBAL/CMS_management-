@@ -91,6 +91,7 @@ const PRICING: NavLink[] = [
 const EVENTS: NavLink[] = [
   { label: tr("Events", "Event", "活动"), href: "/events" }, // nav.event
   { label: tr("Programs", "Chương trình", "计划"), href: "/campaigns" }, // nav.campaigns
+  { label: tr("Q&A", "Q&A", "问答"), href: "/#faq" }, // nav.faq
 ];
 
 const PLAIN: NavLink[] = [
@@ -118,7 +119,7 @@ const esc = (s: string) =>
 const siteUrl = (lang: LandingLang, path: string) => `${SITE_ORIGIN}/${lang}${path}`;
 
 const dropdownIcon = (href: string) => {
-  const icon = href === "/events" ? "calendar-days" : href === "/campaigns" ? "gift" : href === "/thg-express" ? "truck" : "package";
+  const icon = ({ "/thg-fulfill": "package", "/thg-express": "truck", "/thg-warehouse": "warehouse", "/thg-order": "shopping-cart", "/international-pricing": "globe", "/domestic-pricing": "map-pin", "/chinh-ngach-pricing": "ship", "/catalog": "tag", "/events": "calendar-days", "/campaigns": "gift", "/#faq": "circle-help" } as Record<string, string>)[href] ?? "package";
   const path = icon === "calendar-days" ? '<path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>' : icon === "gift" ? '<path d="M20 12v10H4V12m16-5H4v5h16V7ZM12 22V7m0 0H7.5a2.5 2.5 0 1 1 2.5-2.5V7Zm0 0h4.5A2.5 2.5 0 1 0 14.5 4.5V7Z"/>' : icon === "truck" ? '<path d="M10 17h4V5H2v12h3m9 0h1l2-3V9h-3M6 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4m12 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4"/>' : '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73zM12 22V12m-8.7-5 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/>';
   return `<span class="thg-h-icon" data-thg-icon="${icon}"><svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg></span>`;
 };
