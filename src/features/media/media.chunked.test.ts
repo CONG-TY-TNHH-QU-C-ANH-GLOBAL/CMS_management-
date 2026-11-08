@@ -3,8 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { CHUNK_PART_BYTES, countParts, isSafeMediaKey, validateParts } from "./media.chunked";
 
 describe("chunked upload helpers", () => {
-  test("a 22 MB deck splits into 3 parts, a tiny file into 1", () => {
-    expect(countParts(22 * 1024 * 1024)).toBe(3);
+  test("a 22 MB deck splits into 5 parts, a tiny file into 1", () => {
+    expect(countParts(22 * 1024 * 1024)).toBe(5);
     expect(countParts(1)).toBe(1);
     expect(countParts(CHUNK_PART_BYTES)).toBe(1);
     expect(countParts(CHUNK_PART_BYTES + 1)).toBe(2);
@@ -19,9 +19,9 @@ describe("chunked upload helpers", () => {
 
   test("parts must be 1..n in order with etags and match the size", () => {
     const size = 22 * 1024 * 1024;
-    const ok = [1, 2, 3].map((partNumber) => ({ partNumber, etag: `e${partNumber}` }));
+    const ok = [1, 2, 3, 4, 5].map((partNumber) => ({ partNumber, etag: `e${partNumber}` }));
     expect(validateParts(ok, size)).toBe(true);
-    expect(validateParts(ok.slice(0, 2), size)).toBe(false);
+    expect(validateParts(ok.slice(0, 4), size)).toBe(false);
     expect(validateParts([...ok].reverse(), size)).toBe(false);
     expect(validateParts([{ partNumber: 1, etag: "" }, ...ok.slice(1)], size)).toBe(false);
     expect(validateParts([], size)).toBe(false);

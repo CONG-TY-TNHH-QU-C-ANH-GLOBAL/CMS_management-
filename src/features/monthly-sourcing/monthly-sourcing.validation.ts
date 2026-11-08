@@ -22,6 +22,17 @@ export function maxUploadBytes(tag: string | null): number {
   return tag === MONTHLY_SOURCING_MEDIA_TAG ? MONTHLY_SOURCING_PDF_MAX_BYTES : DEFAULT_UPLOAD_MAX_BYTES;
 }
 
+const PDF_EOF = [0x25, 0x25, 0x45, 0x4f, 0x46]; // %%EOF
+
+/** A complete PDF ends with `%%EOF` (optionally followed by whitespace/padding); a missing marker in
+ *  the last KB means the file was cut short. */
+export function hasPdfEofMarker(tail: Uint8Array): boolean {
+  for (let start = tail.length - PDF_EOF.length; start >= 0; start--) {
+    if (PDF_EOF.every((byte, index) => tail[start + index] === byte)) return true;
+  }
+  return false;
+}
+
 export function hasPdfSignature(input: ArrayBufferLike | Uint8Array): boolean {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const lastStart = Math.min(bytes.length, PDF_HEADER_WINDOW) - PDF_SIGNATURE.length;

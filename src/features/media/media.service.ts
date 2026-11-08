@@ -219,8 +219,12 @@ export interface CompleteMultipartInput {
   alt_text: string;
   tag: string;
   title?: string | null;
+  /** Byte size the browser declared; a different stored size means data was lost in transit. */
+  expectedBytes: number;
   /** Reads the object's first bytes after assembly; return false to reject and delete it. */
   verifyHead?: (head: Uint8Array) => boolean;
+  /** Reads the object's last bytes after assembly; return false to reject and delete it. */
+  verifyTail?: (tail: Uint8Array) => boolean;
   monthly_pdf_verified?: boolean;
 }
 
@@ -230,13 +234,22 @@ export async function completeMultipartMedia(actorId: number, input: CompleteMul
   const { env } = await import("cloudflare:workers");
   const object = await env.MEDIA.resumeMultipartUpload(input.key, input.uploadId).complete(input.parts);
 
+  const reject = async (message: string) => {
+    await env.MEDIA.delete(input.key);
+    throw new MultipartRejectedError(message);
+  };
+  if (object.size !== input.expectedBytes) {
+    await reject(`Tệp tải lên bị thiếu dữ liệu (nhận ${object.size} / ${input.expectedBytes} byte). Hãy tải lại.`);
+  }
   if (input.verifyHead) {
     const head = await env.MEDIA.get(input.key, { range: { offset: 0, length: 1024 } });
     const bytes = head ? new Uint8Array(await head.arrayBuffer()) : new Uint8Array();
-    if (!input.verifyHead(bytes)) {
-      await env.MEDIA.delete(input.key);
-      throw new MultipartRejectedError("Tệp không hợp lệ.");
-    }
+    if (!input.verifyHead(bytes)) await reject("Tệp nguồn hàng phải là PDF hợp lệ.");
+  }
+  if (input.verifyTail) {
+    const tail = await env.MEDIA.get(input.key, { range: { suffix: 1024 } });
+    const bytes = tail ? new Uint8Array(await tail.arrayBuffer()) : new Uint8Array();
+    if (!input.verifyTail(bytes)) await reject("PDF bị cắt cụt (thiếu phần cuối tệp), có thể tệp gốc đã hỏng. Hãy xuất lại PDF.");
   }
 
   return recordMedia(actorId, {
