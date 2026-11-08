@@ -178,7 +178,7 @@ rejected(
 
 // 12b. Every current service's details schema: an empty details object is accepted (and dropped —
 // no verified fields yet), and an unexpected detail key is rejected. No business fields fabricated.
-for (const svc of ["express", "warehouse", "dropship"] as const) {
+for (const svc of ["express", "warehouse", "dropship", "label"] as const) {
   const inlineSurface = `${svc}-inline` as const;
   const accepted = ok({
     ...base,
@@ -276,7 +276,7 @@ rejected({ ...base, email: "not-an-email" }, "invalid email");
 // 17. Public-contract snapshot — the canonical ordered key sets are governance-locked. Adding a
 // service or surface intentionally requires a coordinated update here (contract governance, not a
 // permanent architectural limit).
-assert.deepEqual([...SERVICE_KEYS], ["fulfill", "express", "warehouse", "dropship"]);
+assert.deepEqual([...SERVICE_KEYS], ["fulfill", "express", "warehouse", "dropship", "label"]);
 assert.deepEqual(
   [...SURFACE_KEYS],
   [
@@ -285,6 +285,7 @@ assert.deepEqual(
     "express-inline",
     "warehouse-inline",
     "dropship-inline",
+    "label-inline",
     "home-conversion-inline",
   ],
 );

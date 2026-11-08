@@ -10,7 +10,7 @@
 // origin/main:<path>) and then landing.header.ts — this test fails until both agree.
 //
 // Known, accepted difference: the site shows a description under every dropdown item; the
-// landing header shows it for the four services only (pricing / events items are label-only).
+// landing header shows it for the five services only (pricing / events items are label-only).
 
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
@@ -71,6 +71,15 @@ const SITE_NAV: {
             "淘宝/1688代购直邮美国",
           ],
         },
+        {
+          label: ["TH Group Label", "TH Group Label", "TH Group Label"],
+          href: "/thg-label",
+          desc: [
+            "USPS, UPS, FedEx, DHL labels below retail",
+            "Label USPS, UPS, FedEx, DHL giá thấp hơn bán lẻ",
+            "低于零售价的 USPS、UPS、FedEx、DHL 面单",
+          ],
+        },
       ],
     },
     {
@@ -89,6 +98,7 @@ const SITE_NAV: {
           href: "/chinh-ngach-pricing",
         },
         { label: ["Product Catalog", "Catalog Mẫu Sản Phẩm", "产品目录"], href: "/catalog" },
+        { label: ["Label Pricing", "Bảng giá Label", "Label 价格"], href: "/thg-label#pricing" },
       ],
     },
     {
@@ -165,7 +175,7 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
       ...SITE_NAV.plain.map((it) => ({ href: site(it.href), label: it.label[i] })),
     ]);
     const services = anchors(desktop)
-      .slice(0, 4)
+      .slice(0, 5)
       .map((a) => text(/<small>([\s\S]*?)<\/small>/.exec(a.inner)?.[1] ?? ""));
     expect(services).toEqual(SITE_NAV.groups[0].items.map((it) => it.desc![i]));
   });
