@@ -4,7 +4,7 @@
 /** R2 requires every part except the last to be >= 5 MiB and all non-final parts equal size. */
 export const CHUNK_PART_BYTES = 5 * 1024 * 1024;
 /** Hard ceiling for one chunked upload. */
-export const CHUNKED_MAX_BYTES = 100 * 1024 * 1024;
+export const CHUNKED_MAX_BYTES = 50 * 1024 * 1024;
 /** Files at or below this go through the simple single-request upload. */
 export const CHUNKED_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
