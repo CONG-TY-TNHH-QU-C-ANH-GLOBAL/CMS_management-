@@ -27,4 +27,19 @@ describe("monthly sourcing fixed landing template", () => {
       }),
     ).toThrow("PDF URL must use HTTP or HTTPS.");
   });
+
+  test("renders the PDF as a single-page slide deck with previous and next controls", () => {
+    const html = renderMonthlySourcingPage({
+      year: 2026,
+      month: 1,
+      title: "Monthly source",
+      pdfUrl: "https://cms.test/api/v1/media/monthly-sourcing%2Fjan.pdf",
+    });
+
+    expect(html).toContain('id="monthly-pdf-canvas"');
+    expect(html).toContain('data-pdf-previous');
+    expect(html).toContain('data-pdf-next');
+    expect(html).toContain('data-pdf-page-count');
+    expect(html).not.toContain("<iframe");
+  });
 });
