@@ -18,6 +18,7 @@ interface UploadOptions {
 
 const ENDPOINT = "/api/v1/media/upload";
 const PART_ATTEMPTS = 3;
+const PART_CONCURRENCY = 4;
 
 async function readError(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -84,12 +85,26 @@ export async function uploadMediaFile(file: File, opts: UploadOptions = {}): Pro
 
   try {
     const total = countParts(file.size);
-    const parts: { partNumber: number; etag: string }[] = [];
-    for (let n = 1; n <= total; n++) {
-      const blob = file.slice((n - 1) * CHUNK_PART_BYTES, Math.min(n * CHUNK_PART_BYTES, file.size));
-      parts.push(await putPart(key, uploadId, n, blob));
-      opts.onProgress?.(n / total);
-    }
+    const parts = new Array<{ partNumber: number; etag: string }>(total);
+    // Uploading parts concurrently hides per-request latency; each part keeps its own retry.
+    let next = 1;
+    let done = 0;
+    let failed = false;
+    const worker = async () => {
+      while (!failed) {
+        const n = next++;
+        if (n > total) return;
+        const blob = file.slice((n - 1) * CHUNK_PART_BYTES, Math.min(n * CHUNK_PART_BYTES, file.size));
+        try {
+          parts[n - 1] = await putPart(key, uploadId, n, blob);
+        } catch (error) {
+          failed = true;
+          throw error;
+        }
+        opts.onProgress?.(++done / total);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PART_CONCURRENCY, total) }, worker));
     const { media } = await postJson<{ media: UploadedMedia }>("complete", {
       key,
       uploadId,
