@@ -42,7 +42,7 @@ const jsonResponse = (status: number, body: unknown) =>
  */
 async function handleChunked(request: Request, action: string, me: { id: number }): Promise<Response> {
   const media = await import("@/features/media");
-  const { hasPdfSignature, MONTHLY_SOURCING_MEDIA_TAG } = await import(
+  const { hasPdfEofMarker, hasPdfSignature, MONTHLY_SOURCING_MEDIA_TAG } = await import(
     "@/features/monthly-sourcing/monthly-sourcing.validation"
   );
   const url = new URL(request.url);
@@ -105,13 +105,15 @@ async function handleChunked(request: Request, action: string, me: { id: number 
         tag,
         alt_text: typeof input.alt_text === "string" ? input.alt_text : "",
         title: typeof input.title === "string" ? input.title : null,
+        expectedBytes: size,
         verifyHead: isMonthly ? (head) => mime === "application/pdf" && hasPdfSignature(head) : undefined,
+        verifyTail: isMonthly ? hasPdfEofMarker : undefined,
         monthly_pdf_verified: isMonthly,
       });
       return jsonResponse(201, { media: row });
     } catch (error) {
       if (error instanceof media.MultipartRejectedError) {
-        return jsonResponse(422, { error: "Tệp nguồn hàng phải là PDF hợp lệ." });
+        return jsonResponse(422, { error: error.message });
       }
       throw error;
     }
