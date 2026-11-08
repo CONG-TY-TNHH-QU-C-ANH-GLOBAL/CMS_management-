@@ -137,7 +137,10 @@ function MonthRow({
           tag: MONTHLY_SOURCING_MEDIA_TAG,
           title,
           alt_text: title,
-          onProgress: (f) => toast.loading(`Đang tải PDF tháng ${row.month}: ${Math.round(f * 100)}%`, { id: toastId }),
+          onProgress: (f, stats) => {
+            const speed = stats ? ` · ${(stats.bytesPerSec / 1024 / 1024).toFixed(1)} MB/s · còn ~${Math.ceil(stats.etaSec)}s` : "";
+            toast.loading(`Đang tải PDF tháng ${row.month}: ${Math.round(f * 100)}%${speed}`, { id: toastId });
+          },
         });
       } finally {
         toast.dismiss(toastId);
