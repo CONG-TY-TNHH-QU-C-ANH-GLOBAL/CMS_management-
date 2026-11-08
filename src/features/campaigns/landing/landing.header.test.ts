@@ -169,6 +169,13 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
     expect(services).toEqual(SITE_NAV.groups[0].items.map((it) => it.desc![i]));
   });
 
+  test("desktop dropdown rows carry the same visual icon affordance as the site navbar", () => {
+    expect(desktop).toContain('data-thg-icon="package"');
+    expect(desktop).toContain('data-thg-icon="truck"');
+    expect(desktop).toContain('data-thg-icon="calendar-days"');
+    expect(desktop).toContain('data-thg-icon="gift"');
+  });
+
   test("mobile sheet carries the same items, the lang switch, the CTA and Hub", () => {
     const hrefs = anchors(mobile).map((a) => a.href);
     expect(hrefs).toEqual([
