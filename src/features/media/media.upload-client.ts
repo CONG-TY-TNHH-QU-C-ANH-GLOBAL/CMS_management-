@@ -18,7 +18,10 @@ interface UploadOptions {
 
 const ENDPOINT = "/api/v1/media/upload";
 const PART_ATTEMPTS = 3;
-const PART_CONCURRENCY = 4;
+// Two streams use a weak uplink as well as four, without starving each other into stalls.
+const PART_CONCURRENCY = 2;
+/** A part that makes no byte progress for this long is aborted and retried instead of hanging. */
+const STALL_MS = 30_000;
 
 async function readError(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -49,10 +52,28 @@ function sendPart(url: string, blob: Blob, onBytes: (loaded: number) => void): P
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.withCredentials = true;
-    xhr.upload.onprogress = (e) => onBytes(e.loaded);
-    xhr.onerror = () => reject(new Error("Mất kết nối khi tải phần tệp."));
-    xhr.ontimeout = () => reject(new Error("Hết thời gian tải phần tệp."));
+    let lastLoaded = -1;
+    let lastChange = Date.now();
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastChange > STALL_MS) {
+        clearInterval(watchdog);
+        xhr.abort();
+        reject(new Error("Kết nối bị treo, đang thử lại."));
+      }
+    }, 2_000);
+    xhr.upload.onprogress = (e) => {
+      if (e.loaded !== lastLoaded) {
+        lastLoaded = e.loaded;
+        lastChange = Date.now();
+      }
+      onBytes(e.loaded);
+    };
+    xhr.onerror = () => {
+      clearInterval(watchdog);
+      reject(new Error("Mất kết nối khi tải phần tệp."));
+    };
     xhr.onload = () => {
+      clearInterval(watchdog);
       let body: { error?: string; partNumber?: number; etag?: string } | null = null;
       try {
         body = JSON.parse(xhr.responseText);
