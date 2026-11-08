@@ -46,7 +46,7 @@ export interface LandingHostDeps {
   resolveMonthlySourcing?(
     year: number,
     month: number,
-  ): Promise<{ title: string; pdfUrl: string } | null>;
+  ): Promise<{ title: string; pdfUrl: string; pages?: { url: string; width: number; height: number }[] } | null>;
 }
 
 export function landingObjectKey(slug: string, versionId: string, path: string): string {

@@ -45,5 +45,11 @@ export const createMonthlySourcingYear = (year: number) =>
 export const activateMonthlySourcingYear = (id: number) =>
   mutate("editor", (actorId) => service.activateMonthlySourcingYear(actorId, id));
 
+export const setMonthlySourcingPages = (input: {
+  id: number;
+  pdf_media_id: number;
+  pages: service.MonthlySourcingPageInput[];
+}) => mutate("editor", (actorId) => service.setMonthlySourcingPages(actorId, input));
+
 export const updateMonthlySourcingMonth = (input: service.UpdateMonthlySourcingMonthInput) =>
   mutate("editor", (actorId) => service.updateMonthlySourcingMonth(actorId, input));

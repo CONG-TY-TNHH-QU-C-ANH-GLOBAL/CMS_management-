@@ -27,6 +27,30 @@ export const activateMonthlySourcingYearFn = createServerFn({ method: "POST" })
     (await import("./monthly-sourcing.server")).activateMonthlySourcingYear(data.id),
   );
 
+export const setMonthlySourcingPagesFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: ID,
+        pdf_media_id: ID,
+        pages: z
+          .array(
+            z.object({
+              page_no: z.number().int().min(1).max(200),
+              media_id: ID,
+              width: z.number().int().min(1).max(6000),
+              height: z.number().int().min(1).max(8000),
+            }),
+          )
+          .min(1)
+          .max(200),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) =>
+    (await import("./monthly-sourcing.server")).setMonthlySourcingPages(data),
+  );
+
 export const updateMonthlySourcingMonthFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     z

@@ -8,6 +8,8 @@ export interface MonthlySourcingLandingPage {
   month: number;
   title: string;
   pdfUrl: string;
+  /** Pre-rendered page images. When present they replace the PDF viewer, so page 1 shows at once. */
+  pages?: { url: string; width: number; height: number }[];
 }
 
 const escapeHtml = (value: string) =>
@@ -27,12 +29,60 @@ function safePdfUrl(value: string): string {
 }
 
 /** Fixed LP page: CMS supplies only the month title and its uploaded PDF. */
+function renderPageImageViewer(pages: { url: string; width: number; height: number }[]): {
+  head: string;
+  body: string;
+} {
+  const safe = pages.map((page) => ({
+    url: safePdfUrl(page.url),
+    width: Math.max(1, Math.floor(page.width)),
+    height: Math.max(1, Math.floor(page.height)),
+  }));
+  const first = safe[0]!;
+  const data = JSON.stringify(safe.map((page) => page.url)).replace(/</g, "\\u003c");
+  return {
+    // Start fetching page 1 while the HTML is still being parsed.
+    head: `<link rel="preload" as="image" href="${escapeHtml(first.url)}" fetchpriority="high">`,
+    body: `<section class="monthly-source__pdf monthly-source__pdf--images" aria-label="Tài liệu" aria-roledescription="carousel">
+        <button class="monthly-source__slide-control monthly-source__slide-control--previous" type="button" data-pdf-previous aria-label="Trang trước">‹</button>
+        <img id="monthly-page-image" class="monthly-source__page-image" src="${escapeHtml(first.url)}" width="${first.width}" height="${first.height}" alt="Trang 1" fetchpriority="high" decoding="async">
+        <button class="monthly-source__slide-control monthly-source__slide-control--next" type="button" data-pdf-next aria-label="Trang sau">›</button>
+        <output class="monthly-source__page-count" data-pdf-page-count>Trang 1 / ${safe.length}</output>
+      </section>
+      <script>
+        (function () {
+          var pages = ${data}, index = 0;
+          var img = document.getElementById("monthly-page-image"), count = document.querySelector("[data-pdf-page-count]");
+          var prev = document.querySelector("[data-pdf-previous]"), next = document.querySelector("[data-pdf-next]");
+          var warmed = {};
+          function warm(i) { if (i >= 0 && i < pages.length && !warmed[i]) { warmed[i] = true; var p = new Image(); p.decoding = "async"; p.src = pages[i]; } }
+          function show(i) {
+            if (i < 0 || i >= pages.length) return;
+            index = i; img.src = pages[i]; img.alt = "Trang " + (i + 1);
+            count.textContent = "Trang " + (i + 1) + " / " + pages.length;
+            prev.disabled = i === 0; next.disabled = i === pages.length - 1;
+            warm(i + 1); warm(i + 2); warm(i - 1);
+          }
+          prev.addEventListener("click", function () { show(index - 1); });
+          next.addEventListener("click", function () { show(index + 1); });
+          document.addEventListener("keydown", function (e) { if (e.key === "ArrowRight") show(index + 1); if (e.key === "ArrowLeft") show(index - 1); });
+          var startX = null;
+          img.addEventListener("touchstart", function (e) { startX = e.touches[0].clientX; }, { passive: true });
+          img.addEventListener("touchend", function (e) { if (startX === null) return; var dx = e.changedTouches[0].clientX - startX; startX = null; if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1)); }, { passive: true });
+          prev.disabled = true; next.disabled = pages.length < 2;
+          warm(1); warm(2);
+        })();
+      </script>`,
+  };
+}
+
 export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): string {
   const slug = monthlySourcingSlug(input.year, input.month);
   const title = escapeHtml(
     input.title.trim() || `Top sản phẩm & nguồn hàng tháng ${input.month}/${input.year}`,
   );
   const pdfUrl = escapeHtml(safePdfUrl(input.pdfUrl));
+  const images = input.pages && input.pages.length > 0 ? renderPageImageViewer(input.pages) : null;
 
   return `<!doctype html>
 <html lang="vi">
@@ -41,6 +91,7 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title} | TH Group</title>
     ${leadScriptTag(slug, "vi")}
+    ${images?.head ?? ""}
     <style>
       body { margin: 0; background: #faf8f5; color: #172033; font-family: "Be Vietnam Pro", system-ui, sans-serif; }
       .monthly-source { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
@@ -52,6 +103,8 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
       .monthly-source__button--secondary { border: 1px solid #d8d3c8; background: #fff; color: #172033; }
       .monthly-source__pdf { position: relative; overflow: hidden; min-height: 40vh; border: 1px solid #e2ddd4; border-radius: 20px; background: #fff; box-shadow: 0 24px 64px -36px rgba(23, 32, 51, .35); }
       .monthly-source__pdf canvas { display: block; width: 100%; height: auto; margin: 0 auto; }
+      .monthly-source__pdf--images { min-height: 0; display: flex; justify-content: center; background: #fff; }
+      .monthly-source__page-image { display: block; width: 100%; max-width: 880px; height: auto; }
       .monthly-source__slide-control { position: absolute; top: 50%; z-index: 1; width: 48px; height: 48px; border: 0; border-radius: 999px; background: #8a6739; color: #fff; font-size: 28px; cursor: pointer; transform: translateY(-50%); }
       .monthly-source__slide-control:disabled { opacity: .35; cursor: default; } .monthly-source__slide-control--previous { left: 16px; } .monthly-source__slide-control--next { right: 16px; }
       .monthly-source__page-count { position: absolute; bottom: 14px; left: 50%; padding: 6px 10px; border-radius: 999px; background: rgba(23,32,51,.75); color:#fff; font-size: 13px; transform: translateX(-50%); }
@@ -69,7 +122,7 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
         <a class="monthly-source__button" href="${pdfUrl}" target="_blank" rel="noopener noreferrer">Mở / tải PDF</a>
         <button class="monthly-source__button monthly-source__button--secondary" type="button" data-consult>Nhận tư vấn</button>
       </div>
-      <section class="monthly-source__pdf" aria-label="Tài liệu PDF">
+      ${images ? images.body : `      <section class="monthly-source__pdf" aria-label="Tài liệu PDF">
         <button class="monthly-source__slide-control monthly-source__slide-control--previous" type="button" data-pdf-previous aria-label="Trang trước">‹</button>
         <canvas id="monthly-pdf-canvas" aria-label="Trang PDF hiện tại"></canvas>
         <button class="monthly-source__slide-control monthly-source__slide-control--next" type="button" data-pdf-next aria-label="Trang sau">›</button>
@@ -84,6 +137,7 @@ export function renderMonthlySourcingPage(input: MonthlySourcingLandingPage): st
         previous.addEventListener("click", () => { if (page > 1) { page--; render(); } }); next.addEventListener("click", () => { if (pdf && page < pdf.numPages) { page++; render(); } });
         pdfjsLib.getDocument("${pdfUrl}").promise.then((document) => { pdf = document; render(); }).catch(() => { count.textContent = "Không thể tải PDF"; });
       </script>
+`}
     </main>
   </body>
 </html>`;
