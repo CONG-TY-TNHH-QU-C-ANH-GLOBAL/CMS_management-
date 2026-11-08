@@ -1,3 +1,4 @@
+import { uploadMediaFile } from "@/features/media/media.upload-client";
 import { useServerFn } from "@tanstack/react-start";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { CalendarDays, CheckCircle2, ExternalLink, FileUp, Link2, Loader2 } from "lucide-react";
@@ -129,27 +130,22 @@ function MonthRow({
     }
     setPending(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("alt_text", title);
-      form.append("title", title);
-      form.append("tag", MONTHLY_SOURCING_MEDIA_TAG);
-      const response = await fetch("/api/v1/media/upload", {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({ error: response.statusText }))) as {
-          error?: string;
-        };
-        throw new Error(body.error ?? `Tải PDF thất bại (${response.status})`);
+      const toastId = toast.loading(`Đang tải PDF tháng ${row.month}...`);
+      let media;
+      try {
+        media = await uploadMediaFile(file, {
+          tag: MONTHLY_SOURCING_MEDIA_TAG,
+          title,
+          alt_text: title,
+          onProgress: (f) => toast.loading(`Đang tải PDF tháng ${row.month}: ${Math.round(f * 100)}%`, { id: toastId }),
+        });
+      } finally {
+        toast.dismiss(toastId);
       }
-      const body = (await response.json()) as { media?: { id?: number; mime?: string } };
-      if (!body.media?.id || body.media.mime !== "application/pdf") {
+      if (!media?.id || media.mime !== "application/pdf") {
         throw new Error("Tệp tải lên không phải PDF hợp lệ.");
       }
-      await update({ data: { id: row.id, pdf_media_id: body.media.id } });
+      await update({ data: { id: row.id, pdf_media_id: media.id } });
       toast.success(`Đã gắn PDF cho tháng ${row.month}`);
       onChanged();
     } catch (error) {

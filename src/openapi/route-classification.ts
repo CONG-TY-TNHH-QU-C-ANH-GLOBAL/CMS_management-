@@ -445,7 +445,7 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
   // ── Not public ────────────────────────────────────────────────────────────────────────────
   "v1/(admin)/media/upload.ts": adminApi(
     "/api/v1/media/upload",
-    ["post"],
+    ["post", "put"],
     "media",
     "CMS admin Media Library (same-origin, no CORS)",
     "withRequiredSession('editor'). Must never enter the public document.",
