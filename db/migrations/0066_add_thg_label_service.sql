@@ -1,10 +1,12 @@
 -- Add the TH Group Label service (route /thg-label), the 5th TH Group service.
--- Idempotent: INSERT OR IGNORE skips rows that already exist, so re-running or
--- editing the copy in the CMS never gets overwritten.
+-- Idempotent: services / services_i18n use INSERT OR IGNORE and the bullets are
+-- guarded by NOT EXISTS, so re-running never overwrites CMS edits or duplicates.
 --
--- DEPLOY ORDER: ship the landing page that serves /thg-label FIRST. This row is
--- 'live', so the homepage services grid links to /thg-label as soon as it lands.
--- Migrations skip bumpCmsRev(): purge the cms KV cache after applying.
+-- DEPLOY ORDER: (1) merge/deploy this CMS code (it accepts primary_service=label
+-- on POST /api/v1/leads), (2) deploy the landing that serves /thg-label,
+-- (3) apply THIS migration: the row is 'live', so the homepage services grid
+-- links to /thg-label as soon as it lands, (4) purge the cms KV cache
+-- (migrations skip bumpCmsRev()).
 
 INSERT OR IGNORE INTO services (id, position, icon, status) VALUES ('thg-label', 5, '🏷️', 'live');
 
@@ -39,7 +41,10 @@ INSERT OR IGNORE INTO services_i18n (service_id, locale, name, tagline, hero_eye
     '/thg-label',
     '以低于零售价 1–5% 的价格购买正规 USPS、UPS、FedEx、DHL 面单。可通过卖家后台、批量导入或 API 创建面单，一个面单钱包，并提供越南语支持。');
 
-INSERT OR IGNORE INTO service_bullets (service_id, locale, position, text) VALUES
+-- service_bullets has no unique key, so OR IGNORE would not protect a replay:
+-- guard on the service instead.
+INSERT INTO service_bullets (service_id, locale, position, text)
+SELECT column1, column2, column3, column4 FROM (VALUES
   ('thg-label', 'en', 1, '1–5% below retail on USPS, UPS, FedEx, DHL'),
   ('thg-label', 'en', 2, 'Quoted price is the price charged'),
   ('thg-label', 'en', 3, 'Seller Portal, bulk import, API & Webhooks'),
@@ -51,4 +56,6 @@ INSERT OR IGNORE INTO service_bullets (service_id, locale, position, text) VALUE
   ('thg-label', 'zh', 1, 'USPS、UPS、FedEx、DHL 比零售价低 1–5%'),
   ('thg-label', 'zh', 2, '报价即扣款价'),
   ('thg-label', 'zh', 3, '卖家后台、批量导入、API 与 Webhook'),
-  ('thg-label', 'zh', 4, '越南语支持，含保险');
+  ('thg-label', 'zh', 4, '越南语支持，含保险')
+)
+WHERE NOT EXISTS (SELECT 1 FROM service_bullets WHERE service_id = 'thg-label');
