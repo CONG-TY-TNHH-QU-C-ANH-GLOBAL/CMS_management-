@@ -355,13 +355,25 @@ export async function deleteAllMedia(actorId: number): Promise<number> {
 
 // ────────────── R2 read proxy ──────────────
 
-export async function readMediaObject(r2_key: string): Promise<{
+/** Size and type only, for answering Range requests without opening the body. */
+export async function headMediaObject(r2_key: string): Promise<{ contentType: string; size: number } | null> {
+  const { env } = await import("cloudflare:workers");
+  const obj = await env.MEDIA.head(r2_key);
+  if (!obj) return null;
+  return { contentType: obj.httpMetadata?.contentType ?? "application/octet-stream", size: obj.size };
+}
+
+export async function readMediaObject(
+  r2_key: string,
+  range?: { offset: number; length: number },
+): Promise<{
   body: ReadableStream;
   contentType: string;
+  /** Full object size, even when only a range is returned. */
   size: number;
 } | null> {
   const { env } = await import("cloudflare:workers");
-  const obj = await env.MEDIA.get(r2_key);
+  const obj = await env.MEDIA.get(r2_key, range ? { range } : undefined);
   if (!obj) return null;
   return {
     body: obj.body,
