@@ -315,7 +315,11 @@ describe("lp host: monthly PDF sources", () => {
     expectLandingResponse(page);
     expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
     const html = await page.text();
-    expect(html).toContain(`src="${CMS}/api/v1/media/${encodeURIComponent(objectKey)}"`);
+    expect(html).toContain('id="monthly-pdf-canvas"');
+    expect(html).toContain('data-pdf-previous');
+    expect(html).toContain('data-pdf-next');
+    expect(html).toContain(`pdfjsLib.getDocument("${CMS}/api/v1/media/${encodeURIComponent(objectKey)}")`);
+    expect(html).not.toContain("<iframe");
     expect(html).toContain('src="/_thg/thg-lead.js"');
     expect(html).toContain("data-consult");
     expect(cmsCalls).toEqual([]);
