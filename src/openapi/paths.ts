@@ -63,7 +63,10 @@ import {
   campaignResponseSchema,
   campaignsResponseSchema,
 } from "@/features/campaigns/campaigns.schemas";
-import { monthlySourcingResponseSchema } from "@/features/monthly-sourcing/monthly-sourcing.schemas";
+import {
+  monthlySourcingDetailSchema,
+  monthlySourcingResponseSchema,
+} from "@/features/monthly-sourcing/monthly-sourcing.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -282,6 +285,24 @@ export const monthlySourcingRouteConfig = {
 } as const;
 
 openApiRegistry.registerPath(monthlySourcingRouteConfig);
+
+// Mirrors src/routes/api/v1/(public)/monthly-sourcing/$slug.ts: the main site renders each month
+// at /{lang}/top-nguon-hang/{slug} from this payload.
+export const monthlySourcingDetailRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/monthly-sourcing/{slug}",
+  summary: "Get one live monthly product sourcing page",
+  description:
+    "Returns the month title, the original PDF URL and its pre-rendered page images (empty until " +
+    "an operator generates them). 404 unless the month and its year are live and its PDF is ready.",
+  request: { params: SLUG_PARAM },
+  responses: {
+    200: jsonResponse("Live monthly sourcing page", monthlySourcingDetailSchema),
+    404: errorResponse("Month not found or not live"),
+  },
+} as const;
+
+openApiRegistry.registerPath(monthlySourcingDetailRouteConfig);
 
 // Mirrors translations route at src/routes/api/v1/(public)/translations/index.ts.
 // Unlike the other endpoints in this batch, `lang` is REQUIRED here: the

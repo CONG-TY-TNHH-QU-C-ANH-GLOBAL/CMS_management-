@@ -91,6 +91,7 @@ import { Route as AdminContentCommunityReviewsIndexRouteImport } from './routes/
 import { Route as ApiV1publicShippingRoutesSlugRouteImport } from './routes/api/v1/(public)/shipping-routes/$slug'
 import { Route as ApiV1publicPricingSlugRouteImport } from './routes/api/v1/(public)/pricing/$slug'
 import { Route as ApiV1publicPoliciesSlugRouteImport } from './routes/api/v1/(public)/policies/$slug'
+import { Route as ApiV1publicMonthlySourcingSlugRouteImport } from './routes/api/v1/(public)/monthly-sourcing/$slug'
 import { Route as ApiV1publicMediaSplatRouteImport } from './routes/api/v1/(public)/media/$'
 import { Route as ApiV1publicJobsSlugRouteImport } from './routes/api/v1/(public)/jobs/$slug'
 import { Route as ApiV1publicEventsSlugRouteImport } from './routes/api/v1/(public)/events/$slug'
@@ -575,6 +576,12 @@ const ApiV1publicPoliciesSlugRoute = ApiV1publicPoliciesSlugRouteImport.update({
   path: '/api/v1/policies/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1publicMonthlySourcingSlugRoute =
+  ApiV1publicMonthlySourcingSlugRouteImport.update({
+    id: '/api/v1/(public)/monthly-sourcing/$slug',
+    path: '/api/v1/monthly-sourcing/$slug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicMediaSplatRoute = ApiV1publicMediaSplatRouteImport.update({
   id: '/api/v1/(public)/media/$',
   path: '/api/v1/media/$',
@@ -770,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/monthly-sourcing/$slug': typeof ApiV1publicMonthlySourcingSlugRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
@@ -874,6 +882,7 @@ export interface FileRoutesByTo {
   '/api/v1/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/monthly-sourcing/$slug': typeof ApiV1publicMonthlySourcingSlugRoute
   '/api/v1/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
@@ -982,6 +991,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/events/$slug': typeof ApiV1publicEventsSlugRoute
   '/api/v1/(public)/jobs/$slug': typeof ApiV1publicJobsSlugRoute
   '/api/v1/(public)/media/$': typeof ApiV1publicMediaSplatRoute
+  '/api/v1/(public)/monthly-sourcing/$slug': typeof ApiV1publicMonthlySourcingSlugRoute
   '/api/v1/(public)/policies/$slug': typeof ApiV1publicPoliciesSlugRoute
   '/api/v1/(public)/pricing/$slug': typeof ApiV1publicPricingSlugRoute
   '/api/v1/(public)/shipping-routes/$slug': typeof ApiV1publicShippingRoutesSlugRoute
@@ -1091,6 +1101,7 @@ export interface FileRouteTypes {
     | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
+    | '/api/v1/monthly-sourcing/$slug'
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
@@ -1195,6 +1206,7 @@ export interface FileRouteTypes {
     | '/api/v1/events/$slug'
     | '/api/v1/jobs/$slug'
     | '/api/v1/media/$'
+    | '/api/v1/monthly-sourcing/$slug'
     | '/api/v1/policies/$slug'
     | '/api/v1/pricing/$slug'
     | '/api/v1/shipping-routes/$slug'
@@ -1302,6 +1314,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/events/$slug'
     | '/api/v1/(public)/jobs/$slug'
     | '/api/v1/(public)/media/$'
+    | '/api/v1/(public)/monthly-sourcing/$slug'
     | '/api/v1/(public)/policies/$slug'
     | '/api/v1/(public)/pricing/$slug'
     | '/api/v1/(public)/shipping-routes/$slug'
@@ -1403,6 +1416,7 @@ export interface RootRouteChildren {
   ApiV1publicEventsSlugRoute: typeof ApiV1publicEventsSlugRoute
   ApiV1publicJobsSlugRoute: typeof ApiV1publicJobsSlugRoute
   ApiV1publicMediaSplatRoute: typeof ApiV1publicMediaSplatRoute
+  ApiV1publicMonthlySourcingSlugRoute: typeof ApiV1publicMonthlySourcingSlugRoute
   ApiV1publicPoliciesSlugRoute: typeof ApiV1publicPoliciesSlugRoute
   ApiV1publicPricingSlugRoute: typeof ApiV1publicPricingSlugRoute
   ApiV1publicShippingRoutesSlugRoute: typeof ApiV1publicShippingRoutesSlugRoute
@@ -2023,6 +2037,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicPoliciesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/monthly-sourcing/$slug': {
+      id: '/api/v1/(public)/monthly-sourcing/$slug'
+      path: '/api/v1/monthly-sourcing/$slug'
+      fullPath: '/api/v1/monthly-sourcing/$slug'
+      preLoaderRoute: typeof ApiV1publicMonthlySourcingSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/media/$': {
       id: '/api/v1/(public)/media/$'
       path: '/api/v1/media/$'
@@ -2324,6 +2345,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicEventsSlugRoute: ApiV1publicEventsSlugRoute,
   ApiV1publicJobsSlugRoute: ApiV1publicJobsSlugRoute,
   ApiV1publicMediaSplatRoute: ApiV1publicMediaSplatRoute,
+  ApiV1publicMonthlySourcingSlugRoute: ApiV1publicMonthlySourcingSlugRoute,
   ApiV1publicPoliciesSlugRoute: ApiV1publicPoliciesSlugRoute,
   ApiV1publicPricingSlugRoute: ApiV1publicPricingSlugRoute,
   ApiV1publicShippingRoutesSlugRoute: ApiV1publicShippingRoutesSlugRoute,
