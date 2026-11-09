@@ -263,6 +263,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "monthly-sourcing",
     `${LANDING} top products & sourcing navbar menu`,
   ),
+  "v1/(public)/monthly-sourcing/$slug.ts": read(
+    "/api/v1/monthly-sourcing/{slug}",
+    "monthly-sourcing",
+    `${LANDING} top products & sourcing month page`,
+  ),
   "v1/(public)/contact-locations/index.ts": read(
     "/api/v1/contact-locations",
     "content",

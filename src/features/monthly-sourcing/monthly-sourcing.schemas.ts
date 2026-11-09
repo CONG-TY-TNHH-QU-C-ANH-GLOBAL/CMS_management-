@@ -15,4 +15,21 @@ export const monthlySourcingResponseSchema = z.object({
   months: z.array(monthlySourcingMonthSchema),
 });
 
+/** One live month for the main-site page: title, the original PDF and its pre-rendered page images. */
+export const monthlySourcingDetailSchema = z.object({
+  year: z.number().int().min(2020).max(2100),
+  month: z.number().int().min(1).max(12),
+  slug: z.string().regex(MONTHLY_SOURCING_SLUG),
+  title: z.string().min(1).max(200),
+  pdf_url: z.string().url(),
+  pages: z.array(
+    z.object({
+      url: z.string().url(),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    }),
+  ),
+});
+
+export type PublicMonthlySourcingDetail = z.infer<typeof monthlySourcingDetailSchema>;
 export type PublicMonthlySourcingResponse = z.infer<typeof monthlySourcingResponseSchema>;

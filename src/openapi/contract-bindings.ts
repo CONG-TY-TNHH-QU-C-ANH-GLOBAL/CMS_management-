@@ -55,7 +55,10 @@ import {
   campaignResponseSchema,
   campaignsResponseSchema,
 } from "@/features/campaigns/campaigns.schemas";
-import { monthlySourcingResponseSchema } from "@/features/monthly-sourcing/monthly-sourcing.schemas";
+import {
+  monthlySourcingDetailSchema,
+  monthlySourcingResponseSchema,
+} from "@/features/monthly-sourcing/monthly-sourcing.schemas";
 import { homepageResponseSchema } from "@/features/homepage/homepage.schemas";
 import { translationsResponseSchema } from "@/features/i18n/i18n.schemas";
 import { leadRequestBaseSchema } from "@/features/leads/lead-request";
@@ -97,6 +100,7 @@ import {
   eventsRouteConfig,
   campaignRouteConfig,
   campaignsRouteConfig,
+  monthlySourcingDetailRouteConfig,
   monthlySourcingRouteConfig,
   jobRouteConfig,
   jobsListRouteConfig,
@@ -222,6 +226,7 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(campaignsRouteConfig, 200, campaignsResponseSchema),
   response(campaignRouteConfig, 200, campaignResponseSchema),
   response(monthlySourcingRouteConfig, 200, monthlySourcingResponseSchema),
+  response(monthlySourcingDetailRouteConfig, 200, monthlySourcingDetailSchema),
   response(translationsRouteConfig, 200, translationsResponseSchema),
   response(blogListRouteConfig, 200, blogListResponseSchema),
   response(blogPostRouteConfig, 200, blogPostResponseSchema),
