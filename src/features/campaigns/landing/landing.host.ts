@@ -21,8 +21,12 @@ import {
   contentTypeFor,
   type ServeMode,
 } from "./landing.mime";
-import { parseMonthlySourcingSlug } from "@/features/monthly-sourcing/monthly-sourcing.pure";
-import { renderMonthlySourcingPage } from "@/features/monthly-sourcing/monthly-sourcing.page";
+import {
+  monthlySourcingSlug,
+  parseMonthlySourcingSlug,
+} from "@/features/monthly-sourcing/monthly-sourcing.pure";
+
+const MAIN_SITE_ORIGIN = "https://thgfulfill.com";
 
 export const VERSION_ID = /^[a-f0-9]{32}$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -190,10 +194,11 @@ async function route(request: Request, deps: LandingHostDeps): Promise<Response>
   if (monthlySource) {
     const source = await deps.resolveMonthlySourcing?.(monthlySource.year, monthlySource.month);
     if (source) {
-      const html = renderMonthlySourcingPage({ ...monthlySource, ...source });
-      return respond(200, head ? null : html, {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=60",
+      // The monthly reports live on the main domain now (consolidates SEO/traffic there).
+      // 301 keeps every link already shared from lp.thgfulfill.com working.
+      return respond(301, null, {
+        Location: `${MAIN_SITE_ORIGIN}/vi/top-nguon-hang/${monthlySourcingSlug(monthlySource.year, monthlySource.month)}`,
+        "Cache-Control": "public, max-age=300",
       });
     }
   }
