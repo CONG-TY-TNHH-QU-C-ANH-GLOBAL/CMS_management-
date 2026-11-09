@@ -18,7 +18,7 @@ import formatPrompt from "./format.prompt.md?raw";
 import { createLandingAi } from "./landing.ai";
 import { createAiChain, type NamedAi } from "./landing.ai.chain";
 import { createDeepSeekAi } from "./landing.ai.deepseek";
-import { landingOriginOf } from "./landing.config";
+import { landingOriginOf, mainSiteOriginOf } from "./landing.config";
 import * as service from "./landing.service";
 
 function newVersionId(): string {
@@ -62,6 +62,7 @@ export function landingDeps(): service.LandingDeps {
     bumpCmsRev,
     dispatch: dispatchEvent,
     landingOrigin: landingOriginOf(env),
+    mainSiteOrigin: mainSiteOriginOf(env),
     adminOrigin: env.BASE_URL.replace(/\/+$/, ""),
     newVersionId,
     today: () => vnToday(),

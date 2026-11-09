@@ -61,6 +61,10 @@ declare global {
       // thg-lead.js renders; without it the form sends the DEV_BYPASS token.
       LANDING_HOST?: string;
       LANDING_ORIGIN?: string;
+      // "true" once the main-domain nginx proxy is live: landings become public at
+      // {SITE_ORIGIN}/vi/campaigns/<slug>/ and the landing host redirects there.
+      LANDING_ON_MAIN_DOMAIN?: string;
+      SITE_ORIGIN?: string;
       TURNSTILE_SITE_KEY?: string;
       // Claude (Anthropic API) for the landing AI format + audit steps. Secret; undefined skips
       // the AI steps (deterministic normalization and checks still run). LANDING_AI_MODEL
