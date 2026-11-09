@@ -9,6 +9,7 @@ import {
   vnToday,
   type CampaignLocale,
 } from "@/features/campaigns";
+import { publicLandingPath } from "@/features/campaigns/landing/landing.public";
 
 const locales = new Set<string>(["en", "vi", "zh"]);
 
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/api/v1/(public)/campaigns/$slug")({
           availableCampaignLocales(row.id),
         ]);
         const { list, detail } = toPublicCampaign(row, media, vnToday());
+        list.landing_path = publicLandingPath(list.landing_path);
         return corsJson(request, { campaign: { ...list, ...detail }, available_locales });
       },
     },

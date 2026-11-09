@@ -10,6 +10,7 @@
 //   publish  → campaigns.landing_version_id = version, landing_path = lp URL
 //   rollback → pointer back to the previously published version
 
+import { mainSiteLandingUrl } from "./landing.config";
 import type { LandingReviewPayload } from "@/features/telegram/telegram.events";
 
 import { readLandingBundle } from "./landing.bundle";
@@ -42,6 +43,8 @@ export interface LandingDeps {
   }): Promise<unknown>;
   /** https://lp.thgfulfill.com */
   landingOrigin: string;
+  /** Main-site origin when published landings are public under it (flag on), else null/undefined. */
+  mainSiteOrigin?: string | null;
   /** https://cms.thgfulfill.com */
   adminOrigin: string;
   newVersionId(): string;
@@ -135,8 +138,11 @@ async function requireVersion(db: D1Database, versionId: string): Promise<Landin
   return row;
 }
 
-export const landingUrl = (deps: Pick<LandingDeps, "landingOrigin">, slug: string) =>
-  `${deps.landingOrigin}/${slug}/`;
+/** Public address of a published landing: under the main domain when the flag is on, else lp. */
+export const landingUrl = (
+  deps: Pick<LandingDeps, "landingOrigin"> & { mainSiteOrigin?: string | null },
+  slug: string,
+) => (deps.mainSiteOrigin ? mainSiteLandingUrl(deps.mainSiteOrigin, slug) : `${deps.landingOrigin}/${slug}/`);
 export const previewUrl = (
   deps: Pick<LandingDeps, "landingOrigin">,
   version: Pick<LandingVersionRow, "id">,
@@ -424,7 +430,9 @@ async function pointCampaignAt(
   versionId: string,
   action: "publish" | "rollback",
 ) {
-  const url = landingUrl(deps, campaign.slug);
+  // The stored value stays the canonical landing-host URL; the public API and the admin map it to
+  // the main domain while the flag is on, so switching the flag needs no data change.
+  const url = `${deps.landingOrigin}/${campaign.slug}/`;
   await deps.db
     .prepare(
       `UPDATE campaigns SET landing_version_id = ?, landing_path = ?, updated_at = unixepoch(),

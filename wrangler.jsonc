@@ -39,6 +39,10 @@
 		// apex: the uploaded HTML runs arbitrary scripts.
 		"LANDING_HOST": "lp.thgfulfill.com",
 		"LANDING_ORIGIN": "https://lp.thgfulfill.com",
+		// Flip to "true" only AFTER the main-domain nginx proxy for /{lang}/campaigns/<slug>/ is live
+		// (THG_landingpage deploy). Then landings are public on thgfulfill.com and lp. redirects there.
+		"LANDING_ON_MAIN_DOMAIN": "false",
+		"SITE_ORIGIN": "https://thgfulfill.com",
 		// Claude model for the landing AI steps; the key is the ANTHROPIC_API_KEY secret.
 		"LANDING_AI_MODEL": "claude-opus-5-5",
 		// PUBLIC Turnstile widget key (same one the landing ships as VITE_TURNSTILE_SITE_KEY).

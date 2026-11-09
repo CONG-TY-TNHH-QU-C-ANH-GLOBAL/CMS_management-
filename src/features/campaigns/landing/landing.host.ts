@@ -43,6 +43,9 @@ export interface LandingHostDeps {
   /** Full body of /_thg/thg-lead.js, config included. */
   leadScript(): string;
   /** Live monthly PDF source, served through the fixed LP template. */
+  /** Set (e.g. "https://thgfulfill.com") when landings are public under the main domain: direct
+   *  requests on the landing host are then 301-redirected there. */
+  mainSiteOrigin?: string | null;
   resolveMonthlySourcing?(
     year: number,
     month: number,
@@ -201,6 +204,15 @@ async function route(request: Request, deps: LandingHostDeps): Promise<Response>
   // Only a slug with a published landing exists on this host; anything else is a plain 404.
   const versionId = await deps.resolveLive(first);
   if (!versionId) return notFound();
+  // Requests proxied by the main-domain nginx carry this header and must be answered here (a redirect
+  // back to the main domain would loop). Everything else moves to the canonical main-domain URL.
+  if (deps.mainSiteOrigin && request.headers.get("x-thg-via") !== "main-site") {
+    const rest = segments.slice(1).join("/");
+    return respond(301, null, {
+      Location: `${deps.mainSiteOrigin}/vi/campaigns/${first}/${rest}${url.search}`,
+      "Cache-Control": "public, max-age=300",
+    });
+  }
   if (segments.length === 1) {
     // Relative asset URLs in index.html need the trailing slash.
     return respond(301, null, {

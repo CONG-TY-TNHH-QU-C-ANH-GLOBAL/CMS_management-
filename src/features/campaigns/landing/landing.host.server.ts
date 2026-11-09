@@ -5,7 +5,7 @@ import leadScriptSource from "./thg-lead.js?raw";
 
 import { getLiveMonthlySourcingForLanding } from "@/features/monthly-sourcing";
 
-import { leadScriptConfig, type LandingEnv } from "./landing.config";
+import { leadScriptConfig, mainSiteOriginOf, type LandingEnv } from "./landing.config";
 import type { LandingHostDeps } from "./landing.host";
 
 type HostEnv = LandingEnv & { DB: D1Database; MEDIA: R2Bucket };
@@ -29,6 +29,7 @@ export function landingHostDeps(env: HostEnv): LandingHostDeps {
         .first<{ slug: string }>();
       return row?.slug ?? null;
     },
+    mainSiteOrigin: mainSiteOriginOf(env),
     resolveMonthlySourcing: (year, month) =>
       // The PDF proxy lives on the CMS origin, while this handler runs only
       // on lp.thgfulfill.com.  Passing BASE_URL prevents iframe URLs from
