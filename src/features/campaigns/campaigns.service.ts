@@ -14,7 +14,7 @@ import {
   onCampaignSourceChanged,
 } from "../translations/campaign.translation.service";
 
-import type { PublicCampaignRow } from "./campaigns.pure";
+import { parseMenuItems, type PublicCampaignRow } from "./campaigns.pure";
 
 export type CampaignLocale = "en" | "vi" | "zh";
 export const CAMPAIGN_LOCALES: readonly CampaignLocale[] = ["vi", "en", "zh"];
@@ -122,15 +122,33 @@ export async function availableCampaignLocales(campaignId: number): Promise<Camp
   return CAMPAIGN_LOCALES.filter((locale) => locales.has(locale));
 }
 
-/** Cover + OG ids of every row resolved to public URLs in one query, so a
- *  list of campaigns costs one media round trip, not one per row. */
-export async function resolveCampaignMedia(
-  rows: Pick<PublicCampaignRow, "cover_media_id" | "og_image_id">[],
-  origin: string,
-): Promise<Map<number, string>> {
-  const ids = [...new Set(rows.flatMap((row) => [row.cover_media_id, row.og_image_id]))].filter(
+/** Media ids a campaign row references: cover, OG image and the image of every
+ *  menu-item card. */
+export function campaignMediaIds(
+  row: Pick<PublicCampaignRow, "cover_media_id" | "og_image_id"> & { menu_items_json?: string },
+): number[] {
+  const cardIds = parseMenuItems(row.menu_items_json).map(
+    (item) => item.card?.image_media_id ?? null,
+  );
+  return [row.cover_media_id, row.og_image_id, ...cardIds].filter(
     (id): id is number => id !== null,
   );
+}
+
+export function resolveCampaignMedia(
+  rows: Parameters<typeof campaignMediaIds>[0][],
+  origin: string,
+): Promise<Map<number, string>> {
+  return resolveMediaUrls(rows.flatMap(campaignMediaIds), origin);
+}
+
+/** Media ids resolved to public URLs in one query, so a list of campaigns
+ *  costs one media round trip, not one per row. */
+export async function resolveMediaUrls(
+  mediaIds: readonly number[],
+  origin: string,
+): Promise<Map<number, string>> {
+  const ids = [...new Set(mediaIds)];
   const out = new Map<number, string>();
   if (ids.length === 0) return out;
   const result = await getDb()

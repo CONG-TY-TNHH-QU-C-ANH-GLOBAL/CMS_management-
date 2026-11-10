@@ -42,11 +42,19 @@ const text = (max: number) =>
     .optional()
     .transform((value) => (typeof value === "string" && value.trim() === "" ? null : value));
 
+const menuItemCard = z.object({
+  image_media_id: ID.nullable().optional(),
+  title: text(120),
+  text: text(300),
+  cta_label: text(80),
+});
+
 const menuItem = z.object({
   icon: z.string().trim().max(16),
   title: z.string().trim().min(1, "Mục menu cần tiêu đề.").max(120),
   subtitle: text(200),
   href: HREF,
+  card: menuItemCard.nullable().optional(),
 });
 
 const flag = z
