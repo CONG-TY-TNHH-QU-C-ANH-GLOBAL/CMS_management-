@@ -289,6 +289,11 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
     "partners",
     `${LANDING} homepage partner strip`,
   ),
+  "v1/(public)/catalog-overrides/index.ts": read(
+    "/api/v1/catalog-overrides",
+    "catalog",
+    `${LANDING} catalog product modal (template link, price label)`,
+  ),
   "v1/(public)/leadership/index.ts": read(
     "/api/v1/leadership",
     "leadership",
@@ -476,19 +481,54 @@ export const ROUTE_CLASSIFICATIONS: Readonly<Record<string, RouteClassificationE
       "reveals what exists in storage.",
   ),
   "v1/(integration)/agent/contents/index.ts": {
-    ...integrationApi("/api/v1/agent/contents", ["post"], "marketing-hub", "CRM Marketing backend", "Dedicated raw-body HMAC, timestamp window, rate limiting and draft-only atomic ingest; no browser CORS."), auth: "service-hmac",
+    ...integrationApi(
+      "/api/v1/agent/contents",
+      ["post"],
+      "marketing-hub",
+      "CRM Marketing backend",
+      "Dedicated raw-body HMAC, timestamp window, rate limiting and draft-only atomic ingest; no browser CORS.",
+    ),
+    auth: "service-hmac",
   },
   "v1/(integration)/agent/contents/$externalId.ts": {
-    ...integrationApi("/api/v1/agent/contents/{externalId}", ["get"], "marketing-hub", "CRM Marketing operator reconciliation", "Private signed provenance/status lookup. Canonical runtime schema stays feature-owned; excluded from the landing public OpenAPI."), auth: "service-hmac",
+    ...integrationApi(
+      "/api/v1/agent/contents/{externalId}",
+      ["get"],
+      "marketing-hub",
+      "CRM Marketing operator reconciliation",
+      "Private signed provenance/status lookup. Canonical runtime schema stays feature-owned; excluded from the landing public OpenAPI.",
+    ),
+    auth: "service-hmac",
   },
   "v1/(integration)/agent/previews/index.ts": {
-    ...integrationApi("/api/v1/agent/previews", ["post"], "marketing-hub", "CRM Marketing backend", "Signed pre-approval blog projection; stores only a derived capability hash and never publishes content."), auth: "service-hmac",
+    ...integrationApi(
+      "/api/v1/agent/previews",
+      ["post"],
+      "marketing-hub",
+      "CRM Marketing backend",
+      "Signed pre-approval blog projection; stores only a derived capability hash and never publishes content.",
+    ),
+    auth: "service-hmac",
   },
   "v1/(integration)/agent/media/index.ts": {
-    ...integrationApi("/api/v1/agent/media", ["post"], "marketing-hub", "CRM Marketing backend", "Signed bounded image upload to marketing R2 prefix; rejects arbitrary remote fetches and unsupported types."), auth: "service-hmac",
+    ...integrationApi(
+      "/api/v1/agent/media",
+      ["post"],
+      "marketing-hub",
+      "CRM Marketing backend",
+      "Signed bounded image upload to marketing R2 prefix; rejects arbitrary remote fetches and unsupported types.",
+    ),
+    auth: "service-hmac",
   },
   "v1/(integration)/agent/callbacks/$eventId/retry.ts": {
-    ...integrationApi("/api/v1/agent/callbacks/{eventId}/retry", ["post"], "marketing-hub", "Authorized integration operator", "Signed idempotent manual retry with expectedAttempts; refuses stale and succeeded callback rows."), auth: "service-hmac",
+    ...integrationApi(
+      "/api/v1/agent/callbacks/{eventId}/retry",
+      ["post"],
+      "marketing-hub",
+      "Authorized integration operator",
+      "Signed idempotent manual retry with expectedAttempts; refuses stale and succeeded callback rows.",
+    ),
+    auth: "service-hmac",
   },
   "v1/(integration)/agent/events/index.ts": integrationApi(
     "/api/v1/agent/events",

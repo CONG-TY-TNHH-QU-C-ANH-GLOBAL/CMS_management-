@@ -57,6 +57,7 @@ import {
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
+import { catalogOverridesResponseSchema } from "@/features/catalog/catalog.schemas";
 import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import { eventResponseSchema, eventsResponseSchema } from "@/features/events/events.schemas";
 import {
@@ -201,6 +202,25 @@ export const partnersRouteConfig = {
 
 openApiRegistry.registerPath(partnersRouteConfig);
 
+// Mirrors the catalog-overrides route at
+// src/routes/api/v1/(public)/catalog-overrides/index.ts. The catalog itself is
+// served by the Hub; this endpoint only carries the per-product settings the
+// operator controls from the CMS. A product with no row is absent.
+export const catalogOverridesRouteConfig = {
+  method: "get" as const,
+  path: "/api/v1/catalog-overrides",
+  summary: "List per-product catalog settings",
+  description:
+    "Returns operator settings for Hub catalog products, keyed by Hub product id: " +
+    "a design-template link (replaces the Hub templateUrl when set) and whether the " +
+    "catalog price already includes shipping. Not localized.",
+  responses: {
+    200: jsonResponse("Catalog product settings", catalogOverridesResponseSchema),
+  },
+} as const;
+
+openApiRegistry.registerPath(catalogOverridesRouteConfig);
+
 export const leadershipRouteConfig = {
   method: "get" as const,
   path: "/api/v1/leadership",
@@ -280,7 +300,10 @@ export const monthlySourcingRouteConfig = {
     "Returns the one live navigation year and its live PDF-backed months. " +
     "Returns `{ year: null, months: [] }` until an operator activates a year.",
   responses: {
-    200: jsonResponse("Active year and available monthly product sourcing PDFs", monthlySourcingResponseSchema),
+    200: jsonResponse(
+      "Active year and available monthly product sourcing PDFs",
+      monthlySourcingResponseSchema,
+    ),
   },
 } as const;
 
