@@ -23,6 +23,7 @@ import { Route as AdminSystemAuditIndexRouteImport } from './routes/admin/system
 import { Route as AdminSalesTerminologyIndexRouteImport } from './routes/admin/sales/terminology/index'
 import { Route as AdminSalesPricingIndexRouteImport } from './routes/admin/sales/pricing/index'
 import { Route as AdminSalesLeadsIndexRouteImport } from './routes/admin/sales/leads/index'
+import { Route as AdminSalesCatalogIndexRouteImport } from './routes/admin/sales/catalog/index'
 import { Route as AdminContentTranslationsIndexRouteImport } from './routes/admin/content/translations/index'
 import { Route as AdminContentTestimonialsIndexRouteImport } from './routes/admin/content/testimonials/index'
 import { Route as AdminContentShippingRoutesIndexRouteImport } from './routes/admin/content/shipping-routes/index'
@@ -82,6 +83,7 @@ import { Route as ApiV1publicHomepageIndexRouteImport } from './routes/api/v1/(p
 import { Route as ApiV1publicFaqsIndexRouteImport } from './routes/api/v1/(public)/faqs/index'
 import { Route as ApiV1publicEventsIndexRouteImport } from './routes/api/v1/(public)/events/index'
 import { Route as ApiV1publicContactLocationsIndexRouteImport } from './routes/api/v1/(public)/contact-locations/index'
+import { Route as ApiV1publicCatalogOverridesIndexRouteImport } from './routes/api/v1/(public)/catalog-overrides/index'
 import { Route as ApiV1publicCampaignsIndexRouteImport } from './routes/api/v1/(public)/campaigns/index'
 import { Route as ApiV1publicBlogIndexRouteImport } from './routes/api/v1/(public)/blog/index'
 import { Route as ApiV1publicApplicantsIndexRouteImport } from './routes/api/v1/(public)/applicants/index'
@@ -189,6 +191,11 @@ const AdminSalesPricingIndexRoute = AdminSalesPricingIndexRouteImport.update({
 const AdminSalesLeadsIndexRoute = AdminSalesLeadsIndexRouteImport.update({
   id: '/admin/sales/leads/',
   path: '/admin/sales/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSalesCatalogIndexRoute = AdminSalesCatalogIndexRouteImport.update({
+  id: '/admin/sales/catalog/',
+  path: '/admin/sales/catalog/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminContentTranslationsIndexRoute =
@@ -525,6 +532,12 @@ const ApiV1publicContactLocationsIndexRoute =
     path: '/api/v1/contact-locations/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiV1publicCatalogOverridesIndexRoute =
+  ApiV1publicCatalogOverridesIndexRouteImport.update({
+    id: '/api/v1/(public)/catalog-overrides/',
+    path: '/api/v1/catalog-overrides/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiV1publicCampaignsIndexRoute =
   ApiV1publicCampaignsIndexRouteImport.update({
     id: '/api/v1/(public)/campaigns/',
@@ -760,6 +773,7 @@ export interface FileRoutesByFullPath {
   '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
   '/admin/content/translations/': typeof AdminContentTranslationsIndexRoute
+  '/admin/sales/catalog/': typeof AdminSalesCatalogIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
@@ -787,6 +801,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/campaigns/': typeof ApiV1publicCampaignsIndexRoute
+  '/api/v1/catalog-overrides/': typeof ApiV1publicCatalogOverridesIndexRoute
   '/api/v1/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs/': typeof ApiV1publicFaqsIndexRoute
@@ -865,6 +880,7 @@ export interface FileRoutesByTo {
   '/admin/content/shipping-routes': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials': typeof AdminContentTestimonialsIndexRoute
   '/admin/content/translations': typeof AdminContentTranslationsIndexRoute
+  '/admin/sales/catalog': typeof AdminSalesCatalogIndexRoute
   '/admin/sales/leads': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology': typeof AdminSalesTerminologyIndexRoute
@@ -892,6 +908,7 @@ export interface FileRoutesByTo {
   '/api/v1/applicants': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/blog': typeof ApiV1publicBlogIndexRoute
   '/api/v1/campaigns': typeof ApiV1publicCampaignsIndexRoute
+  '/api/v1/catalog-overrides': typeof ApiV1publicCatalogOverridesIndexRoute
   '/api/v1/contact-locations': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/events': typeof ApiV1publicEventsIndexRoute
   '/api/v1/faqs': typeof ApiV1publicFaqsIndexRoute
@@ -974,6 +991,7 @@ export interface FileRoutesById {
   '/admin/content/shipping-routes/': typeof AdminContentShippingRoutesIndexRoute
   '/admin/content/testimonials/': typeof AdminContentTestimonialsIndexRoute
   '/admin/content/translations/': typeof AdminContentTranslationsIndexRoute
+  '/admin/sales/catalog/': typeof AdminSalesCatalogIndexRoute
   '/admin/sales/leads/': typeof AdminSalesLeadsIndexRoute
   '/admin/sales/pricing/': typeof AdminSalesPricingIndexRoute
   '/admin/sales/terminology/': typeof AdminSalesTerminologyIndexRoute
@@ -1001,6 +1019,7 @@ export interface FileRoutesById {
   '/api/v1/(public)/applicants/': typeof ApiV1publicApplicantsIndexRoute
   '/api/v1/(public)/blog/': typeof ApiV1publicBlogIndexRoute
   '/api/v1/(public)/campaigns/': typeof ApiV1publicCampaignsIndexRoute
+  '/api/v1/(public)/catalog-overrides/': typeof ApiV1publicCatalogOverridesIndexRoute
   '/api/v1/(public)/contact-locations/': typeof ApiV1publicContactLocationsIndexRoute
   '/api/v1/(public)/events/': typeof ApiV1publicEventsIndexRoute
   '/api/v1/(public)/faqs/': typeof ApiV1publicFaqsIndexRoute
@@ -1084,6 +1103,7 @@ export interface FileRouteTypes {
     | '/admin/content/shipping-routes/'
     | '/admin/content/testimonials/'
     | '/admin/content/translations/'
+    | '/admin/sales/catalog/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
@@ -1111,6 +1131,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicants/'
     | '/api/v1/blog/'
     | '/api/v1/campaigns/'
+    | '/api/v1/catalog-overrides/'
     | '/api/v1/contact-locations/'
     | '/api/v1/events/'
     | '/api/v1/faqs/'
@@ -1189,6 +1210,7 @@ export interface FileRouteTypes {
     | '/admin/content/shipping-routes'
     | '/admin/content/testimonials'
     | '/admin/content/translations'
+    | '/admin/sales/catalog'
     | '/admin/sales/leads'
     | '/admin/sales/pricing'
     | '/admin/sales/terminology'
@@ -1216,6 +1238,7 @@ export interface FileRouteTypes {
     | '/api/v1/applicants'
     | '/api/v1/blog'
     | '/api/v1/campaigns'
+    | '/api/v1/catalog-overrides'
     | '/api/v1/contact-locations'
     | '/api/v1/events'
     | '/api/v1/faqs'
@@ -1297,6 +1320,7 @@ export interface FileRouteTypes {
     | '/admin/content/shipping-routes/'
     | '/admin/content/testimonials/'
     | '/admin/content/translations/'
+    | '/admin/sales/catalog/'
     | '/admin/sales/leads/'
     | '/admin/sales/pricing/'
     | '/admin/sales/terminology/'
@@ -1324,6 +1348,7 @@ export interface FileRouteTypes {
     | '/api/v1/(public)/applicants/'
     | '/api/v1/(public)/blog/'
     | '/api/v1/(public)/campaigns/'
+    | '/api/v1/(public)/catalog-overrides/'
     | '/api/v1/(public)/contact-locations/'
     | '/api/v1/(public)/events/'
     | '/api/v1/(public)/faqs/'
@@ -1400,6 +1425,7 @@ export interface RootRouteChildren {
   AdminContentShippingRoutesIndexRoute: typeof AdminContentShippingRoutesIndexRoute
   AdminContentTestimonialsIndexRoute: typeof AdminContentTestimonialsIndexRoute
   AdminContentTranslationsIndexRoute: typeof AdminContentTranslationsIndexRoute
+  AdminSalesCatalogIndexRoute: typeof AdminSalesCatalogIndexRoute
   AdminSalesLeadsIndexRoute: typeof AdminSalesLeadsIndexRoute
   AdminSalesTerminologyIndexRoute: typeof AdminSalesTerminologyIndexRoute
   AdminSystemAuditIndexRoute: typeof AdminSystemAuditIndexRoute
@@ -1426,6 +1452,7 @@ export interface RootRouteChildren {
   ApiV1publicApplicantsIndexRoute: typeof ApiV1publicApplicantsIndexRoute
   ApiV1publicBlogIndexRoute: typeof ApiV1publicBlogIndexRoute
   ApiV1publicCampaignsIndexRoute: typeof ApiV1publicCampaignsIndexRoute
+  ApiV1publicCatalogOverridesIndexRoute: typeof ApiV1publicCatalogOverridesIndexRoute
   ApiV1publicContactLocationsIndexRoute: typeof ApiV1publicContactLocationsIndexRoute
   ApiV1publicEventsIndexRoute: typeof ApiV1publicEventsIndexRoute
   ApiV1publicFaqsIndexRoute: typeof ApiV1publicFaqsIndexRoute
@@ -1559,6 +1586,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/sales/leads'
       fullPath: '/admin/sales/leads/'
       preLoaderRoute: typeof AdminSalesLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/sales/catalog/': {
+      id: '/admin/sales/catalog/'
+      path: '/admin/sales/catalog'
+      fullPath: '/admin/sales/catalog/'
+      preLoaderRoute: typeof AdminSalesCatalogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/content/translations/': {
@@ -1974,6 +2008,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1publicContactLocationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/(public)/catalog-overrides/': {
+      id: '/api/v1/(public)/catalog-overrides/'
+      path: '/api/v1/catalog-overrides'
+      fullPath: '/api/v1/catalog-overrides/'
+      preLoaderRoute: typeof ApiV1publicCatalogOverridesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/(public)/campaigns/': {
       id: '/api/v1/(public)/campaigns/'
       path: '/api/v1/campaigns'
@@ -2329,6 +2370,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminContentShippingRoutesIndexRoute: AdminContentShippingRoutesIndexRoute,
   AdminContentTestimonialsIndexRoute: AdminContentTestimonialsIndexRoute,
   AdminContentTranslationsIndexRoute: AdminContentTranslationsIndexRoute,
+  AdminSalesCatalogIndexRoute: AdminSalesCatalogIndexRoute,
   AdminSalesLeadsIndexRoute: AdminSalesLeadsIndexRoute,
   AdminSalesTerminologyIndexRoute: AdminSalesTerminologyIndexRoute,
   AdminSystemAuditIndexRoute: AdminSystemAuditIndexRoute,
@@ -2356,6 +2398,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1publicApplicantsIndexRoute: ApiV1publicApplicantsIndexRoute,
   ApiV1publicBlogIndexRoute: ApiV1publicBlogIndexRoute,
   ApiV1publicCampaignsIndexRoute: ApiV1publicCampaignsIndexRoute,
+  ApiV1publicCatalogOverridesIndexRoute: ApiV1publicCatalogOverridesIndexRoute,
   ApiV1publicContactLocationsIndexRoute: ApiV1publicContactLocationsIndexRoute,
   ApiV1publicEventsIndexRoute: ApiV1publicEventsIndexRoute,
   ApiV1publicFaqsIndexRoute: ApiV1publicFaqsIndexRoute,

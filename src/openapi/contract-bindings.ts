@@ -49,6 +49,7 @@ import {
   testimonialsResponseSchema,
 } from "@/features/content/content.schemas";
 import { partnersResponseSchema } from "@/features/partners/partners.schemas";
+import { catalogOverridesResponseSchema } from "@/features/catalog/catalog.schemas";
 import { leadershipResponseSchema } from "@/features/leadership/leadership.schemas";
 import { eventResponseSchema, eventsResponseSchema } from "@/features/events/events.schemas";
 import {
@@ -95,6 +96,7 @@ import {
   homepageRouteConfig,
   integrationsRouteConfig,
   partnersRouteConfig,
+  catalogOverridesRouteConfig,
   leadershipRouteConfig,
   eventRouteConfig,
   eventsRouteConfig,
@@ -220,6 +222,7 @@ export const CONTRACT_BINDINGS: readonly ContractBinding[] = [
   response(contactLocationsRouteConfig, 200, contactLocationsResponseSchema),
   response(integrationsRouteConfig, 200, integrationsResponseSchema),
   response(partnersRouteConfig, 200, partnersResponseSchema),
+  response(catalogOverridesRouteConfig, 200, catalogOverridesResponseSchema),
   response(leadershipRouteConfig, 200, leadershipResponseSchema),
   response(eventsRouteConfig, 200, eventsResponseSchema),
   response(eventRouteConfig, 200, eventResponseSchema),

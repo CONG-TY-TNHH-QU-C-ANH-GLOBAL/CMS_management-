@@ -5,6 +5,7 @@ import {
   Users, Send, ShieldCheck, Briefcase, MessageSquareQuote,
   Plug, Handshake, Images, MapPin, ChevronsLeft, Search, Circle, Settings, Ship, BookOpen,
   Layers, MessagesSquare, Star, UserRoundCog, SearchCheck, CalendarDays, Megaphone, FolderOpen,
+  Package,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -51,6 +52,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: "/admin/sales/leads", icon: Inbox, label: "Leads từ landing" },
       { to: "/admin/sales/pricing", icon: DollarSign, label: "Bảng giá", matchPrefix: true },
+      { to: "/admin/sales/catalog", icon: Package, label: "Catalog — cài đặt SP" },
       { to: "/admin/sales/terminology", icon: BookOpen, label: "Bảng thuật ngữ" },
     ],
   },
