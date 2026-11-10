@@ -20,7 +20,11 @@ const CAMPAIGN_FIELDS = [
   { key: "body_md", label: "Nội dung (Markdown)", rows: 12 },
   { key: "cta_label", label: "Chữ trên nút CTA", rows: 1 },
   { key: "nav_label", label: "Tên trên menu", rows: 1 },
-  { key: "menu_items_json", label: "Mục menu (JSON — chỉ dịch title/subtitle)", rows: 8 },
+  {
+    key: "menu_items_json",
+    label: "Mục menu (JSON — chỉ dịch title/subtitle và chữ trong thẻ card)",
+    rows: 8,
+  },
   { key: "seo_title", label: "SEO title", rows: 2 },
   { key: "seo_description", label: "SEO description", rows: 3 },
 ] as const;
@@ -75,6 +79,7 @@ function CampaignDetailPage() {
         campaign={campaign}
         coverUrl={data.cover_url}
         ogImageUrl={data.og_image_url}
+        menuImageUrls={data.menu_image_urls}
         onSaved={() => router.invalidate()}
         onDeleted={() => void router.navigate({ to: "/admin/content/campaigns" })}
       />

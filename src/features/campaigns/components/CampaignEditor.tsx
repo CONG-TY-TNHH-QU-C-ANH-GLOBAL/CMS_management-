@@ -35,6 +35,8 @@ interface Props {
   campaign: CampaignRow;
   coverUrl: string | null;
   ogImageUrl: string | null;
+  /** media id → URL for the images of the menu-item cards. */
+  menuImageUrls: Readonly<Record<number, string>>;
   onSaved: () => void;
   onDeleted: () => void;
 }
@@ -64,11 +66,18 @@ function ToggleRow(props: {
   );
 }
 
-export function CampaignEditor({ campaign, coverUrl, ogImageUrl, onSaved, onDeleted }: Props) {
+export function CampaignEditor({
+  campaign,
+  coverUrl,
+  ogImageUrl,
+  menuImageUrls,
+  onSaved,
+  onDeleted,
+}: Props) {
   const update = useServerFn(updateCampaignFn);
   const remove = useServerFn(deleteCampaignFn);
 
-  const initial = useMemo(() => draftFromRow(campaign), [campaign]);
+  const initial = useMemo(() => draftFromRow(campaign, menuImageUrls), [campaign, menuImageUrls]);
   const [draft, setDraft] = useState<CampaignDraft>(initial);
   const [previews, setPreviews] = useState({ cover: coverUrl, og: ogImageUrl });
   const [saving, setSaving] = useState(false);

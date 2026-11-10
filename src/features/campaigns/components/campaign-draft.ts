@@ -105,7 +105,10 @@ const TEXT_KEYS: readonly TextKey[] = [
   ...SEO_FIELDS,
 ].map((spec) => spec.key);
 
-export function draftFromRow(row: CampaignRow): CampaignDraft {
+export function draftFromRow(
+  row: CampaignRow,
+  menuImageUrls: Readonly<Record<number, string>> = {},
+): CampaignDraft {
   const text = Object.fromEntries(TEXT_KEYS.map((key) => [key, row[key] ?? ""])) as Record<
     TextKey,
     string
@@ -119,10 +122,20 @@ export function draftFromRow(row: CampaignRow): CampaignDraft {
     position: row.position,
     nav_featured: row.nav_featured === 1,
     home_featured: row.home_featured === 1,
-    menu_items: parseMenuItems(row.menu_items_json).map((item) => ({
-      ...item,
-      subtitle: item.subtitle ?? "",
-    })),
+    menu_items: parseMenuItems(row.menu_items_json).map((item) => {
+      const mediaId = item.card?.image_media_id ?? null;
+      return {
+        icon: item.icon,
+        title: item.title,
+        subtitle: item.subtitle ?? "",
+        href: item.href,
+        card_image_id: mediaId,
+        card_image_url: mediaId === null ? null : (menuImageUrls[mediaId] ?? null),
+        card_title: item.card?.title ?? "",
+        card_text: item.card?.text ?? "",
+        card_cta: item.card?.cta_label ?? "",
+      };
+    }),
     cover_media_id: row.cover_media_id,
     og_image_id: row.og_image_id,
   };
@@ -137,6 +150,18 @@ export function draftProblem(draft: CampaignDraft): string | null {
     return "Ngày kết thúc phải sau ngày bắt đầu.";
   }
   return null;
+}
+
+/** The hover card, or null when every part of it is empty (nothing to store). */
+function menuCardPayload(item: MenuItemDraft) {
+  const card = {
+    image_media_id: item.card_image_id,
+    title: orNull(item.card_title),
+    text: orNull(item.card_text),
+    cta_label: orNull(item.card_cta),
+  };
+  const empty = card.image_media_id === null && !card.title && !card.text && !card.cta_label;
+  return empty ? null : card;
 }
 
 export function draftToPayload(id: number, draft: CampaignDraft) {
@@ -162,6 +187,7 @@ export function draftToPayload(id: number, draft: CampaignDraft) {
       title: item.title.trim(),
       subtitle: orNull(item.subtitle),
       href: item.href.trim(),
+      card: menuCardPayload(item),
     })),
   };
 }

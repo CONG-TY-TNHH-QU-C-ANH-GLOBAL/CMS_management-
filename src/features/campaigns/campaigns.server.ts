@@ -11,6 +11,7 @@ import { getMedia } from "@/features/media";
 import { toMediaUrl } from "@/features/partners/partners.media";
 
 import * as translations from "../translations/campaign.translation.service";
+import { parseMenuItems } from "./campaigns.pure";
 import * as service from "./campaigns.service";
 
 type Role = "viewer" | "editor" | "admin";
@@ -39,12 +40,21 @@ export async function listCampaigns() {
 export async function getCampaignDetail(slug: string) {
   await requireSession("viewer");
   const campaign = await service.getCampaign(slug);
-  if (!campaign) return { campaign: null, cover_url: null, og_image_url: null };
-  const [cover_url, og_image_url] = await Promise.all([
+  if (!campaign) {
+    return { campaign: null, cover_url: null, og_image_url: null, menu_image_urls: {} };
+  }
+  const cardImageIds = parseMenuItems(campaign.menu_items_json)
+    .map((item) => item.card?.image_media_id ?? null)
+    .filter((id): id is number => id !== null);
+  const [cover_url, og_image_url, cardUrls] = await Promise.all([
     adminMediaUrl(campaign.cover_media_id),
     adminMediaUrl(campaign.og_image_id),
+    Promise.all(cardImageIds.map(async (id) => [id, await adminMediaUrl(id)] as const)),
   ]);
-  return { campaign, cover_url, og_image_url };
+  // media id → admin-relative URL, for the card image previews in the editor.
+  const menu_image_urls: Record<number, string> = {};
+  for (const [id, url] of cardUrls) if (url) menu_image_urls[id] = url;
+  return { campaign, cover_url, og_image_url, menu_image_urls };
 }
 
 export const createCampaign = (data: service.CampaignInput) =>

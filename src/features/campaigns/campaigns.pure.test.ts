@@ -62,6 +62,52 @@ describe("parseMenuItems", () => {
   });
 });
 
+describe("menu item card", () => {
+  const stored = JSON.stringify([
+    {
+      icon: "🚚",
+      title: "Dropship",
+      subtitle: null,
+      href: "/campaigns/dropship",
+      card: { image_media_id: 7, title: "Dropship 2026", text: "Top 20 mẫu hot", cta_label: null },
+    },
+    { icon: "x", title: "Empty card", href: "/b", card: { image_media_id: null, title: " " } },
+    { icon: "x", title: "No card", href: "/c" },
+  ]);
+
+  test("parse keeps a real card and drops an empty or absent one", () => {
+    const [a, b, c] = parseMenuItems(stored);
+    expect(a.card).toEqual({
+      image_media_id: 7,
+      title: "Dropship 2026",
+      text: "Top 20 mẫu hot",
+      cta_label: null,
+    });
+    expect(b).not.toHaveProperty("card");
+    expect(c).not.toHaveProperty("card");
+  });
+
+  test("merge takes translated card copy but keeps the VI image", () => {
+    const vi = parseMenuItems(stored);
+    const en = parseMenuItems(
+      JSON.stringify([
+        {
+          title: "Dropship",
+          href: "/x",
+          card: { image_media_id: 99, title: "Dropship 2026 EN", text: "Top 20 hot items" },
+        },
+      ]),
+    );
+    const [merged] = mergeMenuItems(vi, en);
+    expect(merged.card).toEqual({
+      image_media_id: 7,
+      title: "Dropship 2026 EN",
+      text: "Top 20 hot items",
+      cta_label: null,
+    });
+  });
+});
+
 describe("mergeMenuItems", () => {
   const vi = [
     { icon: "🎁", title: "Bộ sưu tập", subtitle: "Xem tất cả", href: "/a" },
@@ -130,6 +176,26 @@ describe("toPublicCampaign", () => {
     // A broken translated menu falls back to the VI copy.
     expect(out.list.menu_items).toEqual([{ icon: "🎁", title: "A", subtitle: "x", href: "/a" }]);
     expect(out.detail.body_md).toBe("## Hi");
+  });
+  test("a menu-item card is published with its image resolved to a URL", () => {
+    const withCard = {
+      ...row,
+      tr_menu_items_json: null,
+      menu_items_json: JSON.stringify([
+        {
+          icon: "🚚",
+          title: "Dropship",
+          href: "/campaigns/d",
+          card: { image_media_id: 9, title: "Dropship 2026" },
+        },
+        { icon: "🎁", title: "Plain", href: "/a" },
+      ]),
+    };
+    const out = toPublicCampaign(withCard, new Map([[9, "https://cms/m/9"]]), "2026-10-24");
+    expect(out.list.menu_items[0]).toMatchObject({
+      card: { image_url: "https://cms/m/9", title: "Dropship 2026", text: null, cta_label: null },
+    });
+    expect(out.list.menu_items[1]).not.toHaveProperty("card");
   });
   test("expired campaign reports both flags off", () => {
     const out = toPublicCampaign({ ...row, home_featured: 1 }, new Map(), "2026-12-26");

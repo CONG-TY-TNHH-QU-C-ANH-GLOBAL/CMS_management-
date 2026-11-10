@@ -7,6 +7,15 @@ import { z } from "zod";
 
 const localeSchema = z.enum(["en", "vi", "zh"]);
 
+const menuItemCardSchema = z.object({
+  /** Null → the landing shows the campaign cover. */
+  image_url: z.string().nullable(),
+  /** Each null field falls back to the campaign's own title/summary/CTA. */
+  title: z.string().nullable(),
+  text: z.string().nullable(),
+  cta_label: z.string().nullable(),
+});
+
 const menuItemSchema = z.object({
   /** Short string, normally one emoji. */
   icon: z.string(),
@@ -14,6 +23,9 @@ const menuItemSchema = z.object({
   subtitle: z.string().nullable(),
   /** Internal path without the language prefix, or an absolute https URL. */
   href: z.string(),
+  /** Promo card shown beside the menu while this item is hovered. Absent when
+   *  the item has none (then the campaign's default card stays). */
+  card: menuItemCardSchema.optional(),
 });
 
 const campaignBase = {
