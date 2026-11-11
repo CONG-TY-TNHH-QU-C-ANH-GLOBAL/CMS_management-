@@ -140,7 +140,7 @@ function anchors(html: string) {
 describe.each(LANGS)("standard header (%s)", (lang) => {
   const html = renderStandardHeader(lang);
   const i = idx(lang);
-  const site = (path: string) => `https://thgfulfill.com/${lang}${path}`;
+  const site = (path: string) => `https://thgroupfulfill.com/${lang}${path}`;
   const desktop = html.slice(html.indexOf('<nav class="thg-h-nav"'), html.indexOf("</nav>"));
   const mobile = html.slice(
     html.indexOf('<details class="thg-h-mobile"'),
@@ -197,9 +197,9 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
   test("mobile sheet carries the same items, the lang switch, the CTA and Hub", () => {
     const hrefs = anchors(mobile).map((a) => a.href);
     expect(hrefs).toEqual([
-      "https://thgfulfill.com/en",
-      "https://thgfulfill.com/vi",
-      "https://thgfulfill.com/zh",
+      "https://thgroupfulfill.com/en",
+      "https://thgroupfulfill.com/vi",
+      "https://thgroupfulfill.com/zh",
       ...SITE_NAV.groups.flatMap((g) => g.items.map((it) => site(it.href))),
       ...SITE_NAV.plain.map((it) => site(it.href)),
       "#thg-consult",
@@ -213,10 +213,10 @@ describe.each(LANGS)("standard header (%s)", (lang) => {
       html.indexOf("</div>", html.indexOf('<div class="thg-h-lang"')),
     );
     const current = anchors(lang_).filter((a) => a.attrs.includes("aria-current"));
-    expect(current.map((a) => a.href)).toEqual([`https://thgfulfill.com/${lang}`]);
+    expect(current.map((a) => a.href)).toEqual([`https://thgroupfulfill.com/${lang}`]);
     for (const a of anchors(html)) {
       if (a.href === "#thg-consult") continue;
-      expect(a.href).toMatch(/^https:\/\/(?:hub\.)?thgfulfill\.com(?:\/|$)/);
+      expect(a.href).toMatch(/^https:\/\/(?:thgroupfulfill|hub\.thgfulfill)\.com(?:\/|$)/);
     }
     for (const m of html.matchAll(/\bsrc="([^"]+)"/g)) expect(m[1]).toBe(LOGO_URL);
   });

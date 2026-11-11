@@ -78,7 +78,7 @@ function ServiceDetail() {
               <>
                 <span>•</span>
                 <a
-                  href={`https://thgfulfill.com${i18n.cta_url}`}
+                  href={`https://thgroupfulfill.com${i18n.cta_url}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 hover:text-foreground"

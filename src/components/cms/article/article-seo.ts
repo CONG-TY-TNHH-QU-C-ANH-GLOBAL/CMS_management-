@@ -22,6 +22,8 @@ interface MarkdownNode {
   depth?: number;
   children?: MarkdownNode[];
 }
+/** Origins whose links count as internal: the current public site first, then its legacy domain. */
+const PUBLIC_SITE_ORIGINS = ["https://thgroupfulfill.com", "https://thgfulfill.com"];
 const parser = unified().use(remarkParse).use(remarkGfm);
 const normalize = (text: string) =>
   text.normalize("NFC").toLowerCase().replace(/\s+/gu, " ").trim();
@@ -93,9 +95,10 @@ export function evaluateArticleSeo(input: ArticleSeoInput) {
   const contains = (text: string) => occurrences(normalize(text), keyword).length > 0;
   const internal = article.links.some((href) => {
     try {
+      // Internal = the public site, under its current or its legacy domain (old articles still link the latter).
       return (
         !href.startsWith("#") &&
-        new URL(href, "https://thgfulfill.com").origin === "https://thgfulfill.com"
+        PUBLIC_SITE_ORIGINS.includes(new URL(href, PUBLIC_SITE_ORIGINS[0]).origin)
       );
     } catch {
       return false;

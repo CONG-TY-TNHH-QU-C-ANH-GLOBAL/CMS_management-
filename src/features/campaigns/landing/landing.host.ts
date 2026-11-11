@@ -43,7 +43,7 @@ export interface LandingHostDeps {
   /** Full body of /_thg/thg-lead.js, config included. */
   leadScript(): string;
   /** Live monthly PDF source, served through the fixed LP template. */
-  /** Set (e.g. "https://thgfulfill.com") when landings are public under the main domain: direct
+  /** Set (e.g. "https://thgroupfulfill.com") when landings are public under the main domain: direct
    *  requests on the landing host are then 301-redirected there. */
   mainSiteOrigin?: string | null;
   resolveMonthlySourcing?(

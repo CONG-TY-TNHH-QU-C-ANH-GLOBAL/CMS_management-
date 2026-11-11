@@ -76,7 +76,7 @@ export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row }: Prop
             onChange={(e) => setProduct(e.target.value)}
             required
             disabled={!!row}
-            placeholder="Dán link catalog, vd: https://thgfulfill.com/vi/catalog?productId=…"
+            placeholder="Dán link catalog, vd: https://thgroupfulfill.com/vi/catalog?productId=…"
             maxLength={500}
             className={`${inputCls} disabled:opacity-60`}
           />

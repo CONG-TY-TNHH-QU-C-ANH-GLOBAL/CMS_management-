@@ -56,7 +56,7 @@ function PolicyDetailPage() {
             <span>Đường dẫn:</span>
             <span className="font-mono">{slug}</span>
             <span>•</span>
-            <a href={`https://thgfulfill.com/policy`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
+            <a href={`https://thgroupfulfill.com/policy`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
               <ExternalLink className="w-3 h-3" /> Xem trên trang thật
             </a>
           </div>

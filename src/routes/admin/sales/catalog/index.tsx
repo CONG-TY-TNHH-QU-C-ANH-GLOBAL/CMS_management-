@@ -20,7 +20,7 @@ export const Route = createFileRoute("/admin/sales/catalog/")({
   component: CatalogOverridesPage,
 });
 
-const CATALOG_URL = "https://thgfulfill.com/vi/catalog?productId=";
+const CATALOG_URL = "https://thgroupfulfill.com/vi/catalog?productId=";
 
 function CatalogOverridesPage() {
   const data = Route.useLoaderData();

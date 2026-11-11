@@ -67,7 +67,7 @@ function JobDetailPage() {
             <span className="font-mono">{jobId}</span>
             <span>•</span>
             <a
-              href={`https://thgfulfill.com/careers#${jobId}`}
+              href={`https://thgroupfulfill.com/careers#${jobId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 hover:text-foreground"

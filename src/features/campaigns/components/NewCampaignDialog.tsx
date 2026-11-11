@@ -87,7 +87,7 @@ export function NewCampaignDialog({ open, onOpenChange, onCreated }: Props) {
             className={`${inputClass} font-mono`}
           />
           <span className="mt-1 block text-[11px] text-muted-foreground">
-            thgfulfill.com/vi/campaigns/<span className="font-mono">{slug || "…"}</span>
+            thgroupfulfill.com/vi/campaigns/<span className="font-mono">{slug || "…"}</span>
           </span>
         </label>
         <div className="flex justify-end gap-2 pt-1">
