@@ -41,9 +41,9 @@ test("a non-YouTube link alone in a paragraph stays a link", () => {
   expect(out).toContain('target="_blank"');
 });
 
-test("website paths point at thgfulfill.com, not the CMS origin", () => {
+test("website paths point at thgroupfulfill.com, not the CMS origin", () => {
   expect(html("[TH Group Express](/vi/thg-express)")).toContain(
-    'href="https://thgfulfill.com/vi/thg-express"',
+    'href="https://thgroupfulfill.com/vi/thg-express"',
   );
 });
 

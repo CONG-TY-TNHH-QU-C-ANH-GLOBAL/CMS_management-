@@ -199,7 +199,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
     }
   }
 
-  const publicUrl = `https://thgfulfill.com/${locale}/events/${slug}`;
+  const publicUrl = `https://thgroupfulfill.com/${locale}/events/${slug}`;
 
   return (
     <div className="space-y-4">
@@ -213,7 +213,7 @@ export function EventEditor({ slug, locale, event, photos, coverUrl, ogImageUrl,
       <Card>
         <CardHeader
           title="Nội dung"
-          hint={`Hiển thị tại thgfulfill.com/${locale}/events/${slug}`}
+          hint={`Hiển thị tại thgroupfulfill.com/${locale}/events/${slug}`}
           action={
             <a
               href={publicUrl}

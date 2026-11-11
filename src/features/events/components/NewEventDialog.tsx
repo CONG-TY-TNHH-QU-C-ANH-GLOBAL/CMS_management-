@@ -124,7 +124,7 @@ export function NewEventDialog({ open, onOpenChange, onCreated }: Props) {
             className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 font-mono text-sm"
           />
           <span className="mt-1 block text-[11px] text-muted-foreground">
-            thgfulfill.com/vi/events/<span className="font-mono">{slug || "…"}</span>
+            thgroupfulfill.com/vi/events/<span className="font-mono">{slug || "…"}</span>
           </span>
         </label>
 

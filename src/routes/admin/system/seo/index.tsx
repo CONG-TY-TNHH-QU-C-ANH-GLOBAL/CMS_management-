@@ -66,7 +66,7 @@ function SeoPage() {
           </label>
           <div className="lg:col-start-2 lg:col-span-2 rounded-lg border border-border bg-white p-3">
             <div className="truncate text-base text-blue-700">{row.title || "Untitled page"}</div>
-            <div className="text-xs text-emerald-700">https://thgfulfill.com/{row.locale}{row.route === "/" ? "" : row.route}</div>
+            <div className="text-xs text-emerald-700">https://thgroupfulfill.com/{row.locale}{row.route === "/" ? "" : row.route}</div>
             <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{row.meta_description || "Chưa có mô tả."}</div>
           </div>
         </div></Card>;

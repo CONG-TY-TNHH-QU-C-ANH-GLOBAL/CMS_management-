@@ -58,9 +58,9 @@ export function injectLeadScript(html: string, slug: string, lang: LandingLang):
   return `${cleaned.slice(0, at)}\n${leadScriptTag(slug, lang)}${cleaned.slice(at)}`;
 }
 
-/** `http://thgfulfill.com`, `//www.thgfulfill.com` → https. Only where a URL starts (after a
+/** `http://thgroupfulfill.com`, `//www.thgfulfill.com` (either public domain) → https. Only where a URL starts (after a
  *  quote, "(" or "="), so text that merely mentions the domain is left alone. */
-const INSECURE_THG = /(["'(=]\s*)(?:http:)?\/\/((?:www\.)?thgfulfill\.com)(?=[/"'?#)\s]|$)/gi;
+const INSECURE_THG = /(["'(=]\s*)(?:http:)?\/\/((?:www\.)?(?:thgroupfulfill|thgfulfill)\.com)(?=[/"'?#)\s]|$)/gi;
 
 export function secureThgLinks(html: string): { html: string; count: number } {
   let count = 0;
@@ -82,7 +82,7 @@ export function normalizeLandingHtml(html: string, slug: string): NormalizeResul
   const notes: string[] = [];
   const secured = secureThgLinks(html);
   if (secured.count > 0) {
-    notes.push(`Chuyển ${secured.count} link thgfulfill.com sang https.`);
+    notes.push(`Chuyển ${secured.count} link thgroupfulfill.com/thgfulfill.com sang https.`);
   }
   const withScript = injectLeadScript(secured.html, slug, lang);
   notes.push("Gắn thg-lead.js: nút [data-consult] và link mailto: mở form tư vấn TH Group.");

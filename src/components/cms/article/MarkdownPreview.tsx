@@ -13,7 +13,7 @@ import { articleOutline } from "./article-outline";
  * ArticleMarkdown or the preview will promise something the site won't do.
  */
 
-const SITE = "https://thgfulfill.com";
+const SITE = "https://thgroupfulfill.com";
 
 function ArticleVideo({ id, label }: { id: string; label: string | null }) {
   const [playing, setPlaying] = useState(false);

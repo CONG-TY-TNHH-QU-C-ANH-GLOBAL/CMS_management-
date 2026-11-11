@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { runDeterministicChecks } from "./landing.checks";
+import { isBrandHost, isLookalikeHost, runDeterministicChecks } from "./landing.checks";
 import { scanTags } from "./landing.html";
 import {
   LEAD_SCRIPT_PATH,
@@ -195,5 +195,30 @@ describe("deterministic rules on small pages", () => {
     expect(out.html).toBe(
       '<a href="https://thgfulfill.com/vi">a</a><a href="https://www.thgfulfill.com/x">b</a> visit thgfulfill.com',
     );
+  });
+});
+
+describe("brand domains", () => {
+  test("the public site and the internal hosts are the brand; lookalikes of either are not", () => {
+    for (const host of ["thgroupfulfill.com", "www.thgroupfulfill.com", "thgfulfill.com", "cms.thgfulfill.com"]) {
+      expect(isBrandHost(host)).toBe(true);
+      expect(isLookalikeHost(host)).toBe(false);
+    }
+    for (const host of ["evil-thgroupfulfill.com", "thgroupfulfill.com.evil.example", "thgfulfill.vn", "thgroupfulfil.com"]) {
+      expect(isBrandHost(host)).toBe(false);
+    }
+    for (const host of ["thgroupfulfill.vn", "thgroupfulfil.com", "evil-thgfulfill.com"]) {
+      expect(isLookalikeHost(host)).toBe(true);
+    }
+  });
+
+  test("http and protocol-relative links to either public domain are upgraded to https", () => {
+    const { html, count } = secureThgLinks(
+      '<a href="http://thgroupfulfill.com/vi">a</a><a href="//www.thgfulfill.com/vi">b</a><a href="http://thgroupfulfill.com.evil.example/x">c</a>',
+    );
+    expect(count).toBe(2);
+    expect(html).toContain('href="https://thgroupfulfill.com/vi"');
+    expect(html).toContain('href="https://www.thgfulfill.com/vi"');
+    expect(html).toContain('href="http://thgroupfulfill.com.evil.example/x"');
   });
 });

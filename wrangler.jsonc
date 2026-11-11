@@ -33,16 +33,16 @@
 		"LANDING_DISPATCH_EVENT_TYPE": "cms-content-updated",
 		"CRM_LEAD_SYNC_URL": "https://crm.thgfulfill.com/api/integrations/cms/leads",
 		"CRM_LEGACY_LEAD_BACKFILL_ENABLED": "false",
-		"MARKETING_HUB_PUBLIC_ORIGIN": "https://thgfulfill.com",
+		"MARKETING_HUB_PUBLIC_ORIGIN": "https://thgroupfulfill.com",
 		// Uploaded campaign landings are served ONLY on this separate host (src/server.ts
 		// routes it to landing.host.ts before TanStack Start). Never point it at cms. or the
 		// apex: the uploaded HTML runs arbitrary scripts.
 		"LANDING_HOST": "lp.thgfulfill.com",
 		"LANDING_ORIGIN": "https://lp.thgfulfill.com",
 		// Flip to "true" only AFTER the main-domain nginx proxy for /{lang}/campaigns/<slug>/ is live
-		// (THG_landingpage deploy). Then landings are public on thgfulfill.com and lp. redirects there.
+		// (THG_landingpage deploy). Then landings are public on thgroupfulfill.com and lp. redirects there.
 		"LANDING_ON_MAIN_DOMAIN": "true",
-		"SITE_ORIGIN": "https://thgfulfill.com",
+		"SITE_ORIGIN": "https://thgroupfulfill.com",
 		// Claude model for the landing AI steps; the key is the ANTHROPIC_API_KEY secret.
 		"LANDING_AI_MODEL": "claude-opus-5-5",
 		// PUBLIC Turnstile widget key (same one the landing ships as VITE_TURNSTILE_SITE_KEY).

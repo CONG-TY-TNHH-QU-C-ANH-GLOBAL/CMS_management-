@@ -127,7 +127,7 @@ export function CampaignEditor({
 
   const detailPath = `/campaigns/${campaign.slug}`;
   const target = draft.landing_path.trim() || detailPath;
-  const liveUrl = target.startsWith("https://") ? target : `https://thgfulfill.com/vi${target}`;
+  const liveUrl = target.startsWith("https://") ? target : `https://thgroupfulfill.com/vi${target}`;
   const fieldProps = { draft, set };
 
   const image = (key: "cover" | "og") => ({

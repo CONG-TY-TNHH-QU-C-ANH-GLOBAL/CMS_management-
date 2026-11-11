@@ -94,7 +94,7 @@ export function NewBlogPostDialog({ open, onOpenChange, onCreated }: Props) {
               disabled={pending}
             />
             <p className="text-[11px] text-muted-foreground mt-1">
-              Link đầy đủ: thgfulfill.com/blog/<span className="font-mono">{slug || "duong-dan-bai-viet"}</span>
+              Link đầy đủ: thgroupfulfill.com/blog/<span className="font-mono">{slug || "duong-dan-bai-viet"}</span>
             </p>
           </div>
           <div>

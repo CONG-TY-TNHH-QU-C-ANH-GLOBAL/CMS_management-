@@ -2,7 +2,7 @@
 //   1. swap the page's own top header/nav for the standard TH Group header,
 //   2. mark consult buttons with data-consult,
 //   3. fix the old brand "THG Fulfill" where it names the company,
-//   4. make thgfulfill.com links absolute https.
+//   4. make thgroupfulfill.com (and legacy thgfulfill.com) links absolute https.
 //
 // The model never rewrites the file. Code finds every place an edit COULD
 // happen and gives each an id; the model answers with an edit list naming ids;
@@ -82,7 +82,7 @@ const HEADERISH =
   /(?:^|[\s_-])(?:site-?header|header|navbar|nav-?bar|topnav|menu-?bar)(?:$|[\s_-])/i;
 /** A replaced header may hold at most this much text outside nav/links/buttons (logo name, tagline). */
 const MAX_HEADER_PROSE = 160;
-const SCHEMELESS_THG = /^(?:www\.)?thgfulfill\.com(?:[/?#]|$)/i;
+const SCHEMELESS_THG = /^(?:www\.)?(?:thgroupfulfill|thgfulfill)\.com(?:[/?#]|$)/i;
 
 /** Where the page's own header can be: from <body> to the first <main>, <section> or <h1>. */
 function topRegionEnd(tags: HtmlTag[], html: string): number {
@@ -291,7 +291,9 @@ function matchCase(original: string, replacement: string): string {
 }
 
 function absolutize(href: string): string {
-  return href.startsWith("/") ? `${SITE_ORIGIN}${href}` : `https://${href}`;
+  if (href.startsWith("/")) return `${SITE_ORIGIN}${href}`;
+  // A schemeless link to the old public domain moves to the current one; the new domain is kept as written.
+  return `https://${href.replace(/^(?:www\.)?thgfulfill\.com/i, new URL(SITE_ORIGIN).host)}`;
 }
 
 const inside = (range: Range | null, at: number) =>
@@ -369,7 +371,7 @@ function planEdits(
   }
   if (diff.consultMarked) applied.push(`Gắn data-consult cho ${diff.consultMarked} nút tư vấn.`);
   if (diff.brandFixed) applied.push(`Sửa ${diff.brandFixed} chỗ "THG Fulfill" → "TH Group".`);
-  if (diff.linksFixed) applied.push(`Chuyển ${diff.linksFixed} link sang https://thgfulfill.com.`);
+  if (diff.linksFixed) applied.push(`Chuyển ${diff.linksFixed} link sang ${SITE_ORIGIN}.`);
   return { splices, brandSplices, header, applied, diff };
 }
 

@@ -184,7 +184,7 @@ function PostForm({
     }
   }
 
-  const publicUrl = `https://thgfulfill.com/${locale}/blog/${slug}`;
+  const publicUrl = `https://thgroupfulfill.com/${locale}/blog/${slug}`;
 
   return (
     <div className="space-y-4">
@@ -213,7 +213,7 @@ function PostForm({
       <Card>
         <CardHeader
           title="Nội dung"
-          hint={`Hiển thị tại thgfulfill.com/${locale}/blog/${slug}`}
+          hint={`Hiển thị tại thgroupfulfill.com/${locale}/blog/${slug}`}
           action={
             <a
               href={publicUrl}
@@ -436,7 +436,7 @@ function TranslationView({
           hint={post.excerpt ?? undefined}
           action={
             <a
-              href={`https://thgfulfill.com/${locale}/blog/${slug}`}
+              href={`https://thgroupfulfill.com/${locale}/blog/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"

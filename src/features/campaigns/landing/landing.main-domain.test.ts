@@ -8,7 +8,7 @@ import {
 import { handleLandingRequest, type LandingHostDeps } from "./landing.host";
 
 const LP = "https://lp.thgfulfill.com";
-const SITE = "https://thgfulfill.com";
+const SITE = "https://thgroupfulfill.com";
 
 describe("main-domain landing flag", () => {
   test("is off unless explicitly 'true'", () => {

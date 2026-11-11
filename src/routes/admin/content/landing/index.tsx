@@ -255,7 +255,7 @@ function LandingPage() {
             )}
             <BulkTranslateButton entityType="homepage_block" onDone={() => router.invalidate()} />
             <a
-              href="https://www.thgfulfill.com"
+              href="https://www.thgroupfulfill.com"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition"
@@ -424,7 +424,7 @@ function LandingPage() {
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Bản phác thảo</span>
-                  <a href="https://www.thgfulfill.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">
+                  <a href="https://www.thgroupfulfill.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">
                     Mở website thật ↗
                   </a>
                 </div>

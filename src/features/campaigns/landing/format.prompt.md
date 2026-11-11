@@ -18,7 +18,7 @@ Allowed edits (return only these):
 
 3. `{"op": "fix_brand", "target": "<brand occurrence id>", "replacement": "TH Group" | "TH Group Fulfill"}` — the company is called "TH Group". Use "TH Group" when the occurrence names the company (page title, logo, copyright, "đội THG Fulfill", "THG Fulfill · Seller…"). Use "TH Group Fulfill" only when it clearly names the Fulfill SERVICE line (for example "dịch vụ THG Fulfill" next to Express / Warehouse). If the result would read "TH Group · TH Group" or otherwise duplicate the name, still choose "TH Group" — code only swaps those words. Case is preserved by code ("THG FULFILL" becomes "TH GROUP").
 
-4. `{"op": "absolutize_link", "target": "<link candidate id>"}` — when the link is meant for the main website (paths like /vi/..., /en/..., /catalog, /thg-fulfill, /blog, or thgfulfill.com/... without https). Code turns it into https://thgfulfill.com/... Do not choose links that are clearly meant to stay on the landing page itself.
+4. `{"op": "absolutize_link", "target": "<link candidate id>"}` — when the link is meant for the main website (paths like /vi/..., /en/..., /catalog, /thg-fulfill, /blog, or thgroupfulfill.com/... without https; a legacy thgfulfill.com/... link is moved to thgroupfulfill.com). Code turns it into https://thgroupfulfill.com/... Do not choose links that are clearly meant to stay on the landing page itself.
 
 Rules:
 

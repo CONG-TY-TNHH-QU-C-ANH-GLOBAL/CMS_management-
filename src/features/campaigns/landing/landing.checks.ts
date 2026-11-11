@@ -204,9 +204,16 @@ function hostOf(url: string): string | null {
   }
 }
 
+/** The brand's own domains: the public site (thgroupfulfill.com) and the internal hosts that stay on
+ *  thgfulfill.com (cms., lp., hub., …). Exact name or a subdomain, never a suffix. */
+const BRAND_DOMAINS = ["thgroupfulfill.com", "thgfulfill.com"] as const;
+export function isBrandHost(host: string): boolean {
+  return BRAND_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
 /** A host that imitates the brand domain without being it (thgfulfill.vn, thgfulfil.com…). */
 export function isLookalikeHost(host: string): boolean {
-  if (host === "thgfulfill.com" || host.endsWith(".thgfulfill.com")) return false;
+  if (isBrandHost(host)) return false;
   return /thg-?fulfil|thgfullfil|th-?group-?fulfil/.test(host);
 }
 
@@ -235,7 +242,7 @@ function checkLinks(html: string, tags: HtmlTag[]): LandingFinding[] {
       ) {
         rootRelative.push(value);
       }
-      if (tag.name === "form" && name === "action" && host && !host.endsWith("thgfulfill.com")) {
+      if (tag.name === "form" && name === "action" && host && !isBrandHost(host)) {
         externalForms.push(value);
       }
     }
@@ -261,7 +268,7 @@ function checkLinks(html: string, tags: HtmlTag[]): LandingFinding[] {
       finding(
         "major",
         "link",
-        "Link bắt đầu bằng / sẽ trỏ về lp.thgfulfill.com (404) — cần link đầy đủ https://thgfulfill.com/…",
+        "Link bắt đầu bằng / sẽ trỏ về lp.thgfulfill.com (404) — cần link đầy đủ https://thgroupfulfill.com/…",
         listEvidence(rootRelative),
       ),
     );
@@ -271,7 +278,7 @@ function checkLinks(html: string, tags: HtmlTag[]): LandingFinding[] {
       finding(
         "major",
         "link",
-        "Link tới tên miền giống thgfulfill.com nhưng sai.",
+        "Link tới tên miền giống thgroupfulfill.com nhưng sai.",
         listEvidence(lookalike),
       ),
     );

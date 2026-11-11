@@ -154,7 +154,7 @@ function SettingsPage() {
                 label="URL ảnh thumbnail"
                 value={form.og_image_url}
                 onChange={(v) => set("og_image_url", v)}
-                placeholder="https://thgfulfill.com/thg-brand-icon.png"
+                placeholder="https://thgroupfulfill.com/thg-brand-icon.png"
                 type="url"
               />
               <div className="text-xs text-muted-foreground">

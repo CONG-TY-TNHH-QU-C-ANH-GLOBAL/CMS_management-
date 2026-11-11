@@ -23,7 +23,7 @@ export function landingOriginOf(env: Pick<LandingEnv, "LANDING_HOST" | "LANDING_
   return explicit || `https://${landingHostOf(env)}`;
 }
 
-export const DEFAULT_SITE_ORIGIN = "https://thgfulfill.com";
+export const DEFAULT_SITE_ORIGIN = "https://thgroupfulfill.com";
 
 /** Main-site origin when published landings are served under it (flag on), otherwise null. The
  *  nginx proxy on the main domain must be live before the flag is switched on. */
@@ -34,7 +34,7 @@ export function mainSiteOriginOf(
   return ((env.SITE_ORIGIN ?? "").trim() || DEFAULT_SITE_ORIGIN).replace(/\/+$/, "");
 }
 
-/** `https://thgfulfill.com/vi/campaigns/<slug>/<rest>`: the public address of a landing page. */
+/** `https://thgroupfulfill.com/vi/campaigns/<slug>/<rest>`: the public address of a landing page. */
 export function mainSiteLandingUrl(siteOrigin: string, slug: string, rest = ""): string {
   return `${siteOrigin}/vi/campaigns/${slug}/${rest}`;
 }

@@ -14,7 +14,7 @@
 import { LOGO_URL } from "./landing.logo";
 import type { LandingLang } from "./landing.normalize";
 
-export const SITE_ORIGIN = "https://thgfulfill.com";
+export const SITE_ORIGIN = "https://thgroupfulfill.com";
 export const HUB_URL = "https://hub.thgfulfill.com";
 
 export const HEADER_START = "<!-- thg:header:start -->";

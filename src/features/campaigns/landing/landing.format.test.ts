@@ -136,7 +136,7 @@ describe("runFormatStep with a valid edit list", () => {
     expect(report.diff.brandFixed).toBe(4);
     expect(html).toContain(HEADER_START);
     expect(html).not.toContain('<header class="header">');
-    expect(html).toContain('href="https://thgfulfill.com/vi/thg-fulfill"');
+    expect(html).toContain('href="https://thgroupfulfill.com/vi/thg-fulfill"');
     expect(html).toContain("Hub System");
     expect(html).toContain(
       "<title>Christmas Collection 2026 – Sản phẩm POD mùa Giáng sinh | TH Group</title>",
@@ -645,9 +645,38 @@ describe("runFormatStep against an adversarial model", () => {
       found.links.map((l) => ({ op: "absolutize_link" as const, target: l.id })),
       "vi",
     );
-    expect(out.html).toContain('href="https://thgfulfill.com/vi/catalog"');
-    expect(new URL("https://thgfulfill.com/\\evil.example").hostname).toBe("thgfulfill.com");
+    expect(out.html).toContain('href="https://thgroupfulfill.com/vi/catalog"');
+    expect(new URL("https://thgroupfulfill.com/\\evil.example").hostname).toBe("thgroupfulfill.com");
     expect(out.html).toContain('href="javascript:alert(1)"'); // untouched, never rewritten
+  });
+});
+
+describe("scheme-less links to the public site", () => {
+  test("the legacy domain moves to the current one, the current one is kept as written", () => {
+    const page = normalizeLandingHtml(
+      `<html><body><section>` +
+        `<a href="thgfulfill.com/vi/catalog">old</a>` +
+        `<a href="www.thgfulfill.com/vi/blog">old www</a>` +
+        `<a href="thgroupfulfill.com/vi/events">new</a>` +
+        `</section></body></html>`,
+      "x",
+    ).html;
+    const found = findFormatCandidates(page);
+    expect(found.links.map((l) => l.href)).toEqual([
+      "thgfulfill.com/vi/catalog",
+      "www.thgfulfill.com/vi/blog",
+      "thgroupfulfill.com/vi/events",
+    ]);
+    const out = applyFormatEdits(
+      page,
+      found,
+      found.links.map((l) => ({ op: "absolutize_link" as const, target: l.id })),
+      "vi",
+    );
+    expect(out.html).toContain('href="https://thgroupfulfill.com/vi/catalog"');
+    expect(out.html).toContain('href="https://thgroupfulfill.com/vi/blog"');
+    expect(out.html).toContain('href="https://thgroupfulfill.com/vi/events"');
+    expect(out.html).not.toContain('href="https://thgfulfill.com');
   });
 });
 
