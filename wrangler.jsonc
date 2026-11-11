@@ -18,12 +18,12 @@
 		"BASE_URL": "https://cms.thgfulfill.com",
 		"SUPPORTED_LOCALES": "en,vi,zh",
 		"OAUTH_REDIRECT_BASE": "https://cms.thgfulfill.com",
-		// CORS allow-list: landing (thgfulfill.com) calls /api/v1/* from browser.
+		// CORS allow-list: landing (thgroupfulfill.com, and thgfulfill.com until it is retired) calls /api/v1/* from browser.
 		// Admin /admin/* is same-origin so doesn't need to appear here.
 		// Override locally via `.dev.vars` CORS_ORIGIN=http://localhost:5173,http://localhost:8080.
 		// lp.thgfulfill.com is listed because uploaded campaign landings post their consult
 		// form (thg-lead.js) to /api/v1/leads from that origin.
-		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com,https://lp.thgfulfill.com",
+		"CORS_ORIGIN": "https://thgfulfill.com,https://www.thgfulfill.com,https://thgroupfulfill.com,https://www.thgroupfulfill.com,https://lp.thgfulfill.com",
 		// C3 landing auto-redeploy: which repo + event the cron dispatches when a
 		// JD changes. The token is a SECRET — set via
 		// `bunx wrangler secret put GITHUB_DISPATCH_TOKEN` (fine-grained PAT,

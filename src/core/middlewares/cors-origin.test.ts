@@ -101,6 +101,18 @@ describe("isAllowedMutationOrigin", () => {
     expect(isAllowedMutationOrigin("https://THGFULFILL.com", allow, PROD)).toBe(true);
   });
 
+  test("allows the thgroupfulfill.com public site once it is on the allow-list, and nothing around it", () => {
+    const withNewSite = parseOriginAllowList(
+      `${PROD_ALLOW_LIST},https://thgroupfulfill.com,https://www.thgroupfulfill.com`,
+    );
+    expect(isAllowedMutationOrigin("https://thgroupfulfill.com", withNewSite, PROD)).toBe(true);
+    expect(isAllowedMutationOrigin("https://www.thgroupfulfill.com", withNewSite, PROD)).toBe(true);
+    expect(isAllowedMutationOrigin("https://thgroupfulfill.com", allow, PROD)).toBe(false);
+    expect(isAllowedMutationOrigin("https://thgroupfulfill.com.evil.example", withNewSite, PROD)).toBe(false);
+    expect(isAllowedMutationOrigin("https://sub.thgroupfulfill.com", withNewSite, PROD)).toBe(false);
+    expect(isAllowedMutationOrigin("http://thgroupfulfill.com", withNewSite, PROD)).toBe(false);
+  });
+
   test("rejects a representative Vercel Preview origin", () => {
     expect(isAllowedMutationOrigin(PREVIEW_ORIGIN, allow, PROD)).toBe(false);
     expect(isAllowedMutationOrigin(PREVIEW_ORIGIN, allow, DEV)).toBe(false);
