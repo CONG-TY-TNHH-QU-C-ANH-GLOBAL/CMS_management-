@@ -196,7 +196,7 @@ function MonthRow({
     }
   }
 
-  const lpUrl = `https://lp.thgfulfill.com/${monthlySourcingSlug(year, row.month)}`;
+  const lpUrl = `https://thgfulfill.com/vi/top-nguon-hang/${monthlySourcingSlug(year, row.month)}`;
   const publicPageIsLive =
     yearIsLive &&
     row.status === "live" &&
