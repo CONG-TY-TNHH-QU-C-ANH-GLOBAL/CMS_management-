@@ -334,8 +334,8 @@ function LandingPage() {
                       <div className="rounded-lg border border-border bg-surface px-3 py-2 hover:border-primary/30 transition">
                         {f.key === "video_url" && locale !== "vi" ? (
                           <div className="text-sm text-muted-foreground">
-                            Video dùng chung cho mọi ngôn ngữ và chỉ lấy từ tab VI. Hãy sửa link video ở tab VI;
-                            link nhập ở tab này không được dùng.
+                            Video dùng chung cho mọi ngôn ngữ và chỉ lấy từ tab VI. Hãy sửa link
+                            video ở tab VI; link nhập ở tab này không được dùng.
                           </div>
                         ) : (
                           <InlineEdit
