@@ -18,6 +18,14 @@ describe("parseProductId", () => {
     ).toBe("cmvj0lyc401v801obxylh5mfo");
   });
 
+  test("UUID-shaped Hub ids, bare or in a link", () => {
+    const uuid = "b2045acf-2582-4daf-b677-6bff4d941e17";
+    expect(parseProductId(uuid)).toBe(uuid);
+    expect(parseProductId(`https://thgroupfulfill.com/vi/catalog?productId=${uuid}`)).toBe(uuid);
+    expect(parseProductId("b2045acf-2582-4daf-b677")).toBeNull();
+    expect(parseProductId("---------------------------------")).toBeNull();
+  });
+
   test("rejects text, short ids and links without a product", () => {
     expect(parseProductId("")).toBeNull();
     expect(parseProductId("Hoodie Washed")).toBeNull();

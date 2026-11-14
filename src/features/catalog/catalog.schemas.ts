@@ -11,11 +11,14 @@ const catalogOverrideSchema = z.object({
   product_id: z.string(),
   /** Design-template link; when set it replaces the Hub's own templateUrl. */
   template_url: z.string().nullable(),
-  /** The catalog price already includes shipping. */
+  /** The catalog price already includes shipping — this product's own setting,
+   *  or the catalog-wide default when the product has none. */
   price_includes_shipping: z.boolean(),
 });
 
 export const catalogOverridesResponseSchema = z.object({
+  /** Applies to every product that is not listed in `overrides`. */
+  price_includes_shipping_default: z.boolean(),
   overrides: z.array(catalogOverrideSchema),
 });
 

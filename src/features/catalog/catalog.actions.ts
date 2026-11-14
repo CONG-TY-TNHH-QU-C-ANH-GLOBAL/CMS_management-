@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { parseProductId } from "./catalog.productId";
 
-export type { CatalogOverrideRow } from "./catalog.service";
+export type { CatalogOverrideRow, CatalogSettings } from "./catalog.service";
 
 const upsertInput = z.object({
   // A bare id or a catalog link — normalised to the id here so the table never
@@ -24,15 +24,31 @@ const upsertInput = z.object({
     }),
   label: z.string().max(200).nullable().optional(),
   template_url: z.string().url().max(1000).nullable().optional(),
-  price_includes_shipping: z.boolean(),
+  /** null = follow the catalog-wide default. */
+  price_includes_shipping: z.boolean().nullable(),
 });
 
 export const listCatalogOverridesFn = createServerFn({ method: "GET" }).handler(async () => {
   const { requireSession } = await import("@/features/auth");
-  const { listCatalogOverrides } = await import("@/features/catalog");
+  const { listCatalogOverrides, getCatalogSettings } = await import("@/features/catalog");
   await requireSession("viewer");
-  return { overrides: await listCatalogOverrides() };
+  const [overrides, settings] = await Promise.all([listCatalogOverrides(), getCatalogSettings()]);
+  return { overrides, settings };
 });
+
+export const updateCatalogSettingsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ price_includes_shipping_default: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { requireSession } = await import("@/features/auth");
+    const { updateCatalogSettings } = await import("@/features/catalog");
+    const { bumpCmsRev } = await import("@/core/db/mutations");
+    const me = await requireSession("editor");
+    const settings = await updateCatalogSettings(me.id, data);
+    await bumpCmsRev();
+    return { settings };
+  });
 
 export const upsertCatalogOverrideFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => upsertInput.parse(data))
