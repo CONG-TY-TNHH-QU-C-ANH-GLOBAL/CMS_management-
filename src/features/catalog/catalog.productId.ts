@@ -2,7 +2,10 @@
 // hand — the bare id, or the catalog link from the website or the Hub — so both
 // are accepted rather than making them dig the id out by hand.
 
-const HUB_ID = /^[a-z0-9]{20,40}$/i;
+// The Hub issues two id shapes: cuids (`cmvaoi0av0a4201sciqgwlhpa`) for most
+// products, and UUIDs (`b2045acf-2582-4daf-b677-6bff4d941e17`) for some.
+const HUB_ID =
+  /^(?:[a-z0-9]{20,40}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 /** Hub product id from a bare id or any URL carrying `productId=`; null if neither. */
 export function parseProductId(input: string): string | null {

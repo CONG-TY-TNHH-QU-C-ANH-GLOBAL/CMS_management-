@@ -13,16 +13,24 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
   row?: CatalogOverrideRow | null;
+  /** Catalog-wide "price includes shipping" — what "follow default" resolves to. */
+  catalogDefault: boolean;
+}
+
+type ShippingChoice = "default" | "yes" | "no";
+
+function toChoice(flag: CatalogOverrideRow["price_includes_shipping"] | undefined): ShippingChoice {
+  return flag === 1 ? "yes" : flag === 0 ? "no" : "default";
 }
 
 const inputCls = "mt-1 w-full h-9 px-3 rounded-lg border border-border bg-background text-sm";
 
-export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row }: Props) {
+export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row, catalogDefault }: Props) {
   const upsert = useServerFn(upsertCatalogOverrideFn);
   const [product, setProduct] = useState("");
   const [label, setLabel] = useState("");
   const [templateUrl, setTemplateUrl] = useState("");
-  const [includesShipping, setIncludesShipping] = useState(false);
+  const [shipping, setShipping] = useState<ShippingChoice>("default");
   const [pending, setPending] = useState(false);
 
   // Re-sync on open / row change — the dialog stays mounted across open/close.
@@ -31,7 +39,7 @@ export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row }: Prop
     setProduct(row?.product_id ?? "");
     setLabel(row?.label ?? "");
     setTemplateUrl(row?.template_url ?? "");
-    setIncludesShipping(row?.price_includes_shipping === 1);
+    setShipping(toChoice(row?.price_includes_shipping));
     setPending(false);
   }, [open, row]);
 
@@ -46,7 +54,7 @@ export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row }: Prop
           product,
           label: label.trim() || null,
           template_url: templateUrl.trim() || null,
-          price_includes_shipping: includesShipping,
+          price_includes_shipping: shipping === "default" ? null : shipping === "yes",
         },
       });
       toast.success(row ? "Đã cập nhật sản phẩm" : "Đã thêm sản phẩm");
@@ -117,18 +125,22 @@ export function CatalogOverrideDialog({ open, onOpenChange, onSaved, row }: Prop
           </span>
         </label>
 
-        <label className="flex items-start gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={includesShipping}
-            onChange={(e) => setIncludesShipping(e.target.checked)}
-            className="mt-1"
-          />
-          <span className="text-sm">
-            <span className="font-medium">Giá bán đã gồm phí vận chuyển</span>
-            <span className="block text-[11px] text-muted-foreground">
-              Website ghi “Selling price (including shipping cost)” thay vì “not including”.
-            </span>
+        <label className="block">
+          <span className="text-sm font-medium">Giá bán và phí vận chuyển</span>
+          <select
+            value={shipping}
+            onChange={(e) => setShipping(e.target.value as ShippingChoice)}
+            className={inputCls}
+          >
+            <option value="default">
+              Theo cài đặt chung (
+              {catalogDefault ? "đã gồm phí vận chuyển" : "chưa gồm phí vận chuyển"})
+            </option>
+            <option value="yes">Đã gồm phí vận chuyển</option>
+            <option value="no">Chưa gồm phí vận chuyển</option>
+          </select>
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Chỉ đổi khi sản phẩm này khác với cài đặt chung của catalog.
           </span>
         </label>
 

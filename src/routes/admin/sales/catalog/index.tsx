@@ -10,9 +10,11 @@ import { Card, PageContainer } from "@/components/cms/ui";
 import {
   deleteCatalogOverrideFn,
   listCatalogOverridesFn,
+  updateCatalogSettingsFn,
   type CatalogOverrideRow,
 } from "@/features/catalog/catalog.actions";
 import { CatalogOverrideDialog } from "@/features/catalog/components/CatalogOverrideDialog";
+import { resolvePriceIncludesShipping } from "@/features/catalog/catalog.shipping";
 
 export const Route = createFileRoute("/admin/sales/catalog/")({
   head: () => ({ meta: [{ title: "Catalog — TH Group Content OS" }] }),
@@ -29,8 +31,28 @@ function CatalogOverridesPage() {
   const [editingRow, setEditingRow] = useState<CatalogOverrideRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CatalogOverrideRow | null>(null);
   const del = useServerFn(deleteCatalogOverrideFn);
+  const saveSettings = useServerFn(updateCatalogSettingsFn);
+  const [savingDefault, setSavingDefault] = useState(false);
 
   const rows = data.overrides as CatalogOverrideRow[];
+  const catalogDefault = data.settings.price_includes_shipping_default;
+
+  async function handleDefaultChange(next: boolean) {
+    setSavingDefault(true);
+    try {
+      await saveSettings({ data: { price_includes_shipping_default: next } });
+      toast.success(
+        next
+          ? "Toàn bộ catalog: giá đã gồm phí vận chuyển"
+          : "Toàn bộ catalog: giá chưa gồm phí vận chuyển",
+      );
+      await router.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lưu thất bại");
+    } finally {
+      setSavingDefault(false);
+    }
+  }
 
   async function handleDelete() {
     if (!confirmDelete) return;
@@ -61,9 +83,31 @@ function CatalogOverridesPage() {
         }
       />
       <PageContainer>
+        <Card className="p-4 mb-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={catalogDefault}
+              disabled={savingDefault}
+              onChange={(e) => handleDefaultChange(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm">
+              <span className="font-medium">
+                Giá bán trong catalog đã gồm phí vận chuyển (áp dụng cho mọi sản phẩm)
+              </span>
+              <span className="block text-[11px] text-muted-foreground">
+                Website ghi “Selling price ({catalogDefault ? "including" : "not including"}{" "}
+                shipping cost)” cho mọi sản phẩm. Chỉ cần thêm sản phẩm bên dưới khi muốn gắn link
+                template hoặc khi sản phẩm đó khác cài đặt chung.
+              </span>
+            </span>
+          </label>
+        </Card>
         {rows.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
-            Chưa có sản phẩm nào. Bấm “Thêm sản phẩm” và dán link sản phẩm từ trang Catalog.
+            Chưa có sản phẩm nào có cài đặt riêng. Bấm “Thêm sản phẩm” và dán link sản phẩm từ trang
+            Catalog.
           </Card>
         ) : (
           <Card className="overflow-x-auto">
@@ -105,15 +149,10 @@ function CatalogOverridesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {r.price_includes_shipping === 1 ? (
-                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
-                          Đã gồm ship
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted border border-border text-muted-foreground">
-                          Chưa gồm ship
-                        </span>
-                      )}
+                      <ShippingBadge
+                        flag={r.price_includes_shipping}
+                        catalogDefault={catalogDefault}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
@@ -148,6 +187,7 @@ function CatalogOverridesPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         row={editingRow}
+        catalogDefault={catalogDefault}
         onSaved={() => router.invalidate()}
       />
 
@@ -155,9 +195,33 @@ function CatalogOverridesPage() {
         open={!!confirmDelete}
         onOpenChange={(o) => !o && setConfirmDelete(null)}
         title={`Xóa cài đặt của ${confirmDelete?.label || confirmDelete?.product_id}?`}
-        description="Sản phẩm quay về mặc định: không có link template riêng, giá ghi “not including shipping cost”."
+        description={`Sản phẩm quay về mặc định: không có link template riêng, giá ghi “${catalogDefault ? "including" : "not including"} shipping cost” theo cài đặt chung.`}
         onConfirm={handleDelete}
       />
     </>
+  );
+}
+
+function ShippingBadge({
+  flag,
+  catalogDefault,
+}: {
+  flag: CatalogOverrideRow["price_includes_shipping"];
+  catalogDefault: boolean;
+}) {
+  const includes = resolvePriceIncludesShipping(flag, catalogDefault);
+  return (
+    <div className="space-y-0.5">
+      <span
+        className={
+          includes
+            ? "inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700"
+            : "inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted border border-border text-muted-foreground"
+        }
+      >
+        {includes ? "Đã gồm ship" : "Chưa gồm ship"}
+      </span>
+      {flag === null && <div className="text-[10px] text-muted-foreground">theo cài đặt chung</div>}
+    </div>
   );
 }
