@@ -307,26 +307,19 @@ describe("lp host: monthly PDF sources", () => {
     return objectKey;
   };
 
-  test("serves the fixed PDF template only for a live month with a ready PDF", async () => {
-    const objectKey = insertReadyMonth({ year: 2026, month: 1 });
+  test("redirects a live month with a ready PDF to the main domain (301)", async () => {
+    insertReadyMonth({ year: 2026, month: 1 });
 
-    const page = await fetchWorker(`${LP}/thang-1-2026`);
-    expect(page.status).toBe(200);
+    const page = await fetchWorker(`${LP}/thang-1-2026`, { redirect: "manual" });
+    expect(page.status).toBe(301);
     expectLandingResponse(page);
-    expect(page.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    const html = await page.text();
-    expect(html).toContain('id="monthly-pdf-canvas"');
-    expect(html).toContain('data-pdf-previous');
-    expect(html).toContain('data-pdf-next');
-    expect(html).toContain(`pdfjsLib.getDocument("${CMS}/api/v1/media/${encodeURIComponent(objectKey)}")`);
-    expect(html).not.toContain("<iframe");
-    expect(html).toContain('src="/_thg/thg-lead.js"');
-    expect(html).toContain("data-consult");
+    expect(page.headers.get("location")).toBe("https://thgfulfill.com/vi/top-nguon-hang/thang-1-2026");
+    expect(await page.text()).toBe("");
     expect(cmsCalls).toEqual([]);
 
-    const head = await fetchWorker(`${LP}/thang-1-2026`, { method: "HEAD" });
-    expect(head.status).toBe(200);
-    expect(head.headers.get("content-type")).toBe(page.headers.get("content-type"));
+    const head = await fetchWorker(`${LP}/thang-1-2026`, { method: "HEAD", redirect: "manual" });
+    expect(head.status).toBe(301);
+    expect(head.headers.get("location")).toBe(page.headers.get("location"));
     expect(await head.text()).toBe("");
   });
 

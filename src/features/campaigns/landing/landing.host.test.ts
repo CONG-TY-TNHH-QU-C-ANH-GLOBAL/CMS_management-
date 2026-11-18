@@ -34,7 +34,7 @@ const lp = (path: string, init: RequestInit = {}) =>
   handleLandingRequest(new Request(`https://${LP}${path}`, init), deps);
 
 describe("landing host responses", () => {
-  test("serves the fixed monthly PDF template with the shared consult form", async () => {
+  test("redirects a live monthly path to the main domain (301)", async () => {
     const monthlyDeps = {
       ...deps,
       resolveMonthlySourcing: async (year: number, month: number) =>
@@ -51,13 +51,9 @@ describe("landing host responses", () => {
       monthlyDeps as LandingHostDeps,
     );
 
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    const html = await res.text();
-    expect(html).toContain("Top sản phẩm &amp; nguồn hàng tháng 1/2026");
-    expect(html).toContain("https://cms.test/api/v1/media/monthly-sourcing%2Fjanuary.pdf");
-    expect(html).toContain('src="/_thg/thg-lead.js"');
-    expect(html).toContain("data-consult");
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("https://thgfulfill.com/vi/top-nguon-hang/thang-1-2026");
+    expect(await res.text()).toBe("");
   });
 
   test("keeps an unpublished or missing monthly PDF off the LP host", async () => {
