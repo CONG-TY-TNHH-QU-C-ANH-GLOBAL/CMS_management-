@@ -8,12 +8,21 @@
 -- an editor's own wording is left alone and a re-run is a no-op.
 --
 -- Undo (restores the old wording on the rows changed here):
---   UPDATE translations SET value = REPLACE(value, '1–9', '1–8') WHERE key = 'domestic.table_desc';
+--   UPDATE translations SET value = REPLACE(value, '1–9', '1–8') WHERE key IN ('domestic.table_desc', 'seo.domestic_pricing_desc');
 --   label_page.* rows: set back to the "old" values listed below.
 
 UPDATE translations SET value = REPLACE(value, '1–8', '1–9'), updated_at = unixepoch()
 WHERE key = 'domestic.table_desc'
   AND value IN ('Published reference rates • Zones 1–8', 'Biểu phí tham khảo • Zone 1–8', '公开参考费率 • Zone 1–8');
+
+-- seo.domestic_pricing_desc (seeded by 0046)
+UPDATE translations SET value = REPLACE(value, '1–8', '1–9'), updated_at = unixepoch()
+WHERE key = 'seo.domestic_pricing_desc'
+  AND value IN (
+    'Transparent US 3PL rates for storage, pick and pack, packaging and USPS Ground Advantage shipping across zones 1–8.',
+    'Biểu phí cước 3PL Mỹ minh bạch cho lưu kho, pick & pack, bao bì và USPS Ground Advantage theo zone 1–8.',
+    '透明的美国3PL仓储、拣货打包、包装及USPS Ground Advantage 1–8区费率。'
+  );
 
 -- label_page.price_title
 UPDATE translations SET value = 'USPS Ground Advantage label rates by volume tier', updated_at = unixepoch()

@@ -33,12 +33,18 @@ describe("migration 0072 USPS GA label copy", () => {
         "Discounts apply to each carrier's and service's retail price, based on your monthly label volume.",
       ],
       ["label_page.tier", "vi", "Bậc"],
+      [
+        "seo.domestic_pricing_desc",
+        "zh",
+        "透明的美国3PL仓储、拣货打包、包装及USPS Ground Advantage 1–8区费率。",
+      ],
     ]);
     expect(out.map((r) => r.value)).toEqual([
       "Biểu phí tham khảo • Zone 1–9",
       "USPS Ground Advantage label rates by volume tier",
       "Five tiers by monthly label volume. Each tier lists the price per label in USD by weight and Zone 1–9.",
       "Tier",
+      "透明的美国3PL仓储、拣货打包、包装及USPS Ground Advantage 1–9区费率。",
     ]);
   });
 
@@ -47,6 +53,7 @@ describe("migration 0072 USPS GA label copy", () => {
       ["domestic.table_desc", "en", "Our rates • Zones 1–8 (edited)"],
       ["label_page.price_title", "vi", "Giá label siêu tốt"],
       ["label_page.tier", "en", "Level"],
+      ["seo.domestic_pricing_desc", "en", "Our 3PL rates across zones 1–8."],
     ];
     expect(run(edited).map((r) => r.value)).toEqual(edited.map((r) => r[2]));
   });
