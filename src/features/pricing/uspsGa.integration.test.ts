@@ -13,7 +13,20 @@ const ACTOR = 7;
 let sql: Database;
 let snapshot: Uint8Array;
 
-const db = d1(() => sql);
+/** Runs right before the service's batch, to interleave a concurrent write. */
+let beforeBatch: (() => void) | null = null;
+const baseDb = d1(() => sql);
+const db = new Proxy(baseDb, {
+  get(target, prop, receiver) {
+    if (prop === "batch") {
+      return (stmts: Parameters<typeof baseDb.batch>[0]) => {
+        beforeBatch?.();
+        return target.batch(stmts);
+      };
+    }
+    return Reflect.get(target, prop, receiver) as unknown;
+  },
+});
 const loader = createLoader({ "@/core/db/client": { getDb: () => db } });
 const service = loader.load<typeof import("./uspsGa.service")>(
   srcPath("features/pricing/uspsGa.service"),
@@ -24,6 +37,7 @@ beforeAll(() => {
 });
 beforeEach(() => {
   sql = Database.deserialize(snapshot);
+  beforeBatch = null;
 });
 
 function seededTiers(): UspsGaRow[][] {
@@ -98,6 +112,24 @@ describe("saveUspsGaTiers", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(state()).toEqual({ versions: [1, 1, 1, 1, 1], snapshots: 1 });
     expect(seededTiers()).toEqual(before);
+  });
+
+  test("a single-table save that updated Tier 4 before writing its snapshot still rolls back all tiers", async () => {
+    // savePricingTable runs UPDATE first and the snapshot INSERT after, so no
+    // snapshot at v1 exists yet when our batch runs: only the guard catches it.
+    const before = seededTiers();
+    beforeBatch = () => {
+      sql.query(`UPDATE pricing_tables SET version = 2 WHERE slug = 'uspsGaLabelT4'`).run();
+    };
+    await expect(
+      service.saveUspsGaTiers({
+        tiers: raised(),
+        expectedVersions: [1, 1, 1, 1, 1],
+        actorId: ACTOR,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(state()).toEqual({ versions: [1, 1, 1, 2, 1], snapshots: 0 });
+    expect(seededTiers().filter((_, i) => i !== 3)).toEqual(before.filter((_, i) => i !== 3));
   });
 
   test("rejects a wrong weight or a negative price before touching the database", async () => {
