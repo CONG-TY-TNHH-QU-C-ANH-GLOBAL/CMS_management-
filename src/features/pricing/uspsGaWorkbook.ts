@@ -1,19 +1,7 @@
 import * as XLSX from "xlsx";
+import { USPS_GA_WEIGHTS, type UspsGaRow } from "./uspsGa.constants";
 
-export interface UspsGaRow {
-  /** Weight ceiling in ounces, as a number (the sheet shows it as "4 oz"). */
-  oz: number;
-  g: number;
-  z1: number;
-  z2: number;
-  z3: number;
-  z4: number;
-  z5: number;
-  z6: number;
-  z7: number;
-  z8: number;
-  z9: number;
-}
+export type { UspsGaRow } from "./uspsGa.constants";
 
 const headers = [
   "STT",
@@ -21,7 +9,7 @@ const headers = [
   "Gram",
   ...Array.from({ length: 9 }, (_, i) => `Zone ${i + 1}`),
 ];
-const weights = [4, 8, 12, 15.999, ...Array.from({ length: 20 }, (_, i) => (i + 1) * 16)];
+const weights = USPS_GA_WEIGHTS;
 
 /** Parse and validate the entire workbook before returning any tier data. */
 export function parseUspsGaWorkbook(buffer: ArrayBuffer): UspsGaRow[][] {
