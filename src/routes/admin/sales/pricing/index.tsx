@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Grid3x3, KeyRound } from "lucide-react";
+import { ArrowRight, FileUp, Grid3x3, KeyRound } from "lucide-react";
+import { useState } from "react";
 
 import { Card, PageContainer, StatusBadge } from "@/components/cms/ui";
+import { secondaryBtn } from "@/features/pricing/components/rateCardUi";
+import { UspsGaWorkbookDialog } from "@/features/pricing/components/UspsGaWorkbookDialog";
 import {
   listPricingTablesFn,
   type PricingCategory,
@@ -25,13 +28,24 @@ function PricingIndex() {
   const data = Route.useLoaderData();
   const categories = data.categories as PricingCategory[];
   const totalTables = categories.reduce((sum, c) => sum + c.tables.length, 0);
+  const ctx = Route.useRouteContext();
+  const canEdit = ctx.user?.role === "editor" || ctx.user?.role === "admin";
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <PageContainer>
-      <div className="text-xs text-muted-foreground mb-4">
-        {totalTables} bảng giá trong {categories.length} nhóm. Click vào bảng để mở spreadsheet
-        editor.
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="text-xs text-muted-foreground">
+          {totalTables} bảng giá trong {categories.length} nhóm. Click vào bảng để mở spreadsheet
+          editor.
+        </div>
+        {canEdit ? (
+          <button type="button" className={secondaryBtn} onClick={() => setUploadOpen(true)}>
+            <FileUp className="w-4 h-4" /> Tải bảng giá USPS GA (5 tier)
+          </button>
+        ) : null}
       </div>
+      <UspsGaWorkbookDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
 
       <div className="space-y-6">
         {categories.map((cat) => (
